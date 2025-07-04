@@ -37,9 +37,9 @@ import {
 import { useLocation } from "wouter";
 
 const experienceSchema = z.object({
-  name: z.string().min(1, "Cocktail name is required"),
+  name: z.string().min(1, "Experience name is required"),
   description: z.string().optional(),
-  selectedObjects: z.array(z.string()).min(1, "Please select at least one ingredient"),
+  selectedObjects: z.array(z.string()).min(1, "Please select at least one object"),
   objectVariants: z.record(z.object({
     variants: z.array(z.object({
       name: z.string(),
@@ -173,10 +173,10 @@ export default function ExperienceWizard() {
   ];
 
   const steps = [
-    { number: 1, title: "Select Ingredients", description: "Choose objects to personalize", icon: <Layers className="w-4 h-4" /> },
-    { number: 2, title: "Configure Variants", description: "Define versions for each ingredient", icon: <Beaker className="w-4 h-4" /> },
+    { number: 1, title: "Select Objects", description: "Choose objects to personalize", icon: <Layers className="w-4 h-4" /> },
+    { number: 2, title: "Configure Variants", description: "Define versions for each object", icon: <Beaker className="w-4 h-4" /> },
     { number: 3, title: "Traffic Split", description: "Set experience percentage", icon: <Sliders className="w-4 h-4" /> },
-    { number: 4, title: "Target & Schedule", description: "Choose palate and timing", icon: <Target className="w-4 h-4" /> },
+    { number: 4, title: "Target & Schedule", description: "Choose campaign and timing", icon: <Target className="w-4 h-4" /> },
     { number: 5, title: "Review & Launch", description: "Final review and deployment", icon: <Zap className="w-4 h-4" /> }
   ];
 
@@ -322,7 +322,7 @@ export default function ExperienceWizard() {
   };
 
   const onSubmit = (data: ExperienceForm) => {
-    console.log("Creating cocktail:", data);
+    console.log("Creating experience:", data);
     setLocation("/experiences");
   };
 
@@ -333,12 +333,12 @@ export default function ExperienceWizard() {
         <div className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground font-heading">Craft Cocktail</h1>
+              <h1 className="text-2xl font-bold text-foreground font-heading">Create Experience</h1>
               <p className="text-muted-foreground">Create a personalized FTUE experience</p>
             </div>
             <Button variant="outline" onClick={() => setLocation("/experiences")}>
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Back to Cocktails
+              Back to Experiences
             </Button>
           </div>
           
@@ -375,10 +375,10 @@ export default function ExperienceWizard() {
             {currentStep === 1 && (
               <div className="flex gap-6">
                 <div className="flex-1">
-                  <Card className="mixology-card">
+                  <Card>
                     <CardHeader>
-                      <CardTitle className="font-heading">Select Ingredients to Personalize</CardTitle>
-                      <p className="text-sm text-muted-foreground">Choose multiple objects to compose your cocktail experience</p>
+                      <CardTitle className="font-heading">Select Objects to Personalize</CardTitle>
+                      <p className="text-sm text-muted-foreground">Choose multiple objects to compose your experience</p>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -424,14 +424,14 @@ export default function ExperienceWizard() {
                 
                 {/* Sticky sidebar */}
                 <div className="w-64 sticky top-6">
-                  <Card className="mixology-card">
+                  <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg font-heading">Selected Ingredients ({selectedObjects.length})</CardTitle>
+                      <CardTitle className="text-lg font-heading">Selected Objects ({selectedObjects.length})</CardTitle>
                     </CardHeader>
                     <CardContent>
                       {selectedObjects.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
-                          No ingredients selected
+                          No objects selected
                         </p>
                       ) : (
                         <div className="space-y-2">
@@ -466,10 +466,10 @@ export default function ExperienceWizard() {
 
             {/* Step 2: Configure Variants */}
             {currentStep === 2 && (
-              <Card className="mixology-card">
+              <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Configure Variants</CardTitle>
-                  <p className="text-sm text-muted-foreground">Define different versions for each selected ingredient</p>
+                  <p className="text-sm text-muted-foreground">Define different versions for each selected object</p>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
@@ -519,7 +519,7 @@ export default function ExperienceWizard() {
                                         <p className="text-xs text-muted-foreground mb-2">{flag.description}</p>
                                         {flag.type === "text" && (
                                           <Input
-                                            defaultValue={variant.values[flag.key] || flag.defaultValue}
+                                            value={variant.values[flag.key] || flag.defaultValue}
                                             onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, e.target.value)}
                                             className="h-8"
                                           />
@@ -527,14 +527,14 @@ export default function ExperienceWizard() {
                                         {flag.type === "number" && (
                                           <Input
                                             type="number"
-                                            defaultValue={variant.values[flag.key] || flag.defaultValue}
-                                            onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, parseFloat(e.target.value))}
+                                            value={variant.values[flag.key] || flag.defaultValue}
+                                            onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, parseFloat(e.target.value) || 0)}
                                             className="h-8"
                                           />
                                         )}
                                         {flag.type === "boolean" && (
                                           <Select
-                                            defaultValue={(variant.values[flag.key] ?? flag.defaultValue).toString()}
+                                            value={(variant.values[flag.key] ?? flag.defaultValue).toString()}
                                             onValueChange={(value) => updateVariantValue(objectId, variantIndex, flag.key, value === "true")}
                                           >
                                             <SelectTrigger className="h-8">
@@ -576,10 +576,10 @@ export default function ExperienceWizard() {
 
             {/* Step 3: Traffic Split */}
             {currentStep === 3 && (
-              <Card className="mixology-card">
+              <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Traffic Split</CardTitle>
-                  <p className="text-sm text-muted-foreground">How many new players should taste the new cocktail?</p>
+                  <p className="text-sm text-muted-foreground">How many new players should experience the new version?</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
@@ -603,7 +603,7 @@ export default function ExperienceWizard() {
                   <Separator />
 
                   <div>
-                    <Label className="text-base font-medium mb-4 block">Recipe Combinations</Label>
+                    <Label className="text-base font-medium mb-4 block">Total Combinations</Label>
                     <div className="bg-accent/50 p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">Total Combinations</span>
@@ -615,7 +615,7 @@ export default function ExperienceWizard() {
                         <Alert className="mt-4">
                           <AlertTriangle className="h-4 w-4" />
                           <AlertDescription>
-                            Too many combinations ({getTotalCombinations()}). Please reduce variants or ingredients to 8 or fewer.
+                            Too many combinations ({getTotalCombinations()}). Please reduce variants or objects to 8 or fewer.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -639,14 +639,14 @@ export default function ExperienceWizard() {
 
             {/* Step 4: Target & Schedule */}
             {currentStep === 4 && (
-              <Card className="mixology-card">
+              <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Target & Schedule</CardTitle>
-                  <p className="text-sm text-muted-foreground">Choose your palate and set release conditions</p>
+                  <p className="text-sm text-muted-foreground">Choose your campaign and set release conditions</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
-                    <Label className="text-base font-medium mb-4 block">Select Palate</Label>
+                    <Label className="text-base font-medium mb-4 block">Select Campaign</Label>
                     <RadioGroup
                       value={form.watch("campaignType")}
                       onValueChange={(value) => form.setValue("campaignType", value as "existing" | "new")}
@@ -654,7 +654,7 @@ export default function ExperienceWizard() {
                       <div className="space-y-4">
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="existing" id="existing" />
-                          <Label htmlFor="existing">Use existing palate</Label>
+                          <Label htmlFor="existing">Use existing campaign</Label>
                         </div>
                         
                         {form.watch("campaignType") === "existing" && (
@@ -676,7 +676,7 @@ export default function ExperienceWizard() {
                                   </div>
                                   <div className="text-right">
                                     <div className="text-sm font-medium">{campaign.traffic.toLocaleString()}</div>
-                                    <div className="text-xs text-muted-foreground">daily guests</div>
+                                    <div className="text-xs text-muted-foreground">daily users</div>
                                   </div>
                                 </div>
                               </div>
@@ -686,14 +686,14 @@ export default function ExperienceWizard() {
                         
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="new" id="new" />
-                          <Label htmlFor="new">Create new palate</Label>
+                          <Label htmlFor="new">Create new campaign</Label>
                         </div>
                         
                         {form.watch("campaignType") === "new" && (
                           <div className="ml-6 space-y-4 p-4 border rounded-lg">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <Label htmlFor="campaign-name">Palate Name</Label>
+                                <Label htmlFor="campaign-name">Campaign Name</Label>
                                 <Input
                                   id="campaign-name"
                                   placeholder="e.g., Summer Launch"
@@ -814,16 +814,16 @@ export default function ExperienceWizard() {
 
             {/* Step 5: Review & Launch */}
             {currentStep === 5 && (
-              <Card className="mixology-card">
+              <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Review & Launch</CardTitle>
                   <p className="text-sm text-muted-foreground">Final review before deployment</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
-                    <Label className="text-base font-medium mb-4 block">Cocktail Name</Label>
+                    <Label className="text-base font-medium mb-4 block">Experience Name</Label>
                     <Input
-                      placeholder="e.g., Enhanced Onboarding Mix"
+                      placeholder="e.g., Enhanced Onboarding Experience"
                       value={form.watch("name") || ""}
                       onChange={(e) => form.setValue("name", e.target.value)}
                     />
@@ -832,7 +832,7 @@ export default function ExperienceWizard() {
                   <div>
                     <Label className="text-base font-medium mb-4 block">Description (Optional)</Label>
                     <Textarea
-                      placeholder="Describe this cocktail experience..."
+                      placeholder="Describe this experience..."
                       value={form.watch("description") || ""}
                       onChange={(e) => form.setValue("description", e.target.value)}
                       rows={3}
@@ -843,7 +843,7 @@ export default function ExperienceWizard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h4 className="font-medium mb-3">Selected Ingredients</h4>
+                      <h4 className="font-medium mb-3">Selected Objects</h4>
                       <div className="space-y-2">
                         {selectedObjects.map(objectId => {
                           const object = objects.find(o => o.id === objectId);
@@ -870,11 +870,11 @@ export default function ExperienceWizard() {
                           <span className="font-medium">{getTotalCombinations()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Palate:</span>
+                          <span>Campaign:</span>
                           <span className="font-medium">
                             {form.watch("campaignType") === "existing" 
-                              ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "Select palate"
-                              : "New palate"}
+                              ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "Select campaign"
+                              : "New campaign"}
                           </span>
                         </div>
                         {form.watch("autoRollout")?.enabled && (
@@ -894,11 +894,11 @@ export default function ExperienceWizard() {
                   <div className="bg-accent/30 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Deployment Summary</h4>
                     <p className="text-sm text-muted-foreground">
-                      You're about to deploy this cocktail experience to{" "}
+                      You're about to deploy this experience to{" "}
                       <span className="font-medium text-foreground">
                         {form.watch("campaignType") === "existing" 
-                          ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "selected palate"
-                          : "new palate"}
+                          ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "selected campaign"
+                          : "new campaign"}
                       </span>{" "}
                       with a <span className="font-medium text-foreground">{form.watch("trafficSplit")}% split</span>
                       {form.watch("startDate") && (
@@ -938,8 +938,8 @@ export default function ExperienceWizard() {
                       disabled={!canProceed()}
                       className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
                     >
-                      <Wine className="w-4 h-4 mr-2" />
-                      Launch Cocktail
+                      <Zap className="w-4 h-4 mr-2" />
+                      Launch Experience
                     </Button>
                   </>
                 ) : (
