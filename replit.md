@@ -104,6 +104,7 @@ Xgaming Nova is a web-based experimentation platform designed for mobile gaming 
 Changelog:
 - July 04, 2025. Initial setup
 - July 04, 2025. Added light/dark theme toggle with custom OKLCH color scheme
+- July 04, 2025. Transformed UI from generic "experiments" to FTUE-focused "personalizations" with objects and cohorts workflow
 
 ## User Preferences
 

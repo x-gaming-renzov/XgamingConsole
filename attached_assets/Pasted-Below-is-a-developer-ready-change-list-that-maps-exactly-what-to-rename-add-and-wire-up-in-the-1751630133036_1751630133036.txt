@@ -1,0 +1,194 @@
+Below is a **developer-ready change-list** that maps exactly what to rename, add, and wire-up in the current Xgaming Nova console so the UX matches our FTUE-personalisation positioning.
+
+---
+
+## 1 Route & Nav Renaming (copy-only, low-risk)
+
+| Current path / label                       | New path / label                                       | File(s) likely affected                    | Change notes                                   |
+| ------------------------------------------ | ------------------------------------------------------ | ------------------------------------------ | ---------------------------------------------- |
+| `/dashboard` → sidebar “**Dashboard**”     | keep “Dashboard”                                       | `src/routes/dashboard.tsx`, `Sidebar.tsx`  | no change                                      |
+| `/experiments` → sidebar “**Experiments**” | **/personalizations** → sidebar “**Personalizations**” | `src/routes/experiments.tsx`, route config | pure rename (URL + menu)                       |
+| “Analytics”                                | **Insights**                                           | `Sidebar.tsx`, any `<NavLink>` refs        | copy change                                    |
+| *none*                                     | **Objects**                                            | **new route** `/objects`                   | list flagged objects auto-synced from manifest |
+| *none*                                     | **Cohorts**                                            | **new route** `/cohorts`                   | list saved player segments                     |
+
+> **Tip:** keep existing route components; wrap them in redirects so old URLs don’t 404.
+
+---
+
+## 2 Global Terminology Swaps (constants)
+
+```ts
+// src/constants/ui.ts
+export const TERMS = {
+-  experiment: 'Experiment',
+-  experiments: 'Experiments',
++  experiment: 'Personalization',
++  experiments: 'Personalizations',
+};
+```
+
+*Search/replace* text in UI:
+
+```
+"New Experiment"  →  "New Personalization"
+"Active Experiments" → "Active Personalizations"
+"No experiments yet" → "No personalizations yet"
+```
+
+---
+
+## 3 Dashboard metric cards
+
+| Old card               | Replace with                                                            | Data source                               |
+| ---------------------- | ----------------------------------------------------------------------- | ----------------------------------------- |
+| `Active Experiments`   | `Active Personalizations`                                               | `SELECT count(*) WHERE status = 'active'` |
+| `Avg. FTUE Completion` | `Average Day-1 Retention`                                               | existing retention endpoint               |
+| `Day-1 Retention`      | `Average Activation Rate`<br>(% who reach Level 2 or tutorial complete) | calculate on backend or hide until ready  |
+
+**Component update:** `src/components/MetricCards.tsx`
+
+```tsx
+<MetricCard
+  title="Average Day-1 Retention"
+  value={`${d1Retention.toFixed(1)}%`}
+  delta={d1Delta}
+/>
+```
+
+---
+
+## 4 Personalizations List Table
+
+### Columns
+
+\| Name | Object | Cohort | Uplift | Status |
+
+*Add `object` and `cohort` fields to `Personalization` type.*
+
+```tsx
+<DataTable columns={[
+  { header: 'Name', accessor: 'name' },
+  { header: 'Object', accessor: 'objectLabel' },      // e.g. "Level 5"
+  { header: 'Cohort', accessor: 'cohortName' },       // e.g. "Campaign A"
+  { header: 'Uplift', accessor: row => fmtPct(row.uplift) },
+  { header: 'Status', accessor: 'statusBadge' },
+]} />
+```
+
+### Row click → Drawer
+
+Create `PersonalizationDrawer.tsx` (Slide-in on right)
+
+```
+<Drawer title={p.name}>
+  <Stat label="Status" value={p.status}/>
+  <Stat label="Target cohort" value={p.cohortName}/>
+  <Stat label="Uplift" value={fmtPct(p.uplift)}/>
+  <Stat label="Active variant" value={p.activeVariant}/>
+  <Button onClick={() => openRollout(p)}>Roll-out to larger cohort</Button>
+</Drawer>
+```
+
+---
+
+## 5 Roll-out flow
+
+*One modal, one API call.*
+
+1. **`RolloutModal.tsx`**
+
+   ```tsx
+   <Slider min={0.25} max={1} step={0.05} value={pct} onChange={setPct}/>
+   <Button onClick={() => api.updateAllocation(id, pct)}>Confirm</Button>
+   ```
+
+2. **Backend**: `PUT /admin/flags/{id}` body:
+
+   ```json
+   { "allocations": { "variantA": 1.0, "variantB": 0.0 } }
+   ```
+
+---
+
+## 6 Objects & Cohorts pages (MVP scaffolds)
+
+*Objects* – table of flagged objects from manifest:
+
+\| Object | Type | Last used in personalization |
+
+*Endpoint:* `GET /objects` returns id, label, type.
+
+*Cohorts* – saved segments:
+
+\| Cohort | Rules | Created by | Used in |
+
+*Endpoint:* `GET /cohorts`.
+
+Both pages reuse `DataTable` component; creation forms can be punted to later—PMs can pick default cohorts in wizard for now.
+
+---
+
+## 7 Wizard wording tweaks
+
+Update step labels in `NewPersonalizationWizard.tsx`
+
+1. **Select Object** – “Choose a level, popup, or item to personalise”
+2. **Define Variants** – “Adjust rewards, copy, art…”
+3. **Choose Cohort** – “Which players see this first?”
+4. **Review & Launch**
+
+Change the wizard title from “Create Experiment” → “Create Personalization”.
+
+---
+
+## 8 Empty-state & helper copy
+
+```tsx
+<EmptyState
+  title="No personalizations yet"
+  description="Create your first FTUE personalization to optimise onboarding."
+  primaryAction={<Button>Create Personalization</Button>}
+/>
+```
+
+Sidebar tooltip examples:
+
+* Objects: “Flagged levels & pop-ups available for testing”
+* Cohorts: “Saved player segments (campaigns, regions)”
+* Insights: “Top-performing personalizations & ideas”
+
+---
+
+## 9 Analytics / Insights stub
+
+Rename `/analytics` route component to `/insights`.
+Keep existing chart but update heading: “Personalization Uplift Trends”.
+
+---
+
+## 10 QA checklist before merge
+
+* [ ] All renamed routes redirect correctly (check 404s).
+* [ ] Table data loads with new columns (object, cohort).
+* [ ] Wizard creates `objectId` and `cohortId` fields in payload.
+* [ ] Roll-out API updates flag allocation and UI reflects status.
+* [ ] Copy passes spell-check (“Personalization” not “Personalisation” if using US spelling).
+* [ ] Unit tests updated (`ExperimentList.test.tsx` → `PersonalizationList.test.tsx`).
+
+---
+
+### Effort estimate
+
+| Task                             | Dev hrs                   |
+| -------------------------------- | ------------------------- |
+| Route & copy renames             | 2                         |
+| Metric card swap                 | 2                         |
+| Table column & drawer            | 4                         |
+| Roll-out modal & API tie-in      | 3                         |
+| Objects & Cohorts list scaffolds | 4                         |
+| Wizard wording tweaks            | 1                         |
+| QA + review                      | 2                         |
+| **Total**                        | **18 hrs (≈ 3 dev-days)** |
+
+Share this doc with the frontend dev; they can tackle copy renames first (fast win), then table/drawer, and iterate. Ping me once copy is in code and we’ll fine-tune micro-copy or empty-states.

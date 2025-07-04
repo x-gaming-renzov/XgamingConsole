@@ -95,11 +95,11 @@ export default function DashboardOverview({ projectId }: DashboardOverviewProps)
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Experiments</p>
+                <p className="text-sm font-medium text-muted-foreground">Active Personalizations</p>
                 <p className="text-2xl font-bold text-foreground">{analytics?.activeExperiments || 0}</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <TestTube className="w-6 h-6 text-primary" />
+                <Target className="w-6 h-6 text-primary" />
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
@@ -112,11 +112,11 @@ export default function DashboardOverview({ projectId }: DashboardOverviewProps)
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg. FTUE Completion</p>
+                <p className="text-sm font-medium text-muted-foreground">Average Day-1 Retention</p>
                 <p className="text-2xl font-bold text-foreground">{analytics?.avgCompletionRate || 0}%</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Target className="w-6 h-6 text-primary" />
+                <TrendingUp className="w-6 h-6 text-primary" />
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
@@ -129,11 +129,12 @@ export default function DashboardOverview({ projectId }: DashboardOverviewProps)
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Day-1 Retention</p>
+                <p className="text-sm font-medium text-muted-foreground">Average Activation Rate</p>
                 <p className="text-2xl font-bold text-foreground">{analytics?.dayOneRetention || 0}%</p>
+                <p className="text-xs text-muted-foreground">% who reach Level 2</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-primary" />
+                <CheckCircle className="w-6 h-6 text-primary" />
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
@@ -143,10 +144,10 @@ export default function DashboardOverview({ projectId }: DashboardOverviewProps)
         </Card>
       </div>
 
-      {/* Recent Experiments */}
+      {/* Recent Personalizations */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Experiments</CardTitle>
+          <CardTitle>Recent Personalizations</CardTitle>
         </CardHeader>
         <CardContent>
           {analytics?.recentExperiments?.length > 0 ? (

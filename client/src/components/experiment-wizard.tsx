@@ -14,10 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-const experimentSchema = z.object({
-  name: z.string().min(2, "Experiment name must be at least 2 characters"),
+const personalizationSchema = z.object({
+  name: z.string().min(2, "Personalization name must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  type: z.string().min(1, "Please select an experiment type"),
+  type: z.string().min(1, "Please select a personalization type"),
   targetAudience: z.string().min(1, "Please select a target audience"),
   trafficSplit: z.string().min(1, "Please select traffic split"),
   variants: z.object({
@@ -43,8 +43,8 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const form = useForm<z.infer<typeof experimentSchema>>({
-    resolver: zodResolver(experimentSchema),
+  const form = useForm<z.infer<typeof personalizationSchema>>({
+    resolver: zodResolver(personalizationSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -66,7 +66,7 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
   });
 
   const createExperiment = useMutation({
-    mutationFn: async (data: z.infer<typeof experimentSchema>) => {
+    mutationFn: async (data: z.infer<typeof personalizationSchema>) => {
       const response = await apiRequest("POST", "/api/experiments", {
         ...data,
         projectId,
@@ -92,7 +92,7 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
     },
   });
 
-  const handleSubmit = (data: z.infer<typeof experimentSchema>) => {
+  const handleSubmit = (data: z.infer<typeof personalizationSchema>) => {
     createExperiment.mutate(data);
   };
 
@@ -109,9 +109,9 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New FTUE Experiment</DialogTitle>
+          <DialogTitle>Create New Personalization</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Design and configure your first-time user experience experiment
+            Choose a level, popup, or item to personalize for your FTUE cohorts
           </p>
         </DialogHeader>
 
@@ -123,10 +123,10 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Experiment Name</FormLabel>
+                  <FormLabel>Personalization Name</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="e.g., Tutorial Skip Button Position Test" 
+                      placeholder="e.g., Level 5 Reward Boost" 
                       {...field} 
                     />
                   </FormControl>
@@ -153,25 +153,26 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
               )}
             />
 
-            {/* Experiment Type */}
+            {/* Select Object */}
             <FormField
               control={form.control}
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Experiment Type</FormLabel>
+                  <FormLabel>Select Object</FormLabel>
+                  <p className="text-sm text-muted-foreground mb-2">Choose a level, popup, or item to personalize</p>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select experiment type" />
+                        <SelectValue placeholder="Select flagged object" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="onboarding">Onboarding Flow</SelectItem>
-                      <SelectItem value="tutorial">Tutorial Content</SelectItem>
-                      <SelectItem value="rewards">Welcome Rewards</SelectItem>
-                      <SelectItem value="ui">UI/UX Elements</SelectItem>
-                      <SelectItem value="level">First Level Experience</SelectItem>
+                      <SelectItem value="level_5">Level 5 - Forest Temple</SelectItem>
+                      <SelectItem value="welcome_popup">Welcome Popup</SelectItem>
+                      <SelectItem value="daily_rewards">Daily Rewards Chest</SelectItem>
+                      <SelectItem value="tutorial_skip">Tutorial Skip Button</SelectItem>
+                      <SelectItem value="level_1">Level 1 - Starting Village</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -186,18 +187,19 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
                 name="targetAudience"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Target Audience</FormLabel>
+                    <FormLabel>Choose Cohort</FormLabel>
+                    <p className="text-sm text-muted-foreground mb-2">Which players see this first?</p>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select audience" />
+                          <SelectValue placeholder="Select cohort" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="all_new_users">All New Users</SelectItem>
-                        <SelectItem value="returning_users">Returning Users</SelectItem>
-                        <SelectItem value="premium_users">Premium Users</SelectItem>
-                        <SelectItem value="casual_players">Casual Players</SelectItem>
+                        <SelectItem value="campaign_a">Campaign A - iOS Users</SelectItem>
+                        <SelectItem value="campaign_b">Campaign B - Android Users</SelectItem>
+                        <SelectItem value="region_us">US Region</SelectItem>
+                        <SelectItem value="new_installs">New Installs Today</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -231,7 +233,8 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
 
             {/* Variants */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Experiment Variants</h3>
+              <h3 className="text-lg font-semibold">Define Variants</h3>
+              <p className="text-sm text-muted-foreground">Adjust rewards, copy, art, or other elements</p>
               
               <div className="grid md:grid-cols-2 gap-4">
                 <Card>
@@ -365,7 +368,7 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
                 disabled={createExperiment.isPending}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                {createExperiment.isPending ? "Creating..." : "Create Experiment"}
+                {createExperiment.isPending ? "Creating..." : "Create Personalization"}
               </Button>
             </div>
           </form>

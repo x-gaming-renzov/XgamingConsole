@@ -242,12 +242,12 @@ export default function ExperimentsList({ projectId }: ExperimentsListProps) {
             <div className="text-center py-12">
               <TestTube className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-medium text-foreground mb-2">
-                No {activeTab === 'all' ? '' : activeTab} experiments found
+                No {activeTab === 'all' ? '' : activeTab} personalizations found
               </h3>
               <p className="text-muted-foreground mb-6">
                 {activeTab === 'all' 
-                  ? "Create your first FTUE experiment to start optimizing player onboarding"
-                  : `No experiments in ${activeTab} state. Create a new experiment to get started.`
+                  ? "Create your first FTUE personalization to optimize onboarding"
+                  : `No personalizations in ${activeTab} state. Create a new personalization to get started.`
                 }
               </p>
             </div>

@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
-import { Shield, BarChart3, TestTube, Users, Settings, LogOut, Plus } from "lucide-react";
+import { Shield, BarChart3, TestTube, Users, Settings, LogOut, Plus, Target, Layers, UserCheck, Lightbulb } from "lucide-react";
 import DashboardOverview from "@/components/dashboard-overview";
 import ExperimentsList from "@/components/experiments-list";
 import ExperimentWizard from "@/components/experiment-wizard";
@@ -70,20 +70,36 @@ export default function Console() {
               Dashboard
             </Button>
             <Button
-              variant={activeSection === "experiments" ? "default" : "ghost"}
+              variant={activeSection === "personalizations" ? "default" : "ghost"}
               className="w-full justify-start"
-              onClick={() => setActiveSection("experiments")}
+              onClick={() => setActiveSection("personalizations")}
             >
-              <TestTube className="w-5 h-5 mr-3" />
-              Experiments
+              <Target className="w-5 h-5 mr-3" />
+              Personalizations
             </Button>
             <Button
-              variant={activeSection === "analytics" ? "default" : "ghost"}
+              variant={activeSection === "objects" ? "default" : "ghost"}
               className="w-full justify-start"
-              onClick={() => setActiveSection("analytics")}
+              onClick={() => setActiveSection("objects")}
             >
-              <BarChart3 className="w-5 h-5 mr-3" />
-              Analytics
+              <Layers className="w-5 h-5 mr-3" />
+              Objects
+            </Button>
+            <Button
+              variant={activeSection === "cohorts" ? "default" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActiveSection("cohorts")}
+            >
+              <UserCheck className="w-5 h-5 mr-3" />
+              Cohorts
+            </Button>
+            <Button
+              variant={activeSection === "insights" ? "default" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setActiveSection("insights")}
+            >
+              <Lightbulb className="w-5 h-5 mr-3" />
+              Insights
             </Button>
             <Button
               variant={activeSection === "team" ? "default" : "ghost"}
@@ -137,15 +153,19 @@ export default function Console() {
               <div>
                 <h1 className="text-2xl font-bold text-card-foreground">
                   {activeSection === "dashboard" && "Dashboard"}
-                  {activeSection === "experiments" && "Experiments"}
-                  {activeSection === "analytics" && "Analytics"}
+                  {activeSection === "personalizations" && "Personalizations"}
+                  {activeSection === "objects" && "Objects"}
+                  {activeSection === "cohorts" && "Cohorts"}
+                  {activeSection === "insights" && "Insights"}
                   {activeSection === "team" && "Team"}
                   {activeSection === "settings" && "Settings"}
                 </h1>
                 <p className="text-muted-foreground">
-                  {activeSection === "dashboard" && "Overview of your FTUE experiments"}
-                  {activeSection === "experiments" && "Manage your FTUE A/B tests"}
-                  {activeSection === "analytics" && "Detailed analytics and insights"}
+                  {activeSection === "dashboard" && "Overview of your FTUE personalizations"}
+                  {activeSection === "personalizations" && "Manage your FTUE personalizations"}
+                  {activeSection === "objects" && "Flagged levels & pop-ups available for testing"}
+                  {activeSection === "cohorts" && "Saved player segments (campaigns, regions)"}
+                  {activeSection === "insights" && "Top-performing personalizations & ideas"}
                   {activeSection === "team" && "Manage team members and permissions"}
                   {activeSection === "settings" && "Configure your project settings"}
                 </p>
@@ -154,13 +174,15 @@ export default function Console() {
                 <ThemeToggle />
               </div>
               <div className="flex items-center space-x-4">
-                <Button
-                  onClick={() => setShowCreateExperiment(true)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Experiment
-                </Button>
+                {(activeSection === "personalizations" || activeSection === "dashboard") && (
+                  <Button
+                    onClick={() => setShowCreateExperiment(true)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Personalization
+                  </Button>
+                )}
               </div>
             </div>
           </header>
@@ -168,15 +190,39 @@ export default function Console() {
           {/* Content */}
           <main className="flex-1 overflow-auto">
             {activeSection === "dashboard" && <DashboardOverview projectId={currentProject.id} />}
-            {activeSection === "experiments" && <ExperimentsList projectId={currentProject.id} />}
-            {activeSection === "analytics" && (
+            {activeSection === "personalizations" && <ExperimentsList projectId={currentProject.id} />}
+            {activeSection === "objects" && (
               <div className="p-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Analytics</CardTitle>
+                    <CardTitle>Objects</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">Analytics view coming soon...</p>
+                    <p className="text-muted-foreground">Flagged objects view coming soon...</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {activeSection === "cohorts" && (
+              <div className="p-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Cohorts</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">Player cohorts view coming soon...</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {activeSection === "insights" && (
+              <div className="p-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Insights</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">Personalization insights view coming soon...</p>
                   </CardContent>
                 </Card>
               </div>
