@@ -116,7 +116,6 @@ export default function ExperienceWizard() {
     dailyTraffic: 0
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [saveMode, setSaveMode] = useState<"save" | "launch">("launch");
   
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
@@ -321,14 +320,7 @@ export default function ExperienceWizard() {
   );
 
   const nextStep = () => {
-    if (currentStep < 5) {
-      // If on step 2 and user chose "Save", jump to step 5
-      if (currentStep === 2 && saveMode === "save") {
-        setCurrentStep(5);
-      } else {
-        setCurrentStep(currentStep + 1);
-      }
-    }
+    if (currentStep < 5) setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
@@ -905,18 +897,12 @@ export default function ExperienceWizard() {
               </Card>
             )}
 
-            {/* Step 5: Review & Launch or Save */}
+            {/* Step 5: Review & Launch */}
             {currentStep === 5 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-heading">
-                    {saveMode === "save" ? "Save Experience" : "Review & Launch"}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {saveMode === "save" 
-                      ? "Save your experience for later use" 
-                      : "Final review before deployment"}
-                  </p>
+                  <CardTitle className="font-heading">Review & Launch</CardTitle>
+                  <p className="text-sm text-muted-foreground">Final review before deployment</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
@@ -961,81 +947,51 @@ export default function ExperienceWizard() {
                       <h4 className="font-medium mb-3">Configuration</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
+                          <span>Traffic Split:</span>
+                          <span className="font-medium">{trafficSplit}% experience</span>
+                        </div>
+                        <div className="flex justify-between">
                           <span>Total Combinations:</span>
                           <span className="font-medium">{getTotalCombinations()}</span>
                         </div>
-                        {saveMode === "launch" && (
-                          <>
-                            <div className="flex justify-between">
-                              <span>Traffic Split:</span>
-                              <span className="font-medium">{trafficSplit}% experience</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Campaign:</span>
-                              <span className="font-medium">
-                                {campaignType === "existing" 
-                                  ? campaigns.find(c => c.id === campaignId)?.name || "Select campaign"
-                                  : "New campaign"}
-                              </span>
-                            </div>
-                            {autoRollout.enabled && (
-                              <div className="flex justify-between">
-                                <span>Auto-rollout:</span>
-                                <span className="font-medium">
-                                  {autoRollout.upliftThreshold}% @ {autoRollout.minUsers} users
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {saveMode === "save" && (
+                        <div className="flex justify-between">
+                          <span>Campaign:</span>
+                          <span className="font-medium">
+                            {campaignType === "existing" 
+                              ? campaigns.find(c => c.id === campaignId)?.name || "Select campaign"
+                              : "New campaign"}
+                          </span>
+                        </div>
+                        {autoRollout.enabled && (
                           <div className="flex justify-between">
-                            <span>Status:</span>
-                            <span className="font-medium text-muted-foreground">Draft</span>
+                            <span>Auto-rollout:</span>
+                            <span className="font-medium">
+                              {autoRollout.upliftThreshold}% @ {autoRollout.minUsers} users
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {saveMode === "launch" && (
-                    <>
-                      <Separator />
+                  <Separator />
 
-                      <div className="bg-accent/30 p-4 rounded-lg">
-                        <h4 className="font-medium mb-2">Deployment Summary</h4>
-                        <p className="text-sm text-muted-foreground">
-                          You're about to deploy this experience to{" "}
-                          <span className="font-medium text-foreground">
-                            {campaignType === "existing" 
-                              ? campaigns.find(c => c.id === campaignId)?.name || "selected campaign"
-                              : "new campaign"}
-                          </span>{" "}
-                          with a <span className="font-medium text-foreground">{trafficSplit}% split</span>
-                          {startDate && (
-                            <span> starting <span className="font-medium text-foreground">{new Date(startDate).toLocaleDateString()}</span></span>
-                          )}
-                          .
-                        </p>
-                      </div>
-                    </>
-                  )}
-
-                  {saveMode === "save" && (
-                    <>
-                      <Separator />
-
-                      <div className="bg-accent/30 p-4 rounded-lg">
-                        <h4 className="font-medium mb-2">Save Summary</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Your experience "{experienceName || "Untitled Experience"}" will be saved as a draft with{" "}
-                          <span className="font-medium text-foreground">{selectedObjects.length} object{selectedObjects.length === 1 ? '' : 's'}</span>{" "}
-                          and <span className="font-medium text-foreground">{getTotalCombinations()} variant combination{getTotalCombinations() === 1 ? '' : 's'}</span>.
-                          You can launch it later by configuring campaign settings.
-                        </p>
-                      </div>
-                    </>
-                  )}
+                  <div className="bg-accent/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Deployment Summary</h4>
+                    <p className="text-sm text-muted-foreground">
+                      You're about to deploy this experience to{" "}
+                      <span className="font-medium text-foreground">
+                        {campaignType === "existing" 
+                          ? campaigns.find(c => c.id === campaignId)?.name || "selected campaign"
+                          : "new campaign"}
+                      </span>{" "}
+                      with a <span className="font-medium text-foreground">{trafficSplit}% split</span>
+                      {startDate && (
+                        <span> starting <span className="font-medium text-foreground">{new Date(startDate).toLocaleDateString()}</span></span>
+                      )}
+                      .
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1053,60 +1009,23 @@ export default function ExperienceWizard() {
               </Button>
               
               <div className="flex space-x-3">
-                {currentStep === 2 ? (
+                {currentStep === 5 ? (
                   <>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        setSaveMode("save");
-                        nextStep();
-                      }}
-                      disabled={!canProceed()}
+                      onClick={() => console.log("Saving draft...")}
                     >
-                      Save as Draft
+                      Save Draft
                     </Button>
                     <Button
-                      type="button"
-                      onClick={() => {
-                        setSaveMode("launch");
-                        nextStep();
-                      }}
+                      type="submit"
                       disabled={!canProceed()}
+                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
                     >
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-2" />
+                      <Zap className="w-4 h-4 mr-2" />
+                      Launch Experience
                     </Button>
-                  </>
-                ) : currentStep === 5 ? (
-                  <>
-                    {saveMode === "save" ? (
-                      <Button
-                        type="submit"
-                        disabled={!canProceed()}
-                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
-                      >
-                        Save Experience
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => console.log("Saving draft...")}
-                        >
-                          Save Draft
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={!canProceed()}
-                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
-                        >
-                          <Zap className="w-4 h-4 mr-2" />
-                          Launch Experience
-                        </Button>
-                      </>
-                    )}
                   </>
                 ) : (
                   <Button
