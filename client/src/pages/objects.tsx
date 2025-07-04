@@ -68,12 +68,7 @@ export default function Objects() {
           <h1 className="text-2xl font-bold text-foreground">Objects</h1>
           <p className="text-muted-foreground">Manage flagged game objects that can be personalized</p>
         </div>
-        <Link href="/experiences/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Experience
-          </Button>
-        </Link>
+
       </div>
 
       {/* Sync Banner */}

@@ -28,8 +28,8 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       description: "Overview and metrics"
     },
     {
-      id: "personalizations",
-      label: "Personalizations",
+      id: "experiences",
+      label: "Experiences",
       icon: Target,
       path: "/experiences",
       description: "FTUE experiences"
@@ -42,8 +42,8 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       description: "Flagged game elements"
     },
     {
-      id: "cohorts",
-      label: "Cohorts",
+      id: "campaigns",
+      label: "Campaigns",
       icon: UserCheck,
       path: "/campaigns",
       description: "Player segments"

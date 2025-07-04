@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TrendingUp, Trophy, Lightbulb, Target, Users, ArrowUp, ArrowDown } from "lucide-react";
+import ConsoleLayout from "@/components/console-layout";
 
 interface TopExperience {
   id: number;
@@ -81,7 +82,8 @@ export default function Insights() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <ConsoleLayout>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -307,6 +309,7 @@ export default function Insights() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </ConsoleLayout>
   );
 }

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Target, TrendingUp, Settings, Copy, Pause, Play, Archive } from "lucide-react";
 import { Link } from "wouter";
+import ConsoleLayout from "@/components/console-layout";
 
 interface Experience {
   id: number;
@@ -139,7 +140,8 @@ export default function Experiences() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <ConsoleLayout>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -298,6 +300,7 @@ export default function Experiences() {
       <Dialog open={selectedExperience !== null} onOpenChange={() => setSelectedExperience(null)}>
         {selectedExperience && <ExperienceDrawer experience={selectedExperience} />}
       </Dialog>
-    </div>
+      </div>
+    </ConsoleLayout>
   );
 }
