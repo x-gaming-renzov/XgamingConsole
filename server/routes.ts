@@ -265,6 +265,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get dashboard metrics overview
+  app.get("/api/metrics/overview", authenticateToken, async (req, res) => {
+    try {
+      // Mock campaign data with the specified fields
+      const activeCampaigns = [
+        {
+          id: 1,
+          label: "Q1 Acquisition Push",
+          utmSource: "facebook",
+          d1Highest: 67,
+          d1Lowest: 43,
+          newUsersToday: 1247,
+          activeExperiences: 3,
+          status: "Active" as const
+        },
+        {
+          id: 2,
+          label: "Google UAC Test",
+          utmSource: "google",
+          d1Highest: 71,
+          d1Lowest: 52,
+          newUsersToday: 892,
+          activeExperiences: 2,
+          status: "Active" as const
+        },
+        {
+          id: 3,
+          label: "TikTok Creative Test",
+          utmSource: "tiktok",
+          d1Highest: 59,
+          d1Lowest: 38,
+          newUsersToday: 456,
+          activeExperiences: 1,
+          status: "Active" as const
+        }
+      ];
+
+      const metrics = {
+        activeExperiences: 12,
+        avgD0Retention: 58.4,
+        avgD1Retention: 52.1,
+        activationRate: 34.7,
+        campaignsNeedAttention: true,
+        activeCampaigns
+      };
+
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

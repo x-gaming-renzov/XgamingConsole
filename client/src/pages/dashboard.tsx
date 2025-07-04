@@ -13,13 +13,15 @@ interface DashboardMetrics {
   avgD1Retention: number;
   activationRate: number;
   campaignsNeedAttention: boolean;
-  recentExperiences: Array<{
+  activeCampaigns: Array<{
     id: number;
-    name: string;
-    campaign: string;
-    object: string;
-    uplift: number;
-    status: "Active" | "Draft" | "Rolling out" | "Completed" | "Paused";
+    label: string;
+    utmSource: string;
+    d1Highest: number;
+    d1Lowest: number;
+    newUsersToday: number;
+    activeExperiences: number;
+    status: "Active" | "Paused" | "Draft";
   }>;
 }
 
@@ -138,60 +140,83 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Experiences */}
+      {/* Active Campaigns */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Recent Experiences</CardTitle>
-            <Link href="/experiences">
+            <CardTitle>Active Campaigns</CardTitle>
+            <Link href="/campaigns">
               <Button variant="outline" size="sm">View All</Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent>
-          {metrics?.recentExperiences?.length > 0 ? (
-            <div className="space-y-4">
-              {metrics.recentExperiences.map((experience) => (
-                <div key={experience.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Target className="w-5 h-5 text-primary" />
+          {metrics?.activeCampaigns && metrics.activeCampaigns.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {metrics.activeCampaigns.map((campaign) => (
+                <div key={campaign.id} className="p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
+                  <div className="space-y-3">
+                    {/* Campaign Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{campaign.label}</h4>
+                          <p className="text-xs text-muted-foreground">{campaign.utmSource}</p>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant={campaign.status === "Active" ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {campaign.status}
+                      </Badge>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-foreground">{experience.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {experience.campaign} • {experience.object}
-                      </p>
+
+                    {/* D1 Retention Range */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">D1 Retention Range</span>
+                        <span className="font-medium">
+                          {campaign.d1Lowest}% - {campaign.d1Highest}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-primary h-1.5 rounded-full" 
+                          style={{ width: `${(campaign.d1Highest / 100) * 100}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-foreground">
-                        {experience.uplift > 0 ? '+' : ''}{experience.uplift}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">uplift</p>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="text-center p-2 bg-accent/30 rounded">
+                        <div className="font-bold text-foreground">{campaign.newUsersToday.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground">New Users Today</div>
+                      </div>
+                      <div className="text-center p-2 bg-accent/30 rounded">
+                        <div className="font-bold text-foreground">{campaign.activeExperiences}</div>
+                        <div className="text-xs text-muted-foreground">Active Experiences</div>
+                      </div>
                     </div>
-                    <Badge 
-                      variant={experience.status === "Active" ? "default" : "secondary"}
-                      className="capitalize"
-                    >
-                      {experience.status}
-                    </Badge>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-12">
-              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No experiences yet</h3>
+              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No active campaigns</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first FTUE experience to optimize onboarding
+                Create your first campaign to start acquiring users and testing experiences
               </p>
-              <Link href="/experiences/new">
+              <Link href="/campaigns">
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Experience
+                  Create Campaign
                 </Button>
               </Link>
             </div>
