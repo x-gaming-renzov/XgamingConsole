@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
-import { Shield, Target, Layers, UserCheck, Lightbulb, Settings, LogOut, Plus } from "lucide-react";
+import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
@@ -42,11 +42,18 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       description: "Flagged game elements"
     },
     {
+      id: "segments",
+      label: "Segments",
+      icon: Users,
+      path: "/segments",
+      description: "Player segments"
+    },
+    {
       id: "campaigns",
       label: "Campaigns",
       icon: UserCheck,
       path: "/campaigns",
-      description: "Player segments"
+      description: "Marketing campaigns"
     },
 
   ];

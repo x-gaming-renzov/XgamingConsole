@@ -47,6 +47,16 @@ export const teamMembers = pgTable("team_members", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const segments = pgTable("segments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  rulesJson: jsonb("rules_json").notNull(), // segment rules as JSON
+  isAdvanced: boolean("is_advanced").default(false),
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
@@ -75,6 +85,12 @@ export const insertTeamMemberSchema = createInsertSchema(teamMembers).pick({
   role: true,
 });
 
+export const insertSegmentSchema = createInsertSchema(segments).pick({
+  name: true,
+  rulesJson: true,
+  isAdvanced: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -83,3 +99,5 @@ export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
 export type Experiment = typeof experiments.$inferSelect;
 export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertSegment = z.infer<typeof insertSegmentSchema>;
+export type Segment = typeof segments.$inferSelect;

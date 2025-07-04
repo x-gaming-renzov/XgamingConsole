@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertProjectSchema, insertExperimentSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSegmentSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -314,6 +314,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
+    }
+  });
+
+  // Segments routes
+  app.get("/api/segments", authenticateToken, async (req, res) => {
+    try {
+      const { projectId } = req.query;
+      
+      if (!projectId) {
+        return res.status(400).json({ message: "Project ID is required" });
+      }
+
+      // Verify user has access to project
+      const project = await storage.getProject(Number(projectId));
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const segments = await storage.getSegmentsByProjectId(Number(projectId));
+      res.json(segments);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segments" });
+    }
+  });
+
+  app.post("/api/segments", authenticateToken, async (req, res) => {
+    try {
+      const segmentData = insertSegmentSchema.parse(req.body);
+      const { projectId } = req.body;
+
+      // Verify user has access to project
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== req.user.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const segment = await storage.createSegment({
+        ...segmentData,
+        projectId,
+        userId: req.user.userId,
+      });
+      res.json(segment);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create segment" });
+    }
+  });
+
+  app.post("/api/segments/estimate", authenticateToken, async (req, res) => {
+    try {
+      const { rulesJson } = req.body;
+      
+      if (!rulesJson) {
+        return res.status(400).json({ message: "Rules JSON is required" });
+      }
+
+      const estimate = await storage.estimateSegmentSize(rulesJson);
+      res.json({ users_daily: estimate });
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to estimate segment size" });
+    }
+  });
+
+  app.put("/api/segments/:id", authenticateToken, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const updates = req.body;
+
+      // Verify user has access to segment
+      const segment = await storage.getSegment(id);
+      if (!segment || segment.userId !== req.user.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedSegment = await storage.updateSegment(id, updates);
+      res.json(updatedSegment);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update segment" });
+    }
+  });
+
+  app.delete("/api/segments/:id", authenticateToken, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+
+      // Verify user has access to segment
+      const segment = await storage.getSegment(id);
+      if (!segment || segment.userId !== req.user.userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const deleted = await storage.deleteSegment(id);
+      res.json({ success: deleted });
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete segment" });
     }
   });
 

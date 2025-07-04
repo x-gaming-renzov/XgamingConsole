@@ -1,4 +1,4 @@
-import { users, projects, experiments, teamMembers, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember } from "@shared/schema";
+import { users, projects, experiments, teamMembers, segments, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember, type Segment, type InsertSegment } from "@shared/schema";
 import { nanoid } from "nanoid";
 
 export interface IStorage {
@@ -25,6 +25,14 @@ export interface IStorage {
   getTeamMembersByProjectId(projectId: number): Promise<TeamMember[]>;
   createTeamMember(teamMember: InsertTeamMember & { invitedBy: number }): Promise<TeamMember>;
   deleteTeamMember(id: number): Promise<boolean>;
+
+  // Segment methods
+  getSegment(id: number): Promise<Segment | undefined>;
+  getSegmentsByProjectId(projectId: number): Promise<Segment[]>;
+  createSegment(segment: InsertSegment & { projectId: number; userId: number }): Promise<Segment>;
+  updateSegment(id: number, segment: Partial<Segment>): Promise<Segment | undefined>;
+  deleteSegment(id: number): Promise<boolean>;
+  estimateSegmentSize(rulesJson: any): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -32,20 +40,24 @@ export class MemStorage implements IStorage {
   private projects: Map<number, Project>;
   private experiments: Map<number, Experiment>;
   private teamMembers: Map<number, TeamMember>;
+  private segments: Map<number, Segment>;
   private currentUserId: number;
   private currentProjectId: number;
   private currentExperimentId: number;
   private currentTeamMemberId: number;
+  private currentSegmentId: number;
 
   constructor() {
     this.users = new Map();
     this.projects = new Map();
     this.experiments = new Map();
     this.teamMembers = new Map();
+    this.segments = new Map();
     this.currentUserId = 1;
     this.currentProjectId = 1;
     this.currentExperimentId = 1;
     this.currentTeamMemberId = 1;
+    this.currentSegmentId = 1;
   }
 
   // User methods
@@ -170,6 +182,48 @@ export class MemStorage implements IStorage {
 
   async deleteTeamMember(id: number): Promise<boolean> {
     return this.teamMembers.delete(id);
+  }
+
+  // Segment methods
+  async getSegment(id: number): Promise<Segment | undefined> {
+    return this.segments.get(id);
+  }
+
+  async getSegmentsByProjectId(projectId: number): Promise<Segment[]> {
+    return Array.from(this.segments.values()).filter(
+      (segment) => segment.projectId === projectId,
+    );
+  }
+
+  async createSegment(segmentData: InsertSegment & { projectId: number; userId: number }): Promise<Segment> {
+    const id = this.currentSegmentId++;
+    const segment: Segment = {
+      ...segmentData,
+      id,
+      createdAt: new Date(),
+    };
+    this.segments.set(id, segment);
+    return segment;
+  }
+
+  async updateSegment(id: number, updates: Partial<Segment>): Promise<Segment | undefined> {
+    const segment = this.segments.get(id);
+    if (!segment) return undefined;
+    
+    const updatedSegment = { ...segment, ...updates };
+    this.segments.set(id, updatedSegment);
+    return updatedSegment;
+  }
+
+  async deleteSegment(id: number): Promise<boolean> {
+    return this.segments.delete(id);
+  }
+
+  async estimateSegmentSize(rulesJson: any): Promise<number> {
+    // Simulate segment size estimation based on rules
+    // In a real implementation, this would query actual user data
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return Math.floor(Math.random() * 5000) + 500;
   }
 }
 
