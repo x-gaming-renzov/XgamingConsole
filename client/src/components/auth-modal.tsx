@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,12 +117,12 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
           <DialogTitle>
             {mode === 'login' ? 'Welcome Back' : 'Get Started'}
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription>
             {mode === 'login' 
               ? 'Sign in to your Xgaming Nova account' 
               : 'Create your account to start experimenting'
             }
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         {mode === 'login' ? (

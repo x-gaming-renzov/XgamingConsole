@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Zap, BarChart3, CheckCircle, Target, TrendingUp } from "lucide-react";
 import AuthModal from "@/components/auth-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Landing() {
   const [authModal, setAuthModal] = useState<{ open: boolean; mode: 'login' | 'signup' }>({
@@ -27,6 +28,7 @@ export default function Landing() {
               <span className="text-xl font-bold text-foreground">Xgaming Nova</span>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <Button variant="ghost" onClick={openLogin} className="text-muted-foreground hover:text-foreground">
                 Login
               </Button>

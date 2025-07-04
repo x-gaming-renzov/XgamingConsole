@@ -8,6 +8,7 @@ import { Shield, BarChart3, TestTube, Users, Settings, LogOut, Plus } from "luci
 import DashboardOverview from "@/components/dashboard-overview";
 import ExperimentsList from "@/components/experiments-list";
 import ExperimentWizard from "@/components/experiment-wizard";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
 export default function Console() {
@@ -148,6 +149,9 @@ export default function Console() {
                   {activeSection === "team" && "Manage team members and permissions"}
                   {activeSection === "settings" && "Configure your project settings"}
                 </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <ThemeToggle />
               </div>
               <div className="flex items-center space-x-4">
                 <Button
