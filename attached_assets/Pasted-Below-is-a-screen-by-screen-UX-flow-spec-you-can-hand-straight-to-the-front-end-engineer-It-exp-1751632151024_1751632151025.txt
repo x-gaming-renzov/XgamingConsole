@@ -1,0 +1,145 @@
+Below is a **screen-by-screen UX flow spec** you can hand straight to the front-end engineer.
+It explains *what appears first, what a user can do next, and what data/state drives each view.*
+Copy strings are included where helpful; replace with i18n keys if you’re localisation-ready.
+
+---
+
+## 0 Global frame
+
+| Area                    | Behaviour                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Left sidebar**        | Persistent; collapsible on ≤ 1024 px width.<br>Order: **Dashboard · Personalizations · Objects · Cohorts · Insights · Team · Settings**.<br>Active item has 16 px coloured bar + bold text. |
+| **Top bar**             | Page title (h1) + 16 px subtitle.<br>Right side: refresh icon ↻, then CTA “New Personalization”.<br>Refresh triggers `/v1/metrics` refetch for cards & tables.                              |
+| **Primary CTA pattern** | Filled accent-colour button (e.g. `btn--primary`).<br>Secondary actions = outline button, destructive = red.                                                                                |
+| **Slide-in drawer**     | Right-anchored, 480 px fixed width, closes on ESC or outside click.<br>Used for row details & quick actions (eg. roll-out).                                                                 |
+
+---
+
+## 1 Dashboard  (`/dashboard`)
+
+| Zone                              | Flow / components                                                                                                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Metric Cards** (3-up grid)      | • *Active Personalizations* → count of `status=="active"` today.<br>• *Average Day-1 Retention* → `metrics.d1_retention` (%).<br>• *Average Activation Rate* → `% players reaching Level 2`.<br>Under each: small green/red delta vs prior week. |
+| **Recent Personalizations panel** | Table lists **last 5** personalizations ordered by `updated_at DESC`:<br>`Name · Object · Cohort · Status · Uplift`.<br>Row click → opens **Personalization drawer** (see §3).                                                                   |
+| **Empty state**                   | If no personalizations:<br>• Icon 🎛️ 48 px<br>• Title “No personalizations yet”<br>• Subtitle “Create your first FTUE personalization to optimise onboarding.”<br>• Primary button “Create Personalization” (links to wizard).                  |
+| **Refresh icon**                  | Spin while fetching, toast “Dashboard updated” on success / “Failed to refresh” on 4xx/5xx.                                                                                                                                                      |
+
+---
+
+## 2 Personalizations list (`/personalizations`)
+
+| Element               | Flow                                                                                                                                                                                                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Header**            | Title `Personalizations` + secondary “Live experiments on FTUE objects”.                                                                                                                                                                                          |
+| **Table** (paginated) | Columns:<br>• **Name** (link style).<br>• **Object** (chip: “Level 1”, “Welcome Popup”).<br>• **Cohort** (chip: “Campaign A”, “🇮🇳 + 🇺🇸”).<br>• **Uplift** (green `+9.8%` or “—” if <100 users).<br>• **Status** (badge: Active · Draft · Completed · Paused). |
+| **Row click**         | Opens *drawer* with Summary card + action buttons: **Edit**, **Roll out**, **End test** (confirm modal).                                                                                                                                                          |
+| **Bulk actions**      | Checkbox selection row-left; toolbar appears: *Pause · Resume · Archive*. Disabled unless ≥1 selected.                                                                                                                                                            |
+| **Filters**           | Inline pills above table: Cohort, Status. Clicking opens pop-over with multi-select list.                                                                                                                                                                         |
+
+---
+
+## 3 Personalization drawer (read view)
+
+| Section             | Details                                                                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Header**          | `<Name>` & status badge.                                                                                                                                |
+| **Stats**           | Target cohort, Object, Start date, Users per variant, Current uplift.                                                                                   |
+| **Sparkline**       | Mini line chart of D1 retention delta over last 7 days.                                                                                                 |
+| **Roll-out slider** | If status==Active: allow PM to shift allocation 0–100 %.<br>`<Slider>` + live preview “Variant A → 75 % of cohort”. **Save** → `PUT /admin/flags/{id}`. |
+| **End Test**        | Red outline button → modal “End & archive personalization?”; confirm triggers `POST /personalizations/{id}/complete`.                                   |
+| **Edit**            | Opens wizard prefilled (see below) in **modal**, not new page.                                                                                          |
+
+---
+
+## 4 New Personalization wizard (`/personalizations/new` or modal)
+
+| Step                    | UX details                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 · Select Object**   | Searchable dropdown sourced from `/objects` (flagged items). Show icon per object-type (🧩 level, 🪧 popup, 🎁 reward).                                                                                                                                                |
+| **2 · Define Variants** | Dynamic form driven by object schema:<br>• For popup: Title text, Body text, Image upload.<br>• For level param: Enemy HP (#), Reward Coins (#).<br>Provide *Variant A* & *Variant B* columns side-by-side.                                                            |
+| **3 · Choose Cohort**   | Radio: *All new players* / *Existing cohort* / *Create quick cohort*.<br>Existing list populated from `/cohorts`.<br>If quick cohort, inline builder: pick Countries, Campaign IDs, % rollout (defaults 50/50).                                                        |
+| **4 · Review & Launch** | Summary card: Object ▶ Cohort ▶ Variants split.<br>Primary button **Launch Personalization** (POST).<br>If no SDK traffic detected (`/integration_status` false) show yellow banner “SDK not yet connected; this test will remain in *Draft* until first player ping.” |
+
+---
+
+## 5 Objects (`/objects`)
+
+| Feature         | UX                                                                                                                                              |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Table**       | `Label · Type · Flags used in`<br>Search bar filters client-side.<br>If manifest sync out-of-date (`manifest.age >7 days`), red badge “Stale”.  |
+| **Row hover**   | Action “Create Personalization” → jumps into wizard pre-selecting this object.                                                                  |
+| **Sync banner** | Top info: “Manifest version #abc refreshed 3 hrs ago”. If backend warns unknown build, banner turns warning & prompts dev to push new manifest. |
+
+---
+
+## 6 Cohorts (`/cohorts`)
+
+| Item           | Details                                                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Table**      | Name · Rules summary (tooltip shows JSON) · Personalizations using (chips) · Created at.                                                                   |
+| **New Cohort** | Drawer with rule builder:<br>– AND/OR logic on traits `utm_source`, `country`, `install_age_days`, etc.<br>– Live preview “≈ 25 % of players last 7 days”. |
+| **Use**        | When a cohort is newly created, wizard step 3 auto-selects it.                                                                                             |
+
+---
+
+## 7 Insights (`/insights`)
+
+| Widget          | Purpose                                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Leaderboard** | Top 5 personalizations by uplift last 7 days.                                                                                      |
+| **Ideas feed**  | (Static placeholder for now): “Players from Campaign B churn 12 % more after Level 3 – consider personalising Level 3 difficulty.” |
+| **Trend chart** | Toggle: D1 retention / Activation. Drop-down to overlay cohort.                                                                    |
+
+---
+
+## 8 Team & Settings
+
+| Screen       | Highlights                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| **Team**     | Table of members; role chips (Owner · Editor · Developer - read-only). “Invite user” modal sends email with role choice. |
+| **Settings** | Show Project API key with copy button; rotate key (danger area); SDK manifest history list.                              |
+
+---
+
+## 9 Copy summary (use exact strings unless i18n)
+
+| Key context        | String                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| CTA main           | “New Personalization”                                                                               |
+| Metric cards       | “Active Personalizations” · “Average Day-1 Retention” · “Average Activation Rate (% reach Level 2)” |
+| Empty dashboard    | “No personalizations yet” + “Create your first FTUE personalization to optimise onboarding.”        |
+| Wizard step titles | “Select Object” · “Define Variants” · “Choose Cohort” · “Review & Launch”                           |
+| Drawer buttons     | “Roll out to cohort” · “End test”                                                                   |
+
+---
+
+## 10 Event/API touch-points (quick reference)
+
+| UI action                     | API                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| List dashboard metrics        | `GET /v1/metrics/overview`                                              |
+| List personalizations         | `GET /v1/personalizations?limit=25&page=n`                              |
+| Fetch drawer details          | `GET /v1/personalizations/{id}`                                         |
+| Create new personalization    | `POST /v1/personalizations` (payload inc. objectId, cohortId, variants) |
+| Update allocation             | `PUT /v1/personalizations/{id}/allocation`                              |
+| Complete test                 | `POST /v1/personalizations/{id}/complete`                               |
+| List objects                  | `GET /v1/objects`                                                       |
+| List cohorts                  | `GET /v1/cohorts`                                                       |
+| Create cohort                 | `POST /v1/cohorts`                                                      |
+| Integration status (SDK ping) | `GET /v1/projects/{id}/integration_status`                              |
+
+---
+
+### Implementation order
+
+1. **Copy changes** (labels, empty-states).
+2. **Rename route & sidebar items**.
+3. **Update metric cards**.
+4. **Personalizations table columns + drawer**.
+5. **Wizard step copy; ensure new record uses `objectId` & `cohortId`.**
+6. **Objects & Cohorts scaffolds.**
+7. **Insights placeholder.**
+
+Total ≈ 3–4 dev days if components are already modular.
+
+Hand this to the dev team; they can map each bullet to their React / Vue pages and existing API layer. Ping back once wired—you’ll instantly speak the PM’s language.
