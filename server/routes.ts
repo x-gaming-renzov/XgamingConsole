@@ -411,6 +411,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Experience Draft Generation
+  app.post("/api/ai/experience_draft", authenticateToken, async (req, res) => {
+    try {
+      const { prompt, campaignHint } = req.body;
+      
+      if (!prompt || typeof prompt !== 'string' || prompt.length < 10) {
+        return res.status(400).json({ message: "Prompt must be at least 10 characters" });
+      }
+
+      // Generate a unique draft ID
+      const draftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Mock AI-generated experience template for now
+      // In production, this would use OpenAI API
+      const draft = {
+        draftId,
+        name: `AI Generated: ${prompt.substring(0, 50)}...`,
+        objects: [
+          {
+            objectId: "level_5",
+            variants: {
+              control: { coins_multiplier: 1 },
+              A: { coins_multiplier: 2 }
+            }
+          }
+        ],
+        campaignId: campaignHint || "tiktok",
+        target: {
+          split: 50
+        }
+      };
+      
+      res.json(draft);
+    } catch (error) {
+      console.error("AI draft generation error:", error);
+      res.status(500).json({ message: "Failed to generate experience draft" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

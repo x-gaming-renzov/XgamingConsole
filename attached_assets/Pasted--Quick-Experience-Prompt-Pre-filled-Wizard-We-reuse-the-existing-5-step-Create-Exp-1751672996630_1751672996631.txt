@@ -1,0 +1,135 @@
+### “Quick Experience” = **Prompt → Pre‑filled Wizard**
+
+> We reuse the **existing 5‑step Create Experience wizard**.
+> The only additions are a *Prompt step* in front and AI‑generated defaults injected into each subsequent step.
+
+---
+
+## 0 · Flow Overview
+
+```
+Quick Experience button
+        ↓
+Step 0  • Prompt                (new drawer modal)
+        ↓   POST /ai/experience_draft
+Wizard  ┌──────────────────────────────────────────┐
+Step 1  | Select Objects        ← pre‑selected ✔   |
+Step 2  | Configure Variants    ← variants filled  |
+Step 3  | Choose Campaign       ← selected         |
+Step 4  | Target & Split        ← splits set       |
+Step 5  | Review & Launch       ← banner “AI draft”|
+        └──────────────────────────────────────────┘
+```
+
+The PM can edit anything in any step before launching.
+
+---
+
+## 1 · Step 0 — Prompt Drawer
+
+| Element                           | Spec                                                                  |
+| --------------------------------- | --------------------------------------------------------------------- |
+| Header                            | **“Describe your FTUE idea”**                                         |
+| Textarea                          | 5 rows, placeholder: “e.g. Double coins on Level 5 for TikTok users.” |
+| (optional) Campaign hint dropdown | Auto‑detect from `utm_source` tokens; PM can override.                |
+| **Generate Draft** button         | Disabled until ≥ 10 chars typed.                                      |
+| Spinner overlay                   | “Drafting experience… 5–10 s”                                         |
+
+On success, close drawer and **open wizard at Step 1 with query param `?draft=<id>`**.
+
+---
+
+## 2 · Wizard Injection Rules
+
+| Wizard step              | How to pre‑fill                                                      | UI indicator                                |
+| ------------------------ | -------------------------------------------------------------------- | ------------------------------------------- |
+| **1 Select Objects**     | Highlight & tick checkboxes for objects in `draft.objects`.          | Green badge “AI” on each pre‑selected card. |
+| **2 Configure Variants** | Populate control & Variant A fields from `draft.objects[].variants`. | “AI suggestion” label above variant panel.  |
+| **3 Choose Campaign**    | Campaign dropdown pre‑selected; if none, leave blank.                | Banner “Detected from prompt”               |
+| **4 Target & Split**     | Global slider or per‑segment table filled from `draft.target`.       | Splits editable.                            |
+| **5 Review**             | Show teal tag **“Pre‑filled by AI”** under Experience name.          |                                             |
+
+If a draft element is missing (e.g., segment unknown) the wizard shows the standard empty UI.
+
+---
+
+## 3 · Data Contract
+
+### Front‑end receives
+
+```ts
+interface ExperienceDraft {
+  draftId: string
+  name: string
+  objects: Array<{
+    objectId: string
+    variants: {
+      control: Record<string, any>
+      A:      Record<string, any>
+    }
+  }>
+  campaignId?: string
+  target?: {
+    segments?: { segmentId: string; split: number }[]
+    split?: number               // when no segments
+  }
+}
+```
+
+Draft stored server‑side for 24 h.  Wizard fetches `/v1/ai/draft/{draftId}` on first load.
+
+---
+
+## 4 · Additional UI Elements
+
+| Location            | Addition                                                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Wizard header right | Small ghost button **“Regenerate”** (opens Step 0 drawer with last prompt pre‑filled).                                  |
+| Step 1 empty state  | If objects from draft are no longer in manifest → red inline alert “Object ‘popup\_welcome’ not found in latest build.” |
+| Step 5              | If PM never changed defaults, show subtle “Everything looks good – ready to launch.”                                    |
+
+---
+
+## 5 · Error / Fallback
+
+*Draft generation error* → Dialog “Couldn’t create draft. Open blank wizard?” with **Continue manually** button.
+
+---
+
+## 6 · Analytics
+
+| Funnel              | Event                     |
+| ------------------- | ------------------------- |
+| Prompt shown        | `quick_draft_prompt_view` |
+| Prompt submitted    | `quick_draft_generate`    |
+| Draft success       | `quick_draft_ready`       |
+| First field edited  | `draft_edited` (per step) |
+| Experience launched | `draft_launched`          |
+
+Track median time Prompt → Launch vs normal wizard.
+
+---
+
+## 7 · Dev Notes
+
+1. Wizard component already accepts **initial values** via props; add wrapper `WizardFromDraft` that maps `draft` JSON to those props.
+2. Keep all validation identical.
+3. Use query param to avoid Redux collisions if user opens multiple drafts in tabs.
+
+---
+
+## 8 · Effort Add‑on
+
+| Piece                                  |                       Hrs |
+| -------------------------------------- | ------------------------: |
+| Prompt drawer UI                       |                         4 |
+| Draft fetch + state wrapper            |                         5 |
+| Pre‑fill indicators & badges           |                         3 |
+| Regenerate hook                        |                         2 |
+| Analytics hooks                        |                         2 |
+| QA paths (generate→edit→launch, error) |                         3 |
+| **Total**                              | **19 hrs (\~1 dev‑week)** |
+
+---
+
+**Result**: PMs keep the familiar wizard but start with 80 % of work done—no new learning curve, minimal engineering lift.

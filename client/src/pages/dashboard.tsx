@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Target, TrendingUp, CheckCircle, AlertTriangle, Plus, Trophy, Lightbulb, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
+import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface DashboardMetrics {
   activeExperiences: number;
@@ -51,6 +53,8 @@ interface InsightIdea {
 }
 
 export default function Dashboard() {
+  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
+  
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/metrics/overview"],
   });
@@ -76,7 +80,8 @@ export default function Dashboard() {
   }
 
   return (
-    <ConsoleLayout>
+    <>
+      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
       <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -397,6 +402,12 @@ export default function Dashboard() {
       </Card>
 
       </div>
-    </ConsoleLayout>
+      </ConsoleLayout>
+
+      <QuickExperiencePrompt 
+        open={showQuickPrompt} 
+        onClose={() => setShowQuickPrompt(false)} 
+      />
+    </>
   );
 }

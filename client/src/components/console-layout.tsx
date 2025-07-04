@@ -8,9 +8,10 @@ import { useAuth } from "@/lib/auth";
 
 interface ConsoleLayoutProps {
   children: ReactNode;
+  onQuickExperience?: () => void;
 }
 
-export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
+export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
 
@@ -104,12 +105,13 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               {/* Quick Actions */}
               <div className="pt-4 border-t border-border">
                 <p className="text-xs font-medium text-muted-foreground mb-3 px-3">QUICK ACTIONS</p>
-                <Link href="/experiences/new">
-                  <Button className="w-full justify-start mb-2">
-                    <Plus className="w-4 h-4 mr-3" />
-                    New Experience
-                  </Button>
-                </Link>
+                <Button 
+                  className="w-full justify-start mb-2"
+                  onClick={onQuickExperience || (() => {})}
+                >
+                  <Plus className="w-4 h-4 mr-3" />
+                  Quick Experience
+                </Button>
               </div>
 
               {/* Bottom Actions */}
