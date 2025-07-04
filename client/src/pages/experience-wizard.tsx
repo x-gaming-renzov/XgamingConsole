@@ -235,8 +235,6 @@ export default function ExperienceWizard() {
     
     setSelectedObjects(newSelectedObjects);
     setObjectVariants(newObjectVariants);
-    form.setValue("selectedObjects", newSelectedObjects);
-    form.setValue("objectVariants", newObjectVariants);
   };
 
   const addVariant = (objectId: string) => {
@@ -261,7 +259,6 @@ export default function ExperienceWizard() {
       };
       
       setObjectVariants(newObjectVariants);
-      form.setValue("objectVariants", newObjectVariants);
     }
   };
 
@@ -276,7 +273,6 @@ export default function ExperienceWizard() {
       };
       
       setObjectVariants(newObjectVariants);
-      form.setValue("objectVariants", newObjectVariants);
     }
   };
 
@@ -297,7 +293,6 @@ export default function ExperienceWizard() {
       };
       
       setObjectVariants(newObjectVariants);
-      form.setValue("objectVariants", newObjectVariants);
     }
   };
 
