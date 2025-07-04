@@ -347,6 +347,27 @@ export default function ExperienceWizard() {
     }
   };
 
+  const saveDraft = () => {
+    const draftData = {
+      name: experienceName || `Draft ${new Date().toLocaleDateString()}`,
+      description: experienceDescription || "Experience draft",
+      selectedObjects,
+      objectVariants,
+      trafficSplit,
+      campaignType,
+      campaignId,
+      newCampaign,
+      startDate,
+      endDate,
+      autoRollout,
+      status: "Draft" as const
+    };
+    console.log("Saving draft...", draftData);
+    // Here you would typically make an API call to save the draft
+    // For now, we'll just navigate back to experiences
+    setLocation("/experiences");
+  };
+
   const onSubmit = () => {
     const data = {
       name: experienceName,
@@ -1025,6 +1046,25 @@ export default function ExperienceWizard() {
                     >
                       <Zap className="w-4 h-4 mr-2" />
                       Launch Experience
+                    </Button>
+                  </>
+                ) : currentStep === 2 ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={saveDraft}
+                      disabled={selectedObjects.length === 0}
+                    >
+                      Save as Draft
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={nextStep}
+                      disabled={!canProceed()}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-2" />
                     </Button>
                   </>
                 ) : (
