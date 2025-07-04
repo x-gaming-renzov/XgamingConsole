@@ -110,6 +110,9 @@ export default function ExperimentWizard({ open, onClose, projectId }: Experimen
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New FTUE Experiment</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Design and configure your first-time user experience experiment
+          </p>
         </DialogHeader>
 
         <Form {...form}>

@@ -16,9 +16,9 @@ export default function Console() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [showCreateExperiment, setShowCreateExperiment] = useState(false);
 
-  const { data: authData } = useQuery({
+  const { data: authData, isLoading: isLoadingAuth } = useQuery({
     queryKey: ["/api/auth/me"],
-    enabled: !!user,
+    enabled: !!user && !!user.id,
   });
 
   const currentProject = authData?.projects?.[0];
@@ -34,7 +34,7 @@ export default function Console() {
     setLocation("/");
   };
 
-  if (!user || !currentProject) {
+  if (!user || isLoadingAuth || !currentProject) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

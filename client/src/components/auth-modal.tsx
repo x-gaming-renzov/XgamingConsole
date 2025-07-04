@@ -117,6 +117,12 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
           <DialogTitle>
             {mode === 'login' ? 'Welcome Back' : 'Get Started'}
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {mode === 'login' 
+              ? 'Sign in to your Xgaming Nova account' 
+              : 'Create your account to start experimenting'
+            }
+          </p>
         </DialogHeader>
 
         {mode === 'login' ? (
