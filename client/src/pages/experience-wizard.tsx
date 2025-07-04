@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -132,7 +132,7 @@ export default function ExperienceWizard() {
   });
 
   // Mock data for objects and campaigns
-  const objects: GameObject[] = [
+  const objects: GameObject[] = useMemo(() => [
     {
       id: "level_5_tutorial",
       name: "Level 5 Tutorial",
@@ -180,7 +180,7 @@ export default function ExperienceWizard() {
         { key: "use_animations", type: "boolean", defaultValue: true, description: "Enable UI animations" }
       ]
     }
-  ];
+  ], []);
 
   const campaigns: Campaign[] = [
     { id: "facebook_ads", name: "Facebook Campaign", utmSource: "facebook", traffic: 1250 },
@@ -206,7 +206,7 @@ export default function ExperienceWizard() {
     }
   };
 
-  const handleObjectSelect = (objectId: string, checked: boolean) => {
+  const handleObjectSelect = useCallback((objectId: string, checked: boolean) => {
     let newSelectedObjects: string[];
     let newObjectVariants = { ...objectVariants };
     
@@ -235,7 +235,7 @@ export default function ExperienceWizard() {
     
     setSelectedObjects(newSelectedObjects);
     setObjectVariants(newObjectVariants);
-  };
+  }, [selectedObjects, objectVariants, objects]);
 
   const addVariant = (objectId: string) => {
     const object = objects.find(o => o.id === objectId);
@@ -414,7 +414,11 @@ export default function ExperienceWizard() {
                                 ? "border-primary bg-primary/5 shadow-sm"
                                 : "border-border hover:border-primary/50"
                             }`}
-                            onClick={() => handleObjectSelect(object.id, !selectedObjects.includes(object.id))}
+                            onClick={(e) => {
+                              // Only handle click if it's not on the checkbox
+                              if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
+                              handleObjectSelect(object.id, !selectedObjects.includes(object.id));
+                            }}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center space-x-3">
@@ -428,7 +432,10 @@ export default function ExperienceWizard() {
                               </div>
                               <Checkbox
                                 checked={selectedObjects.includes(object.id)}
-                                onCheckedChange={(checked) => handleObjectSelect(object.id, !!checked)}
+                                onCheckedChange={(checked) => {
+                                  const isChecked = checked === true;
+                                  handleObjectSelect(object.id, isChecked);
+                                }}
                                 className="mt-1"
                               />
                             </div>
