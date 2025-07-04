@@ -32,7 +32,8 @@ import {
   AlertTriangle,
   Wine,
   Beaker,
-  Zap
+  Zap,
+  Search
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -116,6 +117,7 @@ export default function ExperienceWizard() {
     dailyTraffic: 0
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
   
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
@@ -319,6 +321,11 @@ export default function ExperienceWizard() {
     )
   );
 
+  const filteredCampaigns = campaigns.filter(campaign =>
+    campaign.name.toLowerCase().includes(campaignSearchQuery.toLowerCase()) ||
+    campaign.utmSource.toLowerCase().includes(campaignSearchQuery.toLowerCase())
+  );
+
   const nextStep = () => {
     if (currentStep < 5) setCurrentStep(currentStep + 1);
   };
@@ -337,9 +344,9 @@ export default function ExperienceWizard() {
           return variants && variants.variants.length > 0;
         });
       case 3:
-        return getTotalCombinations() <= 8;
-      case 4:
         return campaignType === "new" || campaignId;
+      case 4:
+        return getTotalCombinations() <= 8;
       case 5:
         return experienceName.length > 0;
       default:
@@ -693,8 +700,122 @@ export default function ExperienceWizard() {
               </Card>
             )}
 
-            {/* Step 3: Traffic Split */}
+            {/* Step 3: Select Campaign */}
             {currentStep === 3 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-heading">Select Campaign</CardTitle>
+                  <p className="text-sm text-muted-foreground">Choose your campaign and set release conditions</p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <RadioGroup
+                      value={campaignType}
+                      onValueChange={(value) => setCampaignType(value as "existing" | "new")}
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="existing" id="existing" />
+                          <Label htmlFor="existing">Use existing campaign</Label>
+                        </div>
+                        
+                        {campaignType === "existing" && (
+                          <div className="ml-6 space-y-4">
+                            {/* Search bar */}
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                placeholder="Search campaigns..."
+                                value={campaignSearchQuery}
+                                onChange={(e) => setCampaignSearchQuery(e.target.value)}
+                                className="pl-9"
+                              />
+                            </div>
+                            
+                            {/* Campaign list */}
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                              {filteredCampaigns.map((campaign) => (
+                                <div
+                                  key={campaign.id}
+                                  onClick={() => setCampaignId(campaign.id)}
+                                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                    campaignId === campaign.id
+                                      ? "border-primary bg-primary/5"
+                                      : "border-border hover:border-primary/50"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium">{campaign.name}</div>
+                                      <div className="text-sm text-muted-foreground">{campaign.utmSource}</div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-medium">{campaign.traffic.toLocaleString()}</div>
+                                      <div className="text-xs text-muted-foreground">daily users</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              {filteredCampaigns.length === 0 && campaignSearchQuery && (
+                                <div className="text-center py-4 text-muted-foreground">
+                                  <p>No campaigns found matching "{campaignSearchQuery}"</p>
+                                  <Button variant="outline" onClick={() => setCampaignSearchQuery("")} className="mt-2">
+                                    Clear search
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="new" id="new" />
+                          <Label htmlFor="new">Create new campaign</Label>
+                        </div>
+                        
+                        {campaignType === "new" && (
+                          <div className="ml-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="campaign-name">Campaign Name</Label>
+                                <Input
+                                  id="campaign-name"
+                                  placeholder="e.g., Summer Promotion"
+                                  value={newCampaign.name}
+                                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="utm-source">UTM Source</Label>
+                                <Input
+                                  id="utm-source"
+                                  placeholder="e.g., facebook, google"
+                                  value={newCampaign.utmSource}
+                                  onChange={(e) => setNewCampaign({ ...newCampaign, utmSource: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="daily-traffic">Expected Daily Traffic</Label>
+                              <Input
+                                id="daily-traffic"
+                                type="number"
+                                placeholder="1000"
+                                value={newCampaign.dailyTraffic || ""}
+                                onChange={(e) => setNewCampaign({ ...newCampaign, dailyTraffic: parseInt(e.target.value) || 0 })}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 4: Traffic Split */}
+            {currentStep === 4 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Traffic Split</CardTitle>
@@ -751,99 +872,6 @@ export default function ExperienceWizard() {
                         })}
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 4: Target & Schedule */}
-            {currentStep === 4 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-heading">Target & Schedule</CardTitle>
-                  <p className="text-sm text-muted-foreground">Choose your campaign and set release conditions</p>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label className="text-base font-medium mb-4 block">Select Campaign</Label>
-                    <RadioGroup
-                      value={campaignType}
-                      onValueChange={(value) => setCampaignType(value as "existing" | "new")}
-                    >
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="existing" id="existing" />
-                          <Label htmlFor="existing">Use existing campaign</Label>
-                        </div>
-                        
-                        {campaignType === "existing" && (
-                          <div className="ml-6 space-y-2">
-                            {campaigns.map((campaign) => (
-                              <div
-                                key={campaign.id}
-                                onClick={() => setCampaignId(campaign.id)}
-                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                  campaignId === campaign.id
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border hover:border-primary/50"
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium">{campaign.name}</div>
-                                    <div className="text-sm text-muted-foreground">{campaign.utmSource}</div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-sm font-medium">{campaign.traffic.toLocaleString()}</div>
-                                    <div className="text-xs text-muted-foreground">daily users</div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="new" id="new" />
-                          <Label htmlFor="new">Create new campaign</Label>
-                        </div>
-                        
-                        {campaignType === "new" && (
-                          <div className="ml-6 space-y-4 p-4 border rounded-lg">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="campaign-name">Campaign Name</Label>
-                                <Input
-                                  id="campaign-name"
-                                  placeholder="e.g., Summer Launch"
-                                  value={newCampaign.name}
-                                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="utm-source">UTM Source</Label>
-                                <Input
-                                  id="utm-source"
-                                  placeholder="e.g., facebook, google"
-                                  value={newCampaign.utmSource}
-                                  onChange={(e) => setNewCampaign({ ...newCampaign, utmSource: e.target.value })}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <Label htmlFor="daily-traffic">Expected Daily Traffic</Label>
-                              <Input
-                                id="daily-traffic"
-                                type="number"
-                                placeholder="1000"
-                                value={newCampaign.dailyTraffic || ""}
-                                onChange={(e) => setNewCampaign({ ...newCampaign, dailyTraffic: parseInt(e.target.value) || 0 })}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </RadioGroup>
                   </div>
 
                   <Separator />
