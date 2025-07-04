@@ -1,0 +1,165 @@
+Below is a **target‑and‑split design spec** that plugs into the Create Experience wizard.
+It covers both scenarios you outlined:
+
+1. **No Segment chosen** → one global traffic slider.
+2. **Multiple Segments chosen** → table of per‑segment sliders.
+
+Hand this to your front‑end and API team; all deltas are explicit.
+
+---
+
+## 1 · Wizard Step Order (5‑step flow)
+
+```
+1 Select Objects
+2 Configure Variants
+3 Choose Campaign                 ← unchanged
+4 Target Audience & Split         ← new combined step
+5 Review & Save/Launch
+```
+
+---
+
+## 2 · Step 4 Layout — two modes
+
+### 4‑A) “All Players” mode  *(default)*
+
+```
+Target Audience
+  ● All players in campaign                i
+  ○ Specific segments
+
+Traffic Split
+  [──────────■──────────]  50 % Experience
+  0 % (Control)                             100 % (Experience)
+```
+
+* **Single slider** controls Experience vs Control.
+* Tooltip on radio button `i` = “Experience will be served to every new player arriving from the selected campaign.”
+
+---
+
+### 4‑B) “Specific Segments” mode
+
+```
+Target Audience
+  ○ All players in campaign
+  ● Specific segments                      (Add Segment ⌄)
+
+Selected Segments
+  ┌───────────────────────────────────────────────┐
+  │ Segment                     | Split |  Users  │
+  │─────────────────────────────|───────|─────────│
+  │ High‑Tier iOS               |  70%  |  ≈ 5 k  │
+  │ TikTok (utm_source)         |  30%  |  ≈ 6 k  │
+  │ NewPlayers < 3 days install |  50%  |  ≈12 k  │
+  └───────────────────────────────────────────────┘
+            Copy split ⟲    Equalize ◒
+
+*Experience will be shown to selected % of each segment; others stay in Control.*
+```
+
+#### Interactions
+
+| Element                    | Behaviour                                                  |
+| -------------------------- | ---------------------------------------------------------- |
+| **“Add Segment” dropdown** | Multi‑select with search; adds row (default split = 50 %). |
+| **Split column**           | Inline number field (0‑100) or per‑row slider (mini).      |
+| **Users column**           | Live estimate from `/segments/estimate`.                   |
+| **Copy split**             | Opens modal “Apply 70 % to all segments?”                  |
+| **Equalize**               | Distribute same split across all rows (50 % default).      |
+| **Validation**             | Any value outside 0‑100 shows red border; cannot proceed.  |
+
+*Control share per segment = 100 – split%.
+No need for splits to sum to 100 overall since they’re evaluated per segment.*
+
+---
+
+## 3 · Empty / Error States
+
+* If PM toggles to “Specific segments” but selects none → show call‑out
+  “Add at least one segment or switch back to ‘All players’.”
+
+* If an added segment’s estimated users API returns `<100` daily → yellow pill “Low traffic”.
+
+---
+
+## 4 · Review Step (5)
+
+*Show one of two summaries.*
+
+| Mode     | Summary line                                                         |
+| -------- | -------------------------------------------------------------------- |
+| Global   | “Audience: **All players** — Experience 50 %, Control 50 %”          |
+| Segments | “Audience: 3 segments (split per segment)” + clickable tooltip table |
+
+---
+
+## 5 · Payload & Backend
+
+### Existing (campaign‑wide)
+
+```json
+"target": { "segmentId": "*" , "split": 0.5 }
+```
+
+### With segments
+
+```json
+"target": {
+  "segments": [
+    { "segmentId": "seg_ios_tier3",  "split": 0.7 },
+    { "segmentId": "seg_tiktok",     "split": 0.3 },
+    { "segmentId": "seg_newbies",    "split": 0.5 }
+  ]
+}
+```
+
+*If `segments` array absent → treat as wildcard.*
+
+SDK behaviour: still returns per‑object variant; backend handles per‑segment allocation.
+
+---
+
+## 6 · UI Copy Snippets
+
+| Context                  | Copy                                                     |
+| ------------------------ | -------------------------------------------------------- |
+| Section header           | **Target Audience & Traffic Split**                      |
+| Radio label              | “**All players** in campaign”                            |
+| Radio label              | “**Specific segments**”                                  |
+| Add‑segment placeholder  | “Search saved segments…”                                 |
+| Split column header      | “Experience %”                                           |
+| Tooltip (All players)    | “Applies to every new player coming from this campaign.” |
+| Tooltip (segments table) | “Split is evaluated inside each segment independently.”  |
+
+---
+
+## 7 · Accessibility / Keyboard
+
+* Tab sequence:
+  – radio group → Add Segment button → table rows (each split input) → helper buttons → Next.
+* Arrow‑left / right adjusts slider when focused.
+* Announce live user estimate via `aria-live="polite"` on cell update.
+
+---
+
+## 8 · Dev Estimate (delta)
+
+| Task                             |                         Hrs |
+| -------------------------------- | --------------------------: |
+| Radio switch & conditional UI    |                           2 |
+| Multi‑select segments dropdown   |                           3 |
+| Table with inline slider / input |                           4 |
+| Helper buttons (copy / equalize) |                           2 |
+| Validation logic                 |                           2 |
+| API payload mapping              |                           2 |
+| Unit tests & e2e update          |                           3 |
+| **Total**                        | **18 hrs (\~¾ sprint day)** |
+
+---
+
+### Outcome
+
+*PMs who just want “50 % of everyone” breeze through.*
+*Advanced PMs can fine‑tune per segment without leaving the wizard.*

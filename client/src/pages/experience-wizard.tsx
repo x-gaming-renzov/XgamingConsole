@@ -119,6 +119,16 @@ export default function ExperienceWizard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
   
+  // Step 4: Target Audience & Traffic Split states
+  const [targetAudience, setTargetAudience] = useState<"all" | "segments">("all");
+  const [selectedSegments, setSelectedSegments] = useState<Array<{
+    id: string;
+    name: string;
+    split: number;
+    estimatedUsers: number;
+  }>>([]);
+  const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
+  
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
     defaultValues: {
@@ -192,11 +202,20 @@ export default function ExperienceWizard() {
     { id: "instagram_ads", name: "Instagram Ads", utmSource: "instagram", traffic: 680 }
   ];
 
+  // Mock segments data
+  const availableSegments = [
+    { id: "high_tier_ios", name: "High-Tier iOS", estimatedUsers: 5200, description: "tier = pro AND device_os = ios" },
+    { id: "tiktok_source", name: "TikTok (utm_source)", estimatedUsers: 6100, description: "utm_source = tiktok" },
+    { id: "new_players", name: "NewPlayers < 3 days install", estimatedUsers: 12400, description: "level_number = 1 AND retry_count < 3" },
+    { id: "android_spenders", name: "Android Spenders", estimatedUsers: 3800, description: "device_os = android AND purchase_history = true" },
+    { id: "casual_players", name: "Casual Players", estimatedUsers: 8900, description: "session_length < 30 AND games_per_week < 5" }
+  ];
+
   const steps = [
     { number: 1, title: "Select Objects", description: "Choose objects to personalize", icon: <Layers className="w-4 h-4" /> },
     { number: 2, title: "Configure Variants", description: "Define versions for each object", icon: <Beaker className="w-4 h-4" /> },
     { number: 3, title: "Select Campaign", description: "Choose campaign and timing", icon: <Target className="w-4 h-4" /> },
-    { number: 4, title: "Traffic Split", description: "Set experience percentage", icon: <Sliders className="w-4 h-4" /> },
+    { number: 4, title: "Target & Split", description: "Set audience and split percentage", icon: <Users className="w-4 h-4" /> },
     { number: 5, title: "Review & Launch", description: "Final review and deployment", icon: <Zap className="w-4 h-4" /> }
   ];
 
@@ -312,6 +331,40 @@ export default function ExperienceWizard() {
     return total;
   };
 
+  // Segment helper functions
+  const addSegment = (segment: { id: string; name: string; estimatedUsers: number; }) => {
+    const newSegment = {
+      id: segment.id,
+      name: segment.name,
+      split: 50,
+      estimatedUsers: segment.estimatedUsers
+    };
+    setSelectedSegments([...selectedSegments, newSegment]);
+  };
+
+  const removeSegment = (segmentId: string) => {
+    setSelectedSegments(selectedSegments.filter(s => s.id !== segmentId));
+  };
+
+  const updateSegmentSplit = (segmentId: string, split: number) => {
+    setSelectedSegments(selectedSegments.map(s => 
+      s.id === segmentId ? { ...s, split } : s
+    ));
+  };
+
+  const copySegmentSplit = (baseSplit: number) => {
+    setSelectedSegments(selectedSegments.map(s => ({ ...s, split: baseSplit })));
+  };
+
+  const equalizeSegmentSplits = () => {
+    setSelectedSegments(selectedSegments.map(s => ({ ...s, split: 50 })));
+  };
+
+  const filteredSegments = availableSegments.filter(segment => 
+    !selectedSegments.some(s => s.id === segment.id) &&
+    segment.name.toLowerCase().includes(segmentSearchQuery.toLowerCase())
+  );
+
   const filteredObjects = objects.filter(object => 
     object.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     object.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -346,7 +399,13 @@ export default function ExperienceWizard() {
       case 3:
         return campaignType === "new" || campaignId;
       case 4:
-        return getTotalCombinations() <= 8;
+        if (targetAudience === "all") {
+          return true; // Global traffic split is always valid
+        } else {
+          // Segments mode: need at least one segment with valid splits
+          return selectedSegments.length > 0 && 
+                 selectedSegments.every(s => s.split >= 0 && s.split <= 100);
+        }
       case 5:
         return experienceName.length > 0;
       default:
@@ -814,134 +873,214 @@ export default function ExperienceWizard() {
               </Card>
             )}
 
-            {/* Step 4: Traffic Split */}
+            {/* Step 4: Target Audience & Traffic Split */}
             {currentStep === 4 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-heading">Traffic Split</CardTitle>
-                  <p className="text-sm text-muted-foreground">How many new players should experience the new version?</p>
+                  <CardTitle className="font-heading">Target Audience & Traffic Split</CardTitle>
+                  <p className="text-sm text-muted-foreground">Choose your audience and set experience percentages</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Target Audience Selection */}
                   <div>
-                    <Label className="text-base font-medium mb-4 block">Experience Traffic</Label>
-                    <div className="space-y-4">
-                      <Slider
-                        value={[trafficSplit]}
-                        onValueChange={(value) => setTrafficSplit(value[0])}
-                        max={100}
-                        step={5}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>0% (Full Control)</span>
-                        <span className="font-medium text-foreground">{trafficSplit}% Experience</span>
-                        <span>100% (Full Experience)</span>
+                    <Label className="text-base font-medium mb-4 block">Target Audience</Label>
+                    <RadioGroup 
+                      value={targetAudience} 
+                      onValueChange={(value: "all" | "segments") => setTargetAudience(value)}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="all" id="all-players" />
+                        <Label 
+                          htmlFor="all-players" 
+                          className="flex items-center space-x-2 cursor-pointer"
+                        >
+                          <span className="font-medium">All players in campaign</span>
+                          <div className="group relative">
+                            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                              <path d="M12 17h.01" />
+                            </svg>
+                            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md z-10">
+                              Applies to every new player coming from this campaign
+                            </div>
+                          </div>
+                        </Label>
                       </div>
-                    </div>
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="segments" id="specific-segments" />
+                        <Label htmlFor="specific-segments" className="font-medium cursor-pointer">
+                          Specific segments
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </div>
 
                   <Separator />
 
-                  <div>
-                    <Label className="text-base font-medium mb-4 block">Total Combinations</Label>
-                    <div className="bg-accent/50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">Total Combinations</span>
-                        <Badge variant={getTotalCombinations() > 8 ? "destructive" : "default"}>
-                          {getTotalCombinations()}
-                        </Badge>
+                  {/* All Players Mode */}
+                  {targetAudience === "all" && (
+                    <div>
+                      <Label className="text-base font-medium mb-4 block">Traffic Split</Label>
+                      <div className="space-y-4">
+                        <Slider
+                          value={[trafficSplit]}
+                          onValueChange={(value) => setTrafficSplit(value[0])}
+                          max={100}
+                          step={5}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>{100 - trafficSplit}% (Control)</span>
+                          <span className="font-medium text-foreground">{trafficSplit}% Experience</span>
+                          <span>100% (Full Experience)</span>
+                        </div>
                       </div>
-                      {getTotalCombinations() > 8 && (
-                        <Alert className="mt-4">
+                    </div>
+                  )}
+
+                  {/* Specific Segments Mode */}
+                  {targetAudience === "segments" && (
+                    <div className="space-y-4">
+                      {/* Add Segment Dropdown */}
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">Selected Segments</Label>
+                        <Select
+                          value=""
+                          onValueChange={(segmentId) => {
+                            const segment = availableSegments.find(s => s.id === segmentId);
+                            if (segment) {
+                              addSegment(segment);
+                              setSegmentSearchQuery("");
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Add Segment ⌄" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="p-2">
+                              <Input
+                                placeholder="Search saved segments..."
+                                value={segmentSearchQuery}
+                                onChange={(e) => setSegmentSearchQuery(e.target.value)}
+                                className="mb-2"
+                              />
+                            </div>
+                            {filteredSegments.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground text-center">
+                                {segmentSearchQuery ? "No segments found" : "No more segments available"}
+                              </div>
+                            ) : (
+                              filteredSegments.map((segment) => (
+                                <SelectItem key={segment.id} value={segment.id}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{segment.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      ≈ {(segment.estimatedUsers / 1000).toFixed(1)}k users
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Segments Table */}
+                      {selectedSegments.length === 0 ? (
+                        <Alert>
                           <AlertTriangle className="h-4 w-4" />
                           <AlertDescription>
-                            Too many combinations ({getTotalCombinations()}). Please reduce variants or objects to 8 or fewer.
+                            Add at least one segment or switch back to 'All players'.
                           </AlertDescription>
                         </Alert>
-                      )}
-                      <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-                        {selectedObjects.map(objectId => {
-                          const object = objects.find(o => o.id === objectId);
-                          const variants = objectVariants[objectId];
-                          return (
-                            <div key={objectId} className="flex justify-between">
-                              <span>{object?.name}</span>
-                              <span>{variants?.variants.length || 0} variants</span>
+                      ) : (
+                        <div className="border rounded-lg">
+                          <div className="grid grid-cols-12 gap-4 p-3 border-b bg-muted/50 text-sm font-medium">
+                            <div className="col-span-6">Segment</div>
+                            <div className="col-span-3">Experience %</div>
+                            <div className="col-span-2">Users</div>
+                            <div className="col-span-1"></div>
+                          </div>
+                          {selectedSegments.map((segment) => (
+                            <div key={segment.id} className="grid grid-cols-12 gap-4 p-3 items-center border-b last:border-b-0">
+                              <div className="col-span-6">
+                                <div className="font-medium">{segment.name}</div>
+                              </div>
+                              <div className="col-span-3">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={segment.split}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value) || 0;
+                                    if (value >= 0 && value <= 100) {
+                                      updateSegmentSplit(segment.id, value);
+                                    }
+                                  }}
+                                  className={`w-16 text-center ${
+                                    segment.split < 0 || segment.split > 100 ? "border-destructive" : ""
+                                  }`}
+                                />
+                              </div>
+                              <div className="col-span-2 text-sm text-muted-foreground">
+                                ≈ {(segment.estimatedUsers / 1000).toFixed(1)}k
+                                {segment.estimatedUsers < 100 && (
+                                  <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-800 text-xs">
+                                    Low traffic
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="col-span-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeSegment(segment.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-base font-medium mb-4 block">Schedule (Optional)</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="start-date">Start Date</Label>
-                        <Input
-                          id="start-date"
-                          type="datetime-local"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="end-date">End Date</Label>
-                        <Input
-                          id="end-date"
-                          type="datetime-local"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Switch
-                        id="auto-rollout"
-                        checked={autoRollout.enabled}
-                        onCheckedChange={(checked) => setAutoRollout({ ...autoRollout, enabled: checked })}
-                      />
-                      <Label htmlFor="auto-rollout" className="text-base font-medium">Auto-rollout</Label>
-                    </div>
-                    
-                    {autoRollout.enabled && (
-                      <div className="ml-6 space-y-4 p-4 border rounded-lg">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="uplift-threshold">Uplift Threshold (%)</Label>
-                            <Input
-                              id="uplift-threshold"
-                              type="number"
-                              placeholder="5"
-                              value={autoRollout.upliftThreshold}
-                              onChange={(e) => setAutoRollout({ ...autoRollout, upliftThreshold: parseInt(e.target.value) || 5 })}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="min-users">Minimum Users</Label>
-                            <Input
-                              id="min-users"
-                              type="number"
-                              placeholder="1000"
-                              value={autoRollout.minUsers}
-                              onChange={(e) => setAutoRollout({ ...autoRollout, minUsers: parseInt(e.target.value) || 1000 })}
-                            />
-                          </div>
+                          ))}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Automatically increase traffic when uplift reaches threshold with sufficient users
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      )}
+
+                      {/* Helper Buttons */}
+                      {selectedSegments.length > 0 && (
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const firstSplit = selectedSegments[0]?.split || 50;
+                              copySegmentSplit(firstSplit);
+                            }}
+                            className="text-xs"
+                          >
+                            Copy split ⟲
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={equalizeSegmentSplits}
+                            className="text-xs"
+                          >
+                            Equalize ◒
+                          </Button>
+                        </div>
+                      )}
+
+                      {selectedSegments.length > 0 && (
+                        <div className="text-xs text-muted-foreground italic">
+                          Experience will be shown to selected % of each segment; others stay in Control.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

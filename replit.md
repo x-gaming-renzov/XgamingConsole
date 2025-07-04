@@ -106,6 +106,10 @@ Changelog:
 - July 04, 2025. Added light/dark theme toggle with custom OKLCH color scheme
 - July 04, 2025. Transformed UI from generic "experiments" to FTUE-focused "personalizations" with objects and cohorts workflow
 - July 05, 2025. Added comprehensive Segments page with segment builder modal, API endpoints, and storage layer
+- July 05, 2025. Updated Experience Wizard Step 4 to "Target Audience & Traffic Split" with dual functionality:
+  - All players mode: single global traffic slider (default)
+  - Specific segments mode: multi-segment selection with individual splits per segment
+  - Added segment search, validation, helper buttons (copy split, equalize), and low traffic warnings
 
 ## User Preferences
 
