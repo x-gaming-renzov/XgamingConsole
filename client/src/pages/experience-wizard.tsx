@@ -206,36 +206,41 @@ export default function ExperienceWizard() {
     }
   };
 
-  const handleObjectSelect = useCallback((objectId: string, checked: boolean) => {
-    let newSelectedObjects: string[];
-    let newObjectVariants = { ...objectVariants };
-    
-    if (checked) {
-      newSelectedObjects = [...selectedObjects, objectId];
-      
-      // Initialize variants for newly selected objects
+  const handleObjectSelect = (objectId: string, checked: boolean) => {
+    if (checked && !selectedObjects.includes(objectId)) {
+      // Add object
+      const newSelectedObjects = [...selectedObjects, objectId];
       const object = objects.find(o => o.id === objectId);
+      
       if (object) {
         const defaultValues: Record<string, any> = {};
         object.flags.forEach(flag => {
           defaultValues[flag.key] = flag.defaultValue;
         });
         
-        newObjectVariants[objectId] = {
-          variants: [
-            { name: "Control", values: defaultValues },
-            { name: "Variant A", values: { ...defaultValues } }
-          ]
+        const newObjectVariants = {
+          ...objectVariants,
+          [objectId]: {
+            variants: [
+              { name: "Control", values: defaultValues },
+              { name: "Variant A", values: { ...defaultValues } }
+            ]
+          }
         };
+        
+        setSelectedObjects(newSelectedObjects);
+        setObjectVariants(newObjectVariants);
       }
-    } else {
-      newSelectedObjects = selectedObjects.filter(id => id !== objectId);
+    } else if (!checked && selectedObjects.includes(objectId)) {
+      // Remove object
+      const newSelectedObjects = selectedObjects.filter(id => id !== objectId);
+      const newObjectVariants = { ...objectVariants };
       delete newObjectVariants[objectId];
+      
+      setSelectedObjects(newSelectedObjects);
+      setObjectVariants(newObjectVariants);
     }
-    
-    setSelectedObjects(newSelectedObjects);
-    setObjectVariants(newObjectVariants);
-  }, [selectedObjects, objectVariants, objects]);
+  };
 
   const addVariant = (objectId: string) => {
     const object = objects.find(o => o.id === objectId);
@@ -414,10 +419,9 @@ export default function ExperienceWizard() {
                                 ? "border-primary bg-primary/5 shadow-sm"
                                 : "border-border hover:border-primary/50"
                             }`}
-                            onClick={(e) => {
-                              // Only handle click if it's not on the checkbox
-                              if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
-                              handleObjectSelect(object.id, !selectedObjects.includes(object.id));
+                            onClick={() => {
+                              const isCurrentlySelected = selectedObjects.includes(object.id);
+                              handleObjectSelect(object.id, !isCurrentlySelected);
                             }}
                           >
                             <div className="flex items-start justify-between mb-3">
@@ -430,14 +434,13 @@ export default function ExperienceWizard() {
                                   <Badge variant="outline" className="mt-1">{object.type}</Badge>
                                 </div>
                               </div>
-                              <Checkbox
-                                checked={selectedObjects.includes(object.id)}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleObjectSelect(object.id, isChecked);
-                                }}
-                                className="mt-1"
-                              />
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedObjects.includes(object.id)}
+                                  onCheckedChange={(checked) => handleObjectSelect(object.id, checked === true)}
+                                  className="mt-1"
+                                />
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground mb-2">
                               {object.flags.length} flags available
