@@ -1,0 +1,455 @@
+Perfect. I’ll draft a full PRD for the PulseFlags product website and console—focused on mobile game PMs and marketers, designed to move them from curiosity to experiment launch in minutes.
+
+I’ll include:
+
+* Purpose and audience
+* Key flows: landing → sign-up → create experiment → invite dev
+* Product positioning and tone of voice
+* Feature set and page structure (landing, onboarding, experiment design, invite flow, docs)
+* Functional and non-functional requirements
+* Design and inspiration cues from companies with strong product thinking (e.g. Linear, Vercel, Mixpanel)
+
+I’ll get back to you shortly with the full draft.
+
+
+# PulseFlags Product Requirements Document
+
+## Introduction
+
+**Product Summary:**
+PulseFlags is a web-based platform that serves both as a marketing landing site and the live product console for running in-game experiments. It empowers mobile gaming teams – especially Product Managers (PMs) – to optimize player engagement and monetization by easily A/B testing and controlling game features in real time, **without requiring continuous developer involvement**. After a one-time SDK integration, PMs can create experiments using familiar game terminology (levels, pop-ups, campaigns) and instantly deploy changes to players. The site doubles as the user console where experiments are designed, managed, and monitored, while also presenting a polished public-facing landing page explaining the value proposition.
+
+**Product Goals and Objectives:**
+
+* **Enable Self-Serve Experimentation:** Allow non-technical team members (PMs, marketers) to run A/B tests and tweak features on the fly, **independently of app store update cycles or heavy developer effort**. This brings web-style agility to mobile games.
+* **Seamless Onboarding:** Make the journey from first website visit to running an experiment extremely quick and intuitive. A PM should grasp the value immediately, sign up with minimal friction, and reach an “aha!” moment (their first experiment configured) in minutes.
+* **Unified Platform:** Use a single website for both marketing and the product itself – ensuring consistency in branding and user experience from the moment a user lands on the homepage through to using the console.
+* **Clarity & Minimalism:** Uphold a **Steve Jobs-inspired ethos of clarity, confidence, and minimalism** in design and copy. Every element on the site should have a purpose – unnecessary complexity or clutter is avoided. This applies both to how we market the product and how the product functions (e.g. “it just works” simplicity).
+* **High Performance & Reliability:** Provide a snappy, responsive web app that feels professional and trustworthy. The interface should be fast and **“focused” with minimal design and snappy performance** to keep users in flow. Experiments should update and metrics display in near real-time so users feel the system’s immediacy.
+* **Developer-Friendly Integration:** Though PMs drive the process, we must also cater to developers by making the SDK integration straightforward and providing excellent documentation. The console should include a **developer docs viewer** and tools so developers can quickly get the game connected and trust the system.
+
+**Target Audience:**
+
+* **Primary Users – Game PMs & LiveOps Managers:** These are product managers, producers, or live operations managers at mobile game studios responsible for improving retention, engagement, and monetization. They often lack the tools to iterate on game content quickly. PulseFlags speaks their language (e.g. *“levels,” “in-game popups,” “player segments”*) so they can design experiments in familiar terms. The platform solves a pain point: currently, testing a new idea might require a new app release or engineering work; with PulseFlags, PMs can run tests *without waiting on developers* after initial setup.
+* **Secondary Users – Marketers & Studio Founders:** Mobile game marketers who run promotional campaigns or user acquisition experiments will also benefit. Similarly, indie studio founders (who often wear multiple hats) need a lean way to optimize their game without a dedicated data science team. For both groups, the messaging on the site should emphasize how easy and fast it is to try out ideas and improve game metrics.
+* **Technical Users – Game Developers:** While not the primary driver, developers are key enablers. They will be invited by PMs to integrate the PulseFlags SDK into the game code. Their experience should be smooth: clear documentation, code examples, and reassurance that PulseFlags is safe, lightweight, and won’t negatively impact the game. Developers will appreciate a **developer-friendly design** (e.g. syntax-highlighted code snippets, ability to test integration) and a modern aesthetic akin to other developer tools (drawing inspiration from the likes of Vercel’s sleek design system).
+
+## User Stories and Key Use Cases
+
+Below are the core user stories for PulseFlags, focusing on the **PM-driven flows** and supporting developer flows:
+
+### Product Manager User Stories
+
+* **Landing & Understanding Value:** *As a Product Manager of a mobile game, I want to land on the PulseFlags homepage and immediately understand what the product does and how it can help me, so that I feel compelled to sign up.*
+
+  * **Acceptance Criteria:** The landing page clearly communicates PulseFlags’ value proposition (e.g. “Run A/B tests in your game without coding”). It uses minimal jargon and maybe a quick visual or tagline to convey time-to-value. The PM should glean that *“I can easily test features (like level difficulty or pop-up offers) and improve my game’s KPIs.”* There should be a prominent call-to-action (CTA) to **Sign Up Free**.
+
+* **Frictionless Sign-Up:** *As a PM, I want to sign up for the service instantly (in one step if possible), so I can start using it without hassle.*
+
+  * **Acceptance Criteria:** Sign-up requires minimal information (e.g. just an email and password or OAuth login). The process avoids any unnecessary fields – knowing that **each extra step can cause users to abandon** the sign-up. Ideally, no email verification is required upfront (unless needed for security); verification can be done in-app or after the first session to reduce friction. The sign-up conversion rate from visitor to account creation will be a critical metric, so the form and CTA design should be optimized (clear error handling, quick feedback, etc.).
+
+* **Onboarding & First Experiment Creation:** *As a PM who has just signed up, I want the product to guide me to create my first experiment (using terms and concepts I understand, like game levels or in-game events), so I can see how it works and achieve an “aha” moment quickly.*
+
+  * **Acceptance Criteria:** After sign-up (or first login), the user is guided through an onboarding flow or wizard. This might include:
+
+    1. **Project Setup:** If applicable, ask for the game or project name (e.g. “MyGame Adventures”) – this will create a project space and generate an API key for the SDK. This step should be quick and skippable if there’s a sensible default (perhaps default to the user’s company or game name).
+    2. **Create an Experiment (Wizard):** A step-by-step interface where the PM defines an experiment in natural, game-specific language. For example:
+
+       * **Experiment Goal/Name:** The PM gives a descriptive name (e.g. “Level 5 Reward Popup Test”).
+       * **Audience/Trigger:** The PM selects when or to whom the experiment applies. Options should be described in game terms: e.g. *“When players reach \[Level 5]”* or *“When event \[Game Launch] occurs for the 10th time”* or *“Target players in segment \[New Players]”*. This abstracts technical event definitions into intuitive selections (behind the scenes we may map these to analytics events or conditions).
+       * **Variants Definition:** The PM specifies the variations to test. If it’s a **popup experiment**, the UI might allow them to define two versions of content – e.g. Variant A text vs Variant B text, or upload different image assets for a popup. If it’s a parameter change (like difficulty tuning), perhaps they input two values (e.g. enemy HP 100 vs 120). The key is to let them describe the changes **without writing code**, using simple form fields or rich text for content.
+       * **Distribution:** The PM sets what percentage of users see each variant (default 50/50). This could be a slider or preset options (e.g. 50/50, 75/25).
+       * **Success Metric:** (If available in MVP) The PM chooses a metric to evaluate, in plain terms: e.g. *“Compare 1-day retention between variants”* or *“Track purchase conversion for each variant.”* This selection would tie to events or KPIs the system tracks. If full metric selection is too advanced for launch, the system at least by default should track basic outcomes (like number of users in each variant and perhaps retention if our SDK collects it).
+       * **Duration:** Optionally, they can set an experiment duration or sample size (or it can just run until stopped).
+       * The wizard ends with a confirmation step (show summary of the experiment configuration). The copy here should reassure the PM that the experiment is saved, but needs the SDK integration to actually run. Possibly a prompt like “Next: Invite your developer to implement this test.”
+    3. **Invite Developer Prompt:** At the end of experiment setup (or via a prominent button), the PM is prompted to “Invite your Developer”. We make it one-click to send an invite email to a developer or technical team member. The PM enters the developer’s email and hits send – the system should clearly indicate that an invitation was sent and what the developer will get (e.g. a link to documentation or to join the project).
+
+    * The onboarding should be *contextual and linear* – guiding the PM through these steps **without any clutter or detours**. This linear, focused flow is inspired by minimal apps like Linear, which avoid overwhelming new users with too many options at once. For example, no extraneous settings are asked on day one – just what’s needed to get value (create an experiment).
+
+* **Experiment Management & Monitoring:** *As a PM, I want to see the status and results of my experiments in the dashboard, so I can monitor performance and decide on next actions.*
+
+  * **Acceptance Criteria:** The console provides a **Dashboard** or Experiments list page. Each experiment entry shows key info at a glance: name, status (e.g. Draft, Running, Completed), start/end dates, and basic metrics (e.g. X users saw variant A vs Y saw variant B, conversion rates if available). The PM can click an experiment to view details: variant descriptions, and if data is available, charts or stats comparing variants. For launch, the analytics can be basic (maybe a simple table or bar graph of results). The UI should favor clarity over complexity – e.g. highlight the “winning” variant if statistically significant results are available (if that functionality exists). If full statistical analysis isn’t built yet, simply show the raw data in a clean format.
+
+    * The PM should be able to **edit or stop an experiment**. For example, a toggle to end the test and “roll out winner to 100%” could be provided (perhaps a future feature; if not at launch, at least allow ending the test and marking a winner manually).
+    * If no experiments exist (first-time user before creating one), the Dashboard shows a very simple, welcoming empty state with a call-to-action to create an experiment (which they likely saw in onboarding). Once at least one is set up, the Dashboard becomes the hub they see upon login.
+    * Navigation for PM inside the console should be very simple: likely just a few sections – e.g. “Experiments”, “Invite/Team”, and “Documentation”. This avoids overwhelming the user with options, aligning with Apple’s principle to **“avoid excessive features that may overwhelm users” and focus on intuitive usability.**
+
+* **Team Invitation & Collaboration:** *As a PM, I want to easily invite colleagues (e.g. another PM or a game designer) to view or collaborate on experiments, so that we can work as a team.*
+
+  * **Acceptance Criteria:** In addition to inviting developers, the system should allow inviting other team members. This can be through a simple “Invite User” form in a Team/Users settings page or directly via email entry. The PM (as the owner/admin by default) can invite others by email; invited users create their own login and join the project. Roles can be minimal at launch (for instance, all invited users are collaborators with equal access, or perhaps distinguish “Admin” vs “Developer” roles if needed). An invited PM or collaborator should be able to create and edit experiments as well.
+
+    * The flow for inviting non-developers is essentially the same as developer invite. We might unify this into one “Invite team member” feature where you specify role or just trust the team to coordinate roles informally at first. Simplicity is key: just an email field and an invite button (no complex role management in MVP).
+
+* **Learn and Support:** *As a PM, I want access to help resources (docs or FAQs) if I get stuck or want to learn best practices for experiments, so I can succeed without needing to contact support.*
+
+  * **Acceptance Criteria:** The app and site should include links to documentation (particularly the SDK/Integration docs and maybe an FAQ or knowledge base for experiment design tips). Copy within the UI should also be self-explanatory where possible (e.g. microcopy under fields explaining things in plain language). If the user is mid-flow and confused, providing quick help (like a tooltip or a link to a relevant docs section) would embody good UX. Ensuring *“it’s easy for users to get help”* quickly reflects best practices in onboarding.
+
+    * We won’t have a full support team at launch, but we can include a contact email or chat widget for issues. However, the goal is that the design is so intuitive that support needs are minimal. A success criterion: no more than a small percentage of new users should need to reach out for help during onboarding.
+
+### Developer User Stories
+
+* **Invite Acceptance & Account Setup:** *As a developer invited to PulseFlags by my PM, I want to easily accept the invitation and access the project, so I can start integrating the SDK.*
+
+  * **Acceptance Criteria:** The invitation email contains a clear CTA link (“Join \[GameName] on PulseFlags”). Clicking it brings the developer to an acceptance page. If the developer is new to PulseFlags, they’ll be prompted to set a password (and possibly enter their name) to create their account under that project. If they already have an account, the link can simply add the project to their dashboard. This page should reassure the developer that joining will give them access to the integration details and nothing will be charged (in case that’s a concern). Once complete, the developer is taken directly to the **Documentation/Integration** page for that project.
+
+* **SDK Integration Guidance:** *As a developer, I want clear documentation and code examples for integrating the PulseFlags SDK into our mobile game (for the engine or platform I use), so I can implement it correctly and quickly.*
+
+  * **Acceptance Criteria:** The **Docs Viewer** page is central for the developer. It should automatically detect or let the developer select the relevant platform (e.g. *Unity (C#)*, *Android (Java/Kotlin)*, *iOS (Swift)*, etc. – we will prioritize Unity and one native platform for launch, since many mobile games use Unity). The documentation content includes:
+
+    * **Initializing the SDK:** e.g. a code snippet to import the SDK and initialize it with the project’s unique API key (which the system generates at project setup). This should be copy-paste friendly.
+    * **Defining Experiments in Code:** Guidance on how the game code should handle experiment variants. For example, if a PM created a “Level 5 Reward Popup Test” with variants A and B, the docs might show how to retrieve the active variant from the SDK. This could look like `if (PulseFlags.getVariant("Level5RewardPopup") == "A") { showPopupA(); } else { showPopupB(); }` in pseudocode. The exact API will be defined by engineering, but we need to present it in a **developer-friendly format (monospaced font, proper syntax highlighting)**. We might pre-populate example code with the actual experiment keys or IDs from the PM’s setup to reduce guesswork.
+    * **Sending Events (if applicable):** If the PM selected a success metric like retention or conversion, the developer might need to log events to PulseFlags (e.g. `PulseFlags.track("PurchaseMade")`). The docs should explain how to send these events from the game, so that experiment results can be measured.
+    * **Error Handling and Debugging:** Quick notes on what to do if the SDK fails to load (e.g. default to control variant) to ensure the game isn’t disrupted. Also mention any dev tools (like a debug mode to see which variant a device is assigned).
+    * The docs should be easily navigable and not overly long. Ideally, **divide into sections** with a sidebar or tabs: e.g. “Unity SDK Setup”, “iOS SDK Setup”, “Event Tracking”, “Advanced”. The developer lands on the relevant section based on their selection.
+    * Consistency and clarity in docs is critical. Use a tone that is straightforward and confident. For example, instructions should be direct: “Add the SDK package to your project. Initialize it in your game’s launch sequence with the code below.” and avoid superfluous commentary. This resonates with an Apple-like documentation style where *every word is considered and clarity is paramount*.
+
+* **Verifying Integration:** *As a developer, I want to verify that the SDK integration is working and that the game is communicating with PulseFlags, so I can be confident the experiments will run correctly.*
+
+  * **Acceptance Criteria:** The platform should provide some feedback loop for the developer. For example, after integration, the developer could trigger a test event (maybe a method like `PulseFlags.diagnose()` or simply run the game and the console dashboard shows the game connected). At minimum, the **Dashboard** could show a status like “SDK Connected: Yes/No (last check-in X minutes ago)” for the project, or show the number of active devices. This will reassure both PM and developer that integration was successful. If possible for launch, we might also include a small **development toolkit**: e.g. the developer can use a special device ID to always get a certain variant (for testing in development) or view logs of variant assignment. These are nice-to-haves; core requirement is at least some indicator in the UI that data is coming in.
+
+* **Ongoing Developer Use:** *As a developer, I want to be able to access the PulseFlags console later to review any new experiments or update the SDK if needed, so I can maintain the integration over time.*
+
+  * **Acceptance Criteria:** Once onboarded, the developer can log into the console (likely the same interface as the PM but maybe with limited editing rights). They should be able to see the list of experiments (read-only if they are not meant to edit) so they know what experiments are live and can ensure the game code has hooks for them. For instance, if a PM creates a new experiment later, the dev might need to update the game to accommodate a totally new variant if it wasn’t parameterized already. So having visibility is useful.
+
+    * The system might send notifications when new experiments are created (perhaps an email to developers on the project saying “A new experiment ‘X’ was launched – ensure your game handles all variants”). This keeps devs in the loop.
+    * We should also consider versioning of SDK – if we update the SDK, devs should be notified to upgrade. Possibly out of scope for MVP, but documentation could mention how to update and we can send an announcement via email if needed.
+
+## Website Structure and Pages
+
+PulseFlags will have a **unified web application** that seamlessly transitions from marketing content to the user console. The site structure is designed to be simple and clear, with just a handful of top-level sections:
+
+* **Public Marketing Landing Page** (Homepage)
+* **Sign Up / Login Pages**
+* **Product Dashboard** (once logged in; homepage for authenticated users)
+* **Experiment Designer** (could be part of dashboard or a modal/wizard flow)
+* **Team/Invite Page** (or modal for inviting users)
+* **Documentation Viewer** (for SDK integration guides)
+
+Below is a detailed description of each:
+
+### Public Landing Page (Homepage)
+
+This is the main marketing page that anyone visiting pulseflags.com sees. It needs to immediately communicate the product’s value and encourage sign-ups. Key elements and sections:
+
+* **Hero Section:** A strong, concise headline, a subheading, and a prominent call-to-action. Example copy: **“Level Up Your Game with Instant Experiments.”** Subtext: *“PulseFlags lets you A/B test and tweak your game in real-time – no code changes needed after a one‑time SDK integration.”* The messaging should be bold yet simple, conveying confidence in the product. Following Apple’s minimalist marketing style, the hero might feature a single mock-up image (perhaps a screenshot of the PulseFlags console or a depiction of two game variant screenshots side by side) and a brief tagline. Everything above the fold should be digestible in seconds, making the busy PM immediately think *“This is for me; I can try this right now.”*
+
+  * The CTA is likely a button: “Get Started Free” or “Try PulseFlags Now”. This button anchors to the sign-up flow (either opening a sign-up form or scrolling to a form further down). Possibly also have a secondary link “View Documentation” for developers who are scouting, but the primary goal is sign-ups.
+
+* **Value Propositions / How It Works:** A section with 2-3 columns or bullets explaining the key benefits in plain language. For instance:
+
+  1. **Design Experiments Visually:** “Define tests on levels, pop-ups, rewards using a friendly console – no technical jargon.”
+  2. **No More Waiting on App Releases:** “Deploy changes server-side instantly. Experiment and roll out winning ideas without releasing a new app version.”
+  3. **Player-Centric Insights:** “Understand what your players love. PulseFlags tracks results so you can confidently decide the best experience.”
+     Each point might have a simple icon or illustration (keeping with a light, modern style). The tone is confident but not hypey; it should resonate with the PM’s goals (improve engagement, save time, make data-driven decisions).
+
+* **Feature Highlights / Screenshots:** We may include a few screenshots or a short animated GIF of the product in action (for example, a screen recording of creating an experiment in the UI). These visual elements should be framed nicely (in a browser or device mockup) and not clutter the page. Captions can call out specific features: *“Create an experiment in 3 steps”*, *“Invite your team and collaborate”*, *“Monitor results in real-time”*. The design should remain **clean and uncluttered**, with plenty of whitespace – *every image and line of text must be purposeful*.
+
+* **Social Proof (if available):** If by launch we have pilot users or testimonials, include a small section like “Trusted by studios like \_\_\_” or a quote from a beta user (“PulseFlags made it so easy to optimize our tutorial flow – we saw a +5% Day 1 retention uplift!”). This builds credibility. Keep it minimal: a couple of logos or one testimonial at most, so as not to crowd the page.
+
+* **Call to Action (Repeated):** After scrolling through features, another CTA section: e.g. “Ready to boost your game’s metrics? Start experimenting today.” with a sign-up button. This reinforces the next step.
+
+* **Footer:** Basic footer with company info, maybe links to “Documentation”, “Login”, and any legal links (Privacy, Terms). Possibly also an email contact for support or inquiries. Since the site doubles as the product, the footer should be lightweight and not distract.
+
+**Style/Design Notes for Landing Page:**
+The landing page should embody the **tone of clarity and confidence**. Use **simple and bold typography** for headlines (inspired by Apple’s clean product pages). Avoid long paragraphs – use short sentences or phrases, and break text into bullet points or brief blurbs for easy scanning. The color scheme should align with our visual identity (see Visual Design below) – likely a light background with a strong accent color for CTAs (for example, a vibrant blue or purple that stands out). Any graphics or illustrations should be modern and minimalistic. We might use abstract shapes or game-themed subtle imagery to give a sense of playfulness, but nothing overly complex. The overall impression should be one of **modern SaaS professionalism** (like Mixpanel or Vercel’s landing pages) combined with a dash of gaming context (maybe a subtle reference to pixels or game icons, but very refined).
+
+Navigation on the public page can be extremely simple: perhaps a top bar with the logo and links to “Docs” and “Login”. We may not even need a multi-item menu given the focus on one funnel. Possibly a “Pricing” link if relevant (though if we launch a free beta, pricing might not be featured initially).
+
+### Sign Up Page
+
+The sign-up process should be straightforward and ideally integrated into the landing page flow. Options for implementation:
+
+* **Inline Modal/Form:** Clicking “Sign Up” could pop up a modal on the same page asking for the required info. This keeps users on the same context and feels instant. The modal or form area would have a few fields (Email, Password, and maybe “Game/Studio Name” if we want to capture that upfront). We may also allow OAuth (Google sign-in) to speed up registration, but only if it truly makes things easier – otherwise, username/password is fine for MVP.
+* **Dedicated Sign-Up Page:** Alternatively, a separate page (e.g. `/signup`) with a clean design, possibly showing some minimal marketing blurb on the side and the form on the other side. Given the emphasis on minimal steps, a single-page sign-up might be better. If it’s a separate page, include a “Login” link for those who came here by accident but already have an account.
+
+**Sign-Up Form Requirements:**
+
+* Form fields should be minimal. **No multi-step unless absolutely necessary.** Initially, likely just the essentials. For example, we can skip asking for full name or company in the sign-up form itself (those can be set in a profile later, or auto-derived from email domain if needed). *“Excess steps may cause users to abandon the process,”* so we only collect what we need to get them started.
+* Real-time validation for user convenience (e.g. check password strength, format of email) but errors should be in plain language and not too pedantic.
+* Once submitted, if any error (like email already exists), show a clear message and perhaps suggest logging in instead.
+* Upon successful sign-up, automatically log the user in and redirect to either an onboarding sequence or the dashboard (with onboarding prompts). There should be no need for the user to confirm via email at this stage (to minimize friction), *unless* security policy demands it. Perhaps allow them to use the product and just show a reminder banner to “verify your email to secure your account” in the console.
+
+**Login Page:**
+
+* A simple login page for returning users (email + password, or OAuth if enabled). Include a link to reset password. The login page can be very minimal – just the form and maybe the logo – since it’s a utilitarian page. Optionally, allow switching to sign-up if someone lands here by mistake (like a “Don’t have an account? Sign up” link).
+
+### Dashboard (Post-Login Home)
+
+Once logged in, the user is taken to the **Dashboard**, which serves as the primary interface of the PulseFlags console. This page must balance being informative with being clean and not overwhelming.
+
+* **Header/Nav:** The top of the console likely has a slim navigation bar with our logo (which might also serve as a home/dashboard link), and key sections: “Experiments”, “Documentation”, and maybe “Account” (for profile/settings). If we allow multiple projects in the future, a project switcher might be in the nav as well (but for MVP, perhaps assume one project per account to keep it simple).
+
+  * A subtle indicator or label like “Beta” could appear to remind users this is an early version (if applicable), setting expectations.
+
+* **Experiments Overview:** The main content of the Dashboard homepage is an overview of experiments. If experiments exist, list them in a table or cards. If none exist (first-time user), show an empty state with a message like “No experiments yet. Create your first A/B test to start optimizing your game!” and a big button “Create Experiment”. This page should encourage action but also display key info at a glance.
+
+  * For each experiment listed, show: Name, Status (Draft/Running/Completed), and a primary metric or note (e.g. “Running – 20% of users, 5% uplift in conversion” if data is there, or “Draft – awaiting launch” if not started). We might color-code status (green for running, grey for draft, etc., in a colorblind-friendly way, possibly using icons or labels).
+  * The PM should be able to click an experiment to go to a detailed view or edit it (maybe the same form wizard pre-filled or a read-only view with an “Edit” button).
+  * They can also possibly start/stop or delete experiments from this list with appropriate controls (like a play/pause icon or a menu with “End Experiment” if running, etc.). Confirmation modals for destructive actions (like ending or deleting) should be in place to prevent mistakes.
+
+* **Create New Experiment:** On the dashboard, a prominent button “New Experiment” should be available (aside from the empty state CTA). Clicking it opens the **Experiment Designer**. This could be implemented as a modal overlay or a separate page. A multi-step form is recommended to avoid one very long form – use a progression with clear steps (“1. Define Experiment, 2. Variants, 3. Target & Metrics, 4. Review”) which the user can navigate. The UI should include progress indicators (e.g. step numbers or a progress bar) for clarity, but still keep the visual style minimal and uncluttered.
+
+  * The content of this was detailed in the PM user story above (under Onboarding & Experiment Creation). We will ensure labels and controls are in **domain language**. For example, instead of a technical term like “Flag Key”, the field might say “Experiment Name or Feature” with a placeholder like “e.g. Level 5 Completion Popup”. Instead of “Select Cohort & Event”, we might label it “When do you want this experiment to run?” with a dropdown or selection for triggers (like predefined game events that our SDK sends, such as level-ups, app opens, etc.). The form design will hide technical complexity – e.g. behind the scenes an experiment might indeed create a feature flag or event trigger, but the PM doesn’t see an `if` statement, they just pick from natural options. This fulfils the goal of using language they understand (levels, popups, campaigns) instead of technical toggles.
+
+* **Experiment Detail View:** If a user clicks an existing experiment, they should see a dedicated page or modal with all details. This includes the variants info (maybe showing the content or parameters of each variant), the allocation, and any results. Results could be shown as simple statistics (e.g. “1000 users in Variant A, 980 in Variant B” and if a metric is defined “Conversion: 5% vs 6% (+20% lift)”). We might use a basic chart for visualization if time permits (like a bar chart or line chart for metric over time). The detail view also provides controls like “End Experiment” or “Edit Experiment” (if it’s still a draft or if we allow editing parameters mid-flight). For a completed experiment, perhaps an option “Deploy winning variant” (which would essentially set one variant to 100% for all users going forward – exact implementation tbd, but conceptually that could be a button that flips a feature flag globally to the chosen variant).
+
+* **Invite Team/Users Page:** Somewhere in the console, likely under an “Account” or project settings section, we’ll have the ability to manage team access. This could be a simple page listing current team members (just emails and roles) and an “Invite new user” form. As described in user stories, this is minimal at launch. The PM (owner) uses an email field, possibly chooses a role (like “Developer” or “Editor”) and sends invite. The page might also show pending invites (emails sent but not yet accepted).
+
+  * Since inviting a developer is a crucial flow, we might also surface this option in context. For example, after creating an experiment, a prompt says “Invite a developer to implement this test in your game” which directly triggers the invite dialog, rather than making the user hunt for a settings page. However, having a central page is good for managing invites generally.
+  * Copy principle: when the PM is using this feature, use reassuring language. E.g. “Invite a team member to join this project. We’ll email them a link to get started – it only takes a minute.” This sets expectation that it’s quick for the dev too.
+
+* **Documentation (Docs Viewer) Section:** Within the app, there's a section dedicated to documentation. This might be linked in the top nav as “Documentation” (and accessible publicly as well, depending on how we set it up). When accessed by a logged-in user, it can default to showing **project-specific integration info**. For example, the first thing might be the API key and project ID, and then a step-by-step integration guide as described earlier. The docs viewer could be a page where the left side is a navigation (table of contents) and the right side is content. Alternatively, if we want a simpler approach, it could just be a single scrollable page with anchors. The content should be identical to what a public docs might say, but with the benefit of being pre-filled with that user’s project info where relevant.
+
+  * We should include links out to more comprehensive docs or troubleshooting (if maintained on a separate site or knowledge base) but ideally, to maintain the integrated feel, we keep the essential docs inside the product UI. This reduces context switching for the developer user – they don’t have to go to an external site and lose the console context.
+
+* **Responsive Design:** All pages (landing, console, docs) should be **responsive** to different screen sizes. While we expect PMs and devs will mostly use desktop (for comfort while working), some might open on a tablet or phone to check status. The design should gracefully adapt (e.g. the experiment list becomes a vertical list on narrow screens, the nav collapses to a burger menu, etc.). This is a standard requirement, but especially the public pages need to look good on mobile, since a user might click a link on their phone from an email or social post and decide to sign up later.
+
+* **Consistency:** It’s worth noting that the marketing site and the console should share a consistent design language (colors, typography, tone). There should not be a jarring transition. By potentially using a single Next.js app or a design system like Vercel’s Geist, we ensure uniform styling. Apple’s approach of *consistency across every interaction* is key – from the first site visit to the in-app experience, the user should feel the same polished, minimal brand presence.
+
+## Tone, Style, and Copy Guidelines
+
+The tone and copy of PulseFlags should reflect **clarity, confidence, and brevity**. We draw inspiration from Steve Jobs’ philosophy that simplicity is king – “minimalist design and a seamless user experience” leads to user delight and loyalty. Concretely, our content guidelines are:
+
+* **Clarity Over Cleverness:** Use plain language that our audience understands. Avoid technical jargon when speaking to PMs and marketers – for instance, say “test an idea” instead of “deploy a multivariate experiment” if possible. The value should never be obscured by buzzwords. Each sentence should answer “what does this mean for the user?” rather than bragging about tech. In Steve Jobs’ style, the message is simple but impactful (e.g. Apple would say “1,000 songs in your pocket” instead of explaining MP3 encoding). We should find our equivalent: e.g. “Optimize your game without coding” says it all.
+
+* **Confident & Positive Tone:** The copy should instill confidence that PulseFlags is a cutting-edge, reliable solution, *but without arrogance or fluff*. Use active voice and strong statements. For example: “Instantly roll out the better experience to all players” is more powerful than “It allows you to potentially roll out...”. However, maintain accuracy and don’t overpromise beyond what the product can do. Confidence also means being direct about benefits (no need for verbose explanations). If something is fast, say “fast” or “real-time”; if easy, say “3-click setup” (if true). Avoid hedging language like “maybe, possibly, we think” – PulseFlags should *sound sure of itself*.
+
+* **Brevity and Focus:** Keep marketing text short. Bullet points and headings are preferred over long paragraphs. The landing page content, as noted, should be scannable. Any detailed information (like how an experiment works under the hood) can be moved to docs or a FAQ – not on the main pages. Within the app, use concise labels and tooltips for help rather than lengthy inline descriptions. For instance, label a field “Target players” and maybe a tooltip “Which players should be included in this test?” – don’t write a long paragraph on the page.
+
+* **Emotional Resonance:** While being minimal, we also want to **inspire the user** about what they can achieve. Channel a bit of *“lifestyle branding”* akin to Apple – PulseFlags isn’t just a utility, it’s enabling a new way of working (faster, more data-driven, more creative). Without being too fluffy, copy can hint at outcomes: e.g. “Delight your players and drive engagement with data-backed updates.” The idea is to make the user *feel* that using PulseFlags is the modern, smart way to manage a game – a bit aspirational. In doing so, maintain sincerity (back it up with how we do it).
+
+* **Consistency in Voice:** All pages and messages (from landing content, to UI tooltips, to email invites) should sound like they come from one unified voice. We might define a few voice attributes: **Helpful, Knowledgeable, Energetic, and Clear.** For instance, the invite email to developers should be friendly but to the point: “<PM Name> has invited you to PulseFlags to set up experiments in <GameName>. Follow these steps to get started…” – it shouldn’t be a generic corporate-speak email. In-app success messages (“Experiment created successfully!”) should align with this voice too (perhaps with a slight encouraging tone, like “Experiment launched! Now waiting for players to experience it.”).
+
+* **Copy Examples (Drafts for Illustration):**
+
+  * Landing Headline: “**Ship Game Updates That Players Love. Without an Update.**” – two short sentences, capitalizing key idea of shipping without app update (intriguing and value-laden).
+  * Subtext: “**PulseFlags lets you A/B test features in your mobile game in real-time – tweak content, offers, and levels on the fly to boost engagement.**” – one sentence, touches on what (A/B test features real-time) and why (boost engagement).
+  * CTA button: “**Start Experimenting Now**” (action-oriented, matches product theme).
+  * Feature blurb: “**No Code, No Delays:** Product Managers can launch experiments through a simple console. No new app version required.”
+  * In-app field labels: Use normal language (e.g., “Experiment Name”, “When does it run?”, “Variants”, “Percentage Split”, “Goal Metric”). If needed, follow with a short description in lighter text or tooltip. E.g. “Goal Metric (optional) – Choose a player action to measure which variant performs better.”
+  * Button texts: Always clear on action, e.g. “Create Experiment”, “Invite Developer”, “Save Changes”, “End Experiment”. Avoid ambiguous labels like “Submit” or overly technical ones.
+
+* **Error/Success Messages Tone:** Even when something goes wrong, keep tone calm and helpful. E.g. “Oops, that didn’t work. Please try again.” or “Couldn’t invite user – the email might be invalid.” Do not blame the user; provide a path forward (following UX best practices for copy).
+
+In summary, all copy should undergo the test of **“Is there a simpler or shorter way to say this?”** If yes, we revise. And we ensure it **emphasizes the benefit to the user** at each step, much like Apple’s marketing which focuses on how the product enriches the user’s life rather than the technical specs.
+
+## Functional Requirements
+
+This section details the functional requirements for PulseFlags, organized by feature areas. Each requirement is critical to the goal of a cohesive marketing-cum-product experience that is intuitive and effective.
+
+### 1. Marketing Landing Page Features
+
+* **Value Proposition Display:** The landing page **must** clearly state what PulseFlags does and for whom. This includes a heading, subheading, and possibly a short tagline. Users should be able to tell within 5 seconds of arriving what the product is about. *Metric:*  Bounce rate on the homepage should be low; ideally, >70% of visitors scroll or interact (indicating they didn’t leave immediately).
+
+* **Call-To-Action (CTA):** At least one prominent CTA for sign-up (e.g. a button “Get Started for Free”). This button should be visually distinctive (using the accent color and perhaps a slightly larger font). Clicking CTA triggers the sign-up flow (modal or new page). *Requirement:* The CTA should be accessible at page load (visible without scrolling on typical laptop screens). There should also be another CTA near the bottom of page for redundancy.
+
+* **Responsive Design:** The marketing content must be legible and visually appealing on mobile devices as well as desktop. Images should scale or alternate for small screens; text must remain at comfortable reading size. Use a responsive grid system or CSS flexbox to reorder sections on narrow viewports.
+
+* **Fast Load Performance:** Optimize images and scripts on the landing page for quick load (aim for <2-3 seconds on a standard connection for first meaningful paint). A slow landing page could deter sign-ups. Use strategies like lazy-loading below-the-fold images and minimizing third-party scripts. *Non-functional tie-in:* This contributes to a snappy, high-quality first impression (see Non-Functional Reqs).
+
+* **Analytics & Tracking:** Implement basic analytics on the marketing site to track visitor->sign-up conversion (sign-up rate). Also track which features sections are viewed (scroll depth or clicks) to gather feedback on interest. This will feed into success metrics (e.g. we should measure sign-up conversion rate as a primary KPI).
+
+* **SEO & Discoverability:** Ensure the landing page has proper meta tags, title, and content for search engines so that our target audience can find us (e.g. if someone searches “mobile game AB testing platform”). While SEO isn’t a primary concern for an early launch (likely we’ll reach out directly to prospects), it’s good practice to include.
+
+* **Content Management:** We should be able to update marketing copy, images, and maybe add blog posts or updates easily. If not using a CMS, at least structured so that marketing team or founders can edit text without full deployments (e.g. using environment variables or JSON for key texts). This is not user-facing per se, but a requirement to support agility in tweaking messaging.
+
+### 2. User Account & Onboarding
+
+* **User Registration:** Support creation of a new user account with email and password (stored securely). Optionally support OAuth logins (Google) if time permits, but email/password is MVP.
+
+  * *The system must validate emails* for correct format and ensure passwords meet a minimum strength (e.g. at least 8 characters, mixture of characters). Provide helpful error messages on invalid input.
+  * Duplicate email check: if email already in use, prompt login or password reset flow.
+
+* **Email Verification:** (Optional for launch) The system *may* send a verification email to confirm the address. However, considering friction, this could be delayed or optional (the user can use the product immediately and verify later). If implemented, unverified accounts should have a reminder banner in the UI and perhaps limitations (like cannot invite others until verified).
+
+* **Login & Authentication:** Provide a secure login mechanism. Passwords stored hashed; implement proper session management or JWT tokens. There should be a “Remember me” option for convenience (keeping the user logged in for e.g. 2 weeks). Also, a “Forgot Password” flow that emails a reset link.
+
+* **Onboarding Flow:** After first sign-up, automatically start the onboarding sequence (as described in User Stories). Specifically:
+
+  * If a project name is needed, prompt for it (with a sensible default or skip). Creating the project will generate an **API Key** (UUID or similar) in the backend which is associated with that project and used by the SDK.
+  * Walk through experiment creation (this can be skippable in case an advanced user wants to jump, but strongly encouraged via UI). If the user exits the onboarding, ensure they can start it again (maybe a “Create your first experiment” banner remains until they do one).
+  * Contextual tooltips or highlights can be used (but keep it minimal, maybe a guided tooltip tour if needed, though possibly not necessary if the wizard is self-explanatory).
+
+* **Default Project & Roles:** The first user to sign up (if not via invite) becomes an “Owner” of a default project (which could be named after their input or just “My Game”). The system should allow only this user to invite others (assuming only owner can invite, unless we allow any user to invite which could be simpler). For MVP, roles can be hardcoded: the creator is admin, invitees are either developers or members with slightly restricted rights. If not doing granular permissions, it’s fine to have all members essentially equal access (trust small teams). But an important security check: developers invited should not accidentally delete experiments. Maybe lock down destructive actions to admin accounts for safety.
+
+* **Invite Flow Implementation:** When a PM invites a user:
+
+  * The system generates a unique invite link (with token) and emails it to the address provided. The email template should carry branding and a clear call to action “Join \[ProjectName] on PulseFlags”.
+  * If the invitee clicks and doesn’t register within e.g. 7 days, the link could expire for security (edge case). We should handle expired links gracefully (e.g. show “Invite expired, contact your admin for a new invite”).
+  * Accepting invite: If they already have an account and are logged in, just join the project. If they have an account but not logged in, after login show a prompt “Accept invite to \[ProjectName]?”. If new user, guide them through setting a password as part of accepting (combine with registration).
+  * **Notification:** After the developer accepts and joins, perhaps notify the inviting PM via an in-app notification or email: “Your developer has joined PulseFlags – integration is underway.” This closes the loop and gives positive reinforcement to the PM that progress is happening.
+
+### 3. Experiment Design & Management
+
+* **Experiment Creation Wizard:** Provide a multi-step form to capture all necessary experiment details. (We detailed the fields earlier, so here we ensure each is handled in the system)
+
+  * **Experiment Name:** Free text, required. Also generate a unique key/ID (likely hidden from user, used internally or by SDK). Possibly slugify the name or use a random ID to ensure uniqueness.
+
+  * **Description (optional):** A field for PMs to write notes or hypothesis, purely for their reference. Not required, but can help teams recall what the test is about.
+
+  * **Trigger/Audience Selection:** UI to choose when/whom the experiment applies. We need to have a set of predefined triggers likely integrated with the SDK: e.g. “Level start”, “Level complete”, “App open”, “Custom event”. We might have to allow a custom event name if the PM wants something specific (in which case dev must instrument that event). But a simpler approach: present common scenarios to pick from, which correspond to common game events. For launch, we might hardcode a few (like those above). If PM selects “Level complete”, we then ask “Which level?” (a number input). Similarly for “Show when user opens app for Nth time” we ask for N. These small configurations capture game context in PM-friendly terms.
+
+    * If targeting a subset of players: allow filter by segment. Possibly define segments like “New players (account age < 7 days)”, “Whales (made purchase > \$X)”, “Random 50% of all players”. This might be advanced for MVP; we could skip segmenting at launch except for the random split which is inherent to A/B. But it’s good to note for near term.
+    * The system must translate the chosen trigger into logic for the SDK. E.g. if “Level 5 complete” trigger is chosen, we expect the game to call an event “level\_complete” with level number. The SDK then would only apply the experiment logic when that event occurs with level 5. Documentation needs to align with these options, so devs know to send those events. This means our backend data model for experiments includes something like `trigger_type` and `trigger_value` (here type=level\_complete, value=5).
+
+  * **Variant Setup:** The UI should allow at least **two variants** (A and B) and possibly more (if we allow multivariate >2 alternatives). For simplicity, likely 2 variants at launch. For each variant, the PM needs to specify the content or parameter difference. There are a few types of experiments we anticipate:
+
+    * **Content swap (e.g. popup message)**: Provide a rich text editor or fields for title/text, maybe an image upload if the popup has an image. However, building a full WYSIWYG designer might be out of scope. Alternatively, just have a text field for each variant and instruct the developer to use it (like the game could call an API to get the variant text). This is complex; an easier MVP route is that the *variants correspond to variables, not full content*. For example, define variant as just a label or a flag value, and the actual content is built into the app for each variant. Many feature flag systems work this way: e.g. a flag “new\_popup\_design” with variants true/false, and the app contains both designs and chooses. That requires developer involvement in designing both variants in code, which is okay for a first iteration. So, we can model it such that each variant has maybe a JSON blob or just a couple of variables that the dev can read.
+    * **Numerical parameter (e.g. reward amount)**: A numeric input for each variant (like 100 vs 150 coins reward).
+    * **Boolean/toggle**: Some experiments might just be On vs Off (show the popup vs don’t show). Then variant A could be “Enabled” and B “Disabled”.
+    * We likely need to allow a basic data type for variants: string, number, boolean. Since our audience is not technical, we won’t expose it as “data type”, we’ll just format the input accordingly based on context. (If the PM enters a number in one variant field and the other field, we know it’s numeric).
+    * Each variant can also have a percentage allocation (default equal split). If user wants, allow editing percentages (they must sum \~100%). The UI can enforce that or auto-normalize.
+
+  * **Duration & Schedule:** Optionally, PM can set an experiment to auto-start and auto-stop at certain times (e.g. run for 2 weeks or until N users have seen it). For MVP, manual control is fine (start now, stop manually). We will keep the UI simple by not requiring scheduling unless specifically needed.
+
+  * **Save as Draft / Launch:** After configuring, the PM can save the experiment. They should be given a choice to **start it immediately** (if the SDK is integrated already) or save it as a Draft. Perhaps if the SDK isn’t integrated yet (no developer joined, no API calls seen), the UI can warn “This experiment is saved but will only start when the SDK is set up in your game.” Possibly tie it to developer status.
+
+  * **Backend Logic:** When an experiment is launched (started), the system should begin randomly assigning incoming players to a variant (unless variant assignment is done on device by SDK – but likely it will be decided by the backend for consistency). The backend should store experiment assignments and listen for events (like outcome events) to compute metrics. This is deep implementation, but at least conceptually in PRD: the system must support random assignment of users to variants and collection of event data for those users to compare results.
+
+* **Experiment List & Status Management:**
+
+  * Display all experiments for the project in a list. Each entry clickable as described.
+  * **Filtering/Sorting:** Nice-to-have: filter by status (Active, Draft, Ended) if the list grows. Sorting by last modified or name, etc. Not critical at launch due to low volume of experiments expected initially.
+  * **Status transitions:** PM can start an experiment (if it was draft), stop an active experiment, or archive/delete one. These actions need confirmation dialogs. Stopping should mark it completed and lock further data collection. If archiving or deleting (maybe just archive at first to not lose data accidentally), it should hide from main list (maybe show under an Archived filter).
+  * Only allow one experiment on the exact same trigger at a time (to avoid conflict)? Possibly a constraint: if two experiments both target “Level 5 complete”, that could conflict in logic. For MVP, we might just trust the user or warn if they create something similar. (This is an edge case we might note for backend to handle, but not user-facing unless it arises.)
+
+* **Analytics & Result Calculation:**
+
+  * The system shall compute basic metrics for each running experiment. If a success metric was chosen by PM (e.g. “retention” or “conversion to purchase”), we need to define how to measure that (likely via events developer sends). For initial launch, we might simplify: we always track **engagement as a default metric** (like, did the user come back next day or similar) or simply present counts.
+  * For example: variant A shown to 500 users, variant B to 480 users (we show those counts). If we have an event like “purchase\_made” and if dev instruments it, we could show “Purchase rate: A = 2%, B = 3%”. Statistical significance calculation is a possible feature but not necessary at launch; however if not including, do not mislead – just show raw differences and maybe say “Variant B is higher by +1%” without the word “significant”.
+  * Real-time update: as data comes in, the PM should ideally see it live. We can use AJAX or WebSocket to periodically refresh the numbers on the experiment detail page. If not real-time, a manual refresh button or auto-refresh each minute or so. The tech aside, the requirement is the **dashboard reflects the latest data with minimal delay** (maybe within a minute of event arrival).
+
+* **Multiple Projects Support:** Consider whether one account can manage multiple games. For MVP, it might be one project per account (especially if sign-up collects game name). But if targeting studios with multiple titles, we should structure data to allow multiple projects. Possibly have a dropdown to switch project context. It adds complexity in UI (project settings, different API keys per project, etc.), so maybe we skip it for initial version. We can note it as future requirement (non-functional scalability to multiple projects).
+
+### 4. Developer Integration & SDK Support
+
+* **API Key Generation:** Upon project creation, the system generates a unique API key (and possibly secret key) to authenticate SDK calls from the game. The API key should be accessible in the console (likely in the docs page or a settings page). It should be easily copyable (one-click copy button). The key length and format should be secure (e.g. a 32+ character GUID or token). If a secret is used (for server-to-server calls), ensure a mechanism for that as well, but for client SDK the API key suffices.
+
+* **SDK Availability:** We must provide an SDK library for at least one major engine (Unity C# SDK being the priority). The requirement is that the SDK can initialize with the API key, register the device/player (likely generating an anonymous user ID or using the device ID), handle experiment assignments (either by fetching from our server or via built-in deterministic logic seeded by experiment ID), and send events back. While building the SDK is an engineering task largely outside the scope of the UI, from a product perspective, **the platform is not functional without the SDK**. So a requirement is to have at least a minimal SDK ready or in progress for launch. If we can’t deliver a fully polished SDK, we must at least have a documented HTTP API that the developer can call (as a fallback) – but that’s much less ideal for adoption.
+
+* **Documentation Content:** As described in the docs viewer user story, content must be prepared for integration steps. Specifically:
+
+  * **Installing the SDK:** e.g. “Download the Unity package here” or “Install via npm or Gradle” depending on platform. This implies we host the SDK package on a CDN or via Unity Asset Store / GitHub.
+  * **Initialization Code:** Example snippet with their API key. If any project-specific identifier needed (like project ID), include it. But likely API key suffices to know project context.
+  * **Defining Variables/Flags:** How to use the SDK to query for an experiment’s value. Possibly the PM’s experiment name can be used as an identifier; ensure any constraints (like no spaces or an ID behind the scenes) are covered. If using an ID, show that in the docs as well.
+  * **Event Tracking:** How to send an event from game to PulseFlags (for metrics). Possibly `PulseFlags.track("eventName", value)` etc. Provide a couple of examples, including one for a monetization event and one for a progression event, since those are common in games.
+  * **Best Practices:** Short notes such as “It’s best to initialize PulseFlags at game start so experiments are ready when needed,” or “Wrap your experiment calls with a default behavior in case a user is not part of an experiment (e.g., treat them as control).” Keep these short and perhaps in a Tips section.
+
+* **Developer Console Access:** If a developer logs in, by default they see the same dashboard but perhaps they won’t create experiments. We might not enforce that by role for MVP, but assume they won't meddle. If needed, we can introduce a simple flag where non-admins cannot create/edit experiments, only view and use the docs. But not critical for initial trust environment.
+
+* **Data Security:** Ensure that the API key cannot be used to fetch another project’s data. This is a back-end concern, but basically, all SDK calls must be scoped to the project. Also, ensure any user-specific data (if we store any PII or user events) is secured. In many cases, game AB test platforms avoid personal data and just use device IDs – which is fine.
+
+* **Scalability of SDK events:** The system should be designed to handle the volume of events from players. Initially, we might have small usage, but aim to support at least tens of thousands of DAUs (daily active users) per project without issues, which could mean a similar number of events per day. This is again architectural, but we list it as a requirement that *the product should function for a moderately sized game launch.* For success metrics, even supporting one or two mid-sized games (say 50k users) is a good start.
+
+### 5. Miscellaneous / Other Features
+
+* **Email Notifications:** Aside from invite emails, consider other emails: a welcome email on sign-up (with maybe links to docs or tips), an email when an experiment is completed or has a winner (perhaps later), etc. For launch, a simple welcome and the invite flow are likely sufficient. Ensure all emails are on-brand (use company name, similar tone – friendly and to the point).
+
+* **Settings & Account Management:** Each user should be able to change their password, and possibly set their name, company, etc., in a basic profile page. Also allow the owner to change the project name or regenerate API key if needed (with caution because that would require updating the game code). At minimum, display the current API key and allow copying it; regeneration can be a stretch goal (with warning modals if done).
+
+* **Error Handling and Empty States:** Design and implement helpful empty states (e.g., no experiments yet, no search results, etc.) and error states (like failed to load data). Use friendly language (“No experiments here... yet! Create one to start learning about your players.”). For errors loading content (like if server is down or network issue), show a message and a retry option. The app should not just fail silently or show raw errors.
+
+* **Security & Privacy Compliance:** Ensure the site uses HTTPS, and all sensitive operations require proper authentication. Comply with basic privacy laws – e.g. have a Privacy Policy link. If we collect any personal data (likely just work emails, maybe player behavior data), be transparent in the policy. Possibly include a cookie notice if using cookies for tracking, depending on jurisdiction (maybe not needed initially if B2B only).
+
+* **Logging & Monitoring (Internal):** While not a user feature, it is a requirement that we have logging of actions (for debugging issues like experiment not working) and monitoring of system health. This ensures that as users start using the platform, we can quickly address problems. For example, log when experiments are created, when users join, track if any errors in assignment logic, etc. This requirement is more for engineering but worth noting as part of readiness to launch.
+
+## Non-Functional Requirements
+
+Beyond functionality, PulseFlags must meet certain quality benchmarks to ensure a smooth and trustworthy user experience:
+
+* **Performance:** The application (both marketing pages and console) should be fast and responsive. **Page load times** should ideally be under 2 seconds for the landing page on a standard broadband connection. Once in the app, interactions (navigating between dashboard and experiment pages, opening modals, etc.) should feel instant – aim for sub-500ms responses for UI actions. Using a modern frontend (likely React/Next.js) and efficient backend APIs will be crucial. The **UI animations and transitions** (if any) should be subtle and not cause lag. This emphasis on speed aligns with Linear’s hallmark of *“snappy performance” delivering a focused experience*. We want users to feel the app is technically solid.
+
+* **Scalability:** In the near term, we expect possibly tens of PMs and developers on the platform (during a beta with a few studios). But we should design for growth: the backend should handle multiple projects and increasing player event volume. The feature flag architecture should be able to handle real-time queries from the SDK for potentially thousands of concurrent players. We should also consider horizontal scaling strategies for the experiment assignment service (using CDNs or edge workers for low-latency flag evaluation if needed in future). Essentially, while initial load is small, the design shouldn’t paint us into a corner for scaling to larger games.
+
+* **Reliability & Uptime:** PulseFlags may become part of the live game experience; therefore, it needs high reliability. If our service goes down, worst case the game’s experiments shouldn’t break the game. We should build the SDK to fail-safe (e.g. default to control variant if no response). But product-wise, our goal is to have **99.9% uptime for the API** (maybe not immediately guaranteed, but aspirational). The web console should also be reliable, but minor downtime there is less critical than the in-game API. Implement monitoring on critical services and perhaps an alerting mechanism if something fails. We might not list this to users explicitly, but it’s a requirement to support their trust.
+
+* **Security:** Protect user data and project data. Ensure proper authentication checks on all API calls (e.g. one team’s PM cannot fetch another team’s experiments by changing an ID). Use industry best practices: hash passwords (likely we’ll use a service or library), secure cookies or tokens, guard against SQL injection / XSS / CSRF, etc. The landing and app will be served over HTTPS only (to protect credentials and data in transit). If storing any sensitive info (like player events), ensure our databases are secure. Possibly encrypt data at rest if needed. We might also want to comply with GDPR basics since players from EU might be involved – at least have a plan for data deletion if a user requests it, etc.
+
+* **Cross-Browser Compatibility:** The application should work on modern browsers – Chrome, Firefox, Safari, Edge – ideally the latest two versions of each. We should test on both desktop and mobile browsers. Use of modern CSS/JS is fine but include polyfills if needed for anything critical. Support for IE is not required (nearly obsolete by 2025 standards). We might prefer using the same tech that Vercel and others use that inherently handles compatibility (like Next.js and a good component library).
+
+* **Accessibility:** Aim for good accessibility practices in the UI (proper alt text on images, labels on form fields, keyboard navigability). This is not only ethically right but also often aligns with minimal, semantic design. For instance, ensure contrast of text is sufficient on backgrounds (taking cues from Vercel’s design system which emphasizes **high contrast, accessible color choices**). Use ARIA roles where appropriate. The goal is that someone using a screen reader or only a keyboard could still sign up and possibly use core features, which may also be a legal requirement in some jurisdictions for enterprise software.
+
+* **Maintainability & Modularity:** The codebase and architecture should allow quick iteration on content and features. For example, using a design system or component library (like Vercel’s Geist or custom-built) ensures consistency and easier updates. The backend should be structured to allow new experiment types or metrics without a complete rewrite. While not user-visible, these qualities affect our ability to respond to user feedback and improve the product rapidly.
+
+* **Integrations & Extensibility:** As a forward-looking note, consider making the platform extensible via APIs. For example, eventually a PM might want to trigger experiment creation via an API or import data. Not needed at launch, but we should design APIs with some openness in mind. For now, at least provide the developer an API alternative for core actions (like logging events via REST if SDK isn’t used). This can also serve as a backup if the SDK has issues.
+
+* **Consistent Visual Design:** Non-functional but important: all UI components should follow a consistent style guide – font sizes, colors, button styles, form fields. This consistency reduces cognitive load on users and presents a polished image (increasing trust). By taking inspiration from design systems (e.g. using a consistent typography scale and spacing like Apple or Linear does), we ensure every page looks like part of the same product. Inconsistency would look amateur and erode the *confidence* we want to instill.
+
+* **Minimal Footprint (SDK):** The SDK that goes into the game should be lightweight (in terms of file size and runtime overhead). We must make sure using PulseFlags doesn’t bloat app size or slow down game startup noticeably. This is a requirement that will come from developers: if our SDK is heavy, they won’t want it. So target a small package size (e.g. < 1 MB for Unity SDK) and efficient algorithms (e.g. assignment logic O(1) per call, etc.). We also ensure the SDK does not collect unnecessary data or do anything beyond its scope (to avoid any performance or privacy concerns).
+
+* **Privacy for Players:** Although our direct users are studios, end-users (players) are indirectly affected. We should not collect personally identifiable information about players unless needed. Likely we use device IDs or random IDs. If any data is stored that could identify a player, comply with privacy (e.g. an option to not track if player opted out, maybe not needed at first but something to keep in mind). This is especially important if we have EU players (GDPR) or California (CCPA) – in a B2B context, these still apply if player data is handled. As a requirement, have a plan for data anonymization and retention (maybe we only keep experiment data for X months unless exported).
+
+## Visual Design and Style Direction
+
+PulseFlags’ visual identity should convey modernity, simplicity, and a focus on data/experiments. We will draw inspiration from best-in-class product design aesthetics of companies like **Linear, Vercel, and Mixpanel**:
+
+* **Minimalistic, Clean Aesthetic (Linear):** Linear’s interface is known for its **minimal design and focused experience**, achieved through ample whitespace, a tight typography system, and removal of any non-essential element. We aspire to a similar lean interface. In practice, this means using a limited color palette (mostly neutrals with one accent), a clean sans-serif font, and subtle UI chrome. Elements like sidebars or menus, if present, should be unobtrusive (perhaps auto-hiding or slim). There should be no heavy gradients or gaudy visuals; **“less is more” is the guiding philosophy**. Every pixel needs justification – for example, rather than showing borders and lines all over, we can use spacing to separate sections (like Linear does). The result should be a UI that “gets out of the way” and lets the user concentrate on the task (be it reading a metric or entering a variant value).
+
+* **High-Contrast and Developer-Friendly (Vercel):** Vercel’s design language (Geist) emphasizes **high contrast and accessibility**, often with a dark-on-light (or reversed) style and a lot of clarity in elements. We can incorporate that by ensuring text is very legible (WCAG accessible contrast). Possibly, we may even consider offering a dark mode toggle (developers love dark mode, though that could be a stretch goal for a small team; at minimum design should look good in one mode). Vercel also uses a **monospace font for code and certain UI** which appeals to developers. PulseFlags should likewise use monospace font for any code snippets or when displaying IDs/keys, signaling a familiarity with developer tools. The overall look should feel somewhat **“technical but approachable”** – akin to how a developer tool site feels trustworthy and sleek. We might use subtle animations similar to Vercel (like hover effects, smooth page transitions) to give a polished feel.
+
+* **Data Visualization and Layout (Mixpanel):** Mixpanel’s console is focused on analytics, with charts and tables on a dark background. While PulseFlags’ initial UI is simpler, we will have some data to show for experiments. We should design simple but effective visualizations – maybe a bar chart or basic line graph with the same modern styling (flat design, clear axes labels, no unnecessary gridlines). The style direction for charts should be consistent with the rest: use our accent color to highlight one variant vs another, for example, and ensure the charts are clean (perhaps use something like Chart.js or D3 with minimalist config). We can refer to Mixpanel’s clarity in presenting numbers (large bold numbers for key stats, etc.). Also, Mixpanel’s use of cards and panels might inspire our layout of experiment details. Each metric or variant result could be in a separate card with a shadow or border radius, making the info chunkable.
+
+* **Color Scheme:** Likely we will choose a primary accent color that signifies PulseFlags. It should evoke creativity and activity (some possibilities: a **vibrant purple or blue** that often connotes tech and trust, or maybe a teal for a fresh feel). This color will be used for CTAs, highlights (like the active variant indicator, or links). Secondary colors might be green/red for success or stop states (e.g. indicating an experiment winner or a stopped experiment), but used sparingly. The background for most pages will be white or very light grey for a clean canvas, unless we decide on a dark theme approach. If a dark theme is considered (like many developer tools default dark), we should ensure all marketing imagery also has a dark variant. Possibly, we stick to a light theme initially for simplicity, but ensure a well-contrasted design either way.
+
+  * Use of color should also guide the user’s attention: e.g. the invite button might be accent-colored, while a secondary action (cancel) is greyed. Error messages in a warm color (red/orange), success in a gentle green – all consistent with typical UX patterns.
+
+* **Typography:** We will pick a font that is modern and highly legible. Sans-serif is preferred for almost all text. We might consider a font similar to **Inter or SF Pro** (which are clean and versatile). The font sizes will be scaled for hierarchy: e.g. Hero title very large, section headers medium, body text optimal for reading (\~16px). Use weight (bold vs regular) to create contrast rather than many different font sizes. For code and technical bits, a monospace font like **Courier New, Fira Code, or JetBrains Mono** can be used. Vercel’s Geist uses “Geist Sans” and “Geist Mono” specifically designed for their brand – we may not design our own font but choosing something developer-friendly (even the classic Consolas for code) will do.
+
+  * Make sure the typography also aligns with our tone: bold where we want confidence (headings, key numbers) and regular where we just need clarity (descriptions, instructions).
+
+* **Iconography & Imagery:** Use simple, flat icons (line icons or minimal fill icons) for things like feature illustrations or UI actions. For example, a small flag icon might represent an experiment (since feature flags conceptually), a user icon for team members, a graph icon for results. We can leverage an existing icon set that matches our style (Heroicons, FontAwesome (minimal weight), or Linear’s icon library if available). Ensure icons are used sparingly and always with a clear meaning.
+
+  * For any illustrations on the marketing page, consider a minimal outline style or isometric tech illustrations (some SaaS use 3D style now, but it might clash with minimalism). Possibly incorporate subtle game-related imagery, but in a modern vector style (e.g. a vector graphic of a game level map or a character split-testing two power-ups – only if it can be done cleanly). We may also use screenshots of our product as the primary imagery (which double as proof of the actual UI, building credibility).
+
+* **Visual Consistency:** We will establish a style guide so that every page and component looks part of the same family. This includes consistent spacing (use of a 4px or 8px grid for margins/padding), consistent corner radii on buttons and cards (maybe slight rounding of 4px for modern feel), consistent shadows (if any – maybe a single subtle shadow style for cards). Consistency also in interactions: e.g. all clickable elements highlight in the same way on hover (maybe underline for text links, darken for buttons). Following these rules gives a **polished, high-quality feel that users subconsciously trust**. Given our audience may compare this tool to others they use (like analytics dashboards or even productivity tools), our UI should hold its own in terms of professionalism.
+
+* **Examples/References:**
+
+  * *Linear:* We want the app interface to feel as crisp as Linear – for instance, their use of whitespace and lack of unnecessary borders. Also how they present forms in a very uncluttered way (labels and inputs aligned, lots of space). Linear’s dark mode and light mode both look great; if we have time, supporting both could be awesome (perhaps leveraging CSS variables).
+  * *Vercel:* Vercel’s marketing pages show how to elegantly combine product screenshots with explanatory text. We can emulate some layout ideas from Vercel’s site: e.g. sections with an image on one side, text on the other, alternating, with lots of empty space and maybe some subtle background pattern. Vercel also often uses a slightly off-white background with sections separated by that – we could do similar to avoid pure white monotony.
+  * *Mixpanel:* The internal console of Mixpanel uses a card layout and a side navigation. For us, maybe a top nav is enough, but if we expand, a sidebar might come (like listing experiments). We can keep note of how Mixpanel highlights important numbers (big fonts, maybe colored if positive/negative change). And their color palette for charts (usually blues and purples) which is user-friendly for data.
+  * We should create a *design mock or style tile* with our chosen colors, typography, and a couple of sample components (like a button, an input field, a card) and review it against these references to ensure it meets the mark.
+
+* **Branding Elements:** Our logo (PulseFlags) should align with this style too. Ideally the logo is simple (perhaps just a wordmark in our chosen font with a slight tweak, or an icon symbol like a flag or pulse graph). The PRD doesn’t need to define the logo fully, but note that the branding should mirror the product values – likely a simple geometric shape or symbol that can be used as an app favicon, etc., without being distracting.
+
+In essence, the visual system of PulseFlags is **modern, minimal, and functional**. It should appeal to the sensibilities of both PMs (who appreciate clean, straightforward interfaces that don’t confuse them) and developers (who appreciate efficient, no-BS design and perhaps a slight lean towards tech aesthetics). By referencing Linear, Vercel, and Mixpanel, we ensure we’re benchmarking against top-tier product designs. PulseFlags doesn’t need to reinvent design language – it should adopt proven patterns and focus on coherence and usability. **The end result should be that users hardly notice the UI – they’re engrossed in what they can accomplish with it, which is the ultimate sign of a intuitive design**.
+
+## Success Metrics for Launch
+
+To determine if PulseFlags meets its goals at launch, we will track several **key performance indicators (KPIs)**. These metrics will help gauge user acquisition, activation, and overall product-market fit in the early stage:
+
+* **Website Conversion Rate (Visitor to Sign-Up):** Measure the percentage of landing page visitors who complete the sign-up. This *Sign-up Rate* is a crucial first signal of our value proposition resonating. **Target:** At least 20% of targeted visitors (e.g. those we drive via marketing campaigns or personal outreach) sign up. If we notice drop-offs, we’ll analyze if the messaging is unclear or if the sign-up form causes friction.
+
+* **Activation Rate (Sign-Up to First Experiment):** Among those who sign up, track how many go on to create an experiment (and invite a developer) – this is our primary activation event. According to product launch best practices, identifying this “aha moment” is critical. **Target:** ≥ 50% of sign-ups create an experiment within their first session or day. A secondary target could be to have at least 30% of sign-ups invite a developer (since that indicates commitment to integrate). We’ll measure time-to-activation as well: ideally, users reach that first experiment in < 10 minutes from sign-up (quick time-to-value).
+
+* **Time to Value:** Specifically measure the **time between sign-up and the user launching their first experiment** (or inviting dev, which might be the last step in initial onboarding). **Target:** Median time under 15 minutes. A low time indicates the flow is intuitive and quick. If we see users taking much longer or not completing until days later, it suggests friction or confusion.
+
+* **Engagement & Retention:** Check how often users return to the product. For example, what percentage of those who created an experiment log back in within a week to check results or create more? **Target:** At least 40% of activated users (those who made an experiment) log in again in the following week. Also, track retention over 1 month (though at launch our time window is short). We aim for low churn of early adopters – if they don’t stick around, something might be missing in the value (maybe they ran one test and didn’t see use for more, which would be concerning).
+
+* **Experiments Run:** Absolute number of experiments created and running. For instance, 10 customers each running at least 1-2 experiments in the first month would be a good sign. We might set a goal like “25 experiments launched in first 2 months of beta”. This indicates real usage beyond just account creation.
+
+* **Developer Integration Success:** We should track the funnel of invited developers: what proportion actually register and integrate the SDK. This could be measured by the number of projects from which we receive SDK pings/events. **Target:** ≥ 70% of invited developers complete integration within 2 weeks of invite. If significantly lower, maybe integration/docs are too hard and need improvement.
+
+* **SDK/Data Reliability:** A more technical metric – once integrated, does our system deliver consistent data? We could measure experiment data loss or errors. For instance, if an experiment is running and our assignment system had downtime, we might see fewer events than expected. We want close to 0% downtime especially during experiments. **Target:** 99%+ of expected experiment data is captured (based on DAU forecasts from users) – essentially ensuring our pipeline isn’t losing events.
+
+* **User Satisfaction & Feedback:** Qualitative but important. We can measure this via a short survey (perhaps after the first experiment is created, a popup: “How easy was that on a scale of 1-5?” or after a month, an NPS survey). Success would be an average satisfaction rating of, say, 4/5 for onboarding experience. Additionally, any direct feedback from initial users (case studies, testimonials) indicating that PulseFlags helped them achieve a result (like “increased retention by X%”) is a strong success indicator. If possible, collect a couple of such success stories within the first 3 months.
+
+* **Support Queries / Friction Points:** Track the number of support requests or questions we get from new users. If many are asking “how do I do X?”, that means X was not clear in the design. **Target:** Keep support requests minimal; ideally < 1 in 5 users reach out with an issue during onboarding. If we introduce a user community or Slack, we can also gauge common pain points from discussions to iterate on.
+
+* **Operational Metrics:** Monitor system metrics like uptime (aim 99.5%+ in beta), response times of the API (aim <200ms for flag fetch). While users won’t see these directly, if we meet them it ensures the users’ experience is seamless (no one complains about slowness or outages). If, for example, we suffer a significant outage during a high-profile experiment, that would harm trust, so success is maintaining stability throughout the launch period.
+
+* **Growth Metrics:** If relevant, track how many new sign-ups come via referrals (e.g. a PM from one studio telling another). We can instrument a “How did you hear about us?” in sign-up to gauge word-of-mouth. Early organic growth or referral is a strong indicator of product-market fit in this niche.
+
+Finally, we will consider the launch successful if we achieve a core outcome: **actual in-game impact.** That is, at least one or two studios report that a PulseFlags experiment yielded a decision (e.g. they rolled out a change that improved a metric). This is somewhat anecdotal, but it’s the ultimate validation that the product is delivering value beyond just being used – it’s changing business outcomes. Our success metrics should ultimately tie back to enabling those user success stories.
+
+By closely monitoring these metrics, we’ll not only know how the launch is going, but also gather data to iterate. For example, if sign-ups are high but activation is low, we need to improve onboarding. Or if sign-ups are low, the landing page messaging or targeting might be off. The metrics will guide our next steps post-launch, ensuring we focus on the right areas to make PulseFlags an indispensable tool for mobile game teams.
+
+**Sources:**
+
+1. Erin Bury – *Leanplum Brings A/B Testing to Mobile Games* (BetaKit): Leanplum’s approach to empower product managers to run tests without constant developer involvement.
+2. Linear App – *Minimal Design and Performance:* Example of a modern SaaS tool with a minimal, fast interface favored by startups.
+3. Vercel Geist – *Design System Principles:* Emphasis on accessible high-contrast colors and developer-oriented typography, informing PulseFlags’ design direction.
+4. Shadow Scribes – *Apple’s Minimalism Lessons:* Highlights the value of uncluttered interfaces and avoiding feature bloat, guiding our product simplicity.
+5. Shadow Scribes – *Apple’s Marketing Simplicity:* Demonstrates using a single image and tagline for impact, inspiring our landing page copy strategy.
+6. Shadow Scribes – *Effortless Customer Experience:* Advocates simplifying navigation and processes for users, a principle we apply to PulseFlags’ onboarding flow.
+7. Gainsight – *Product Launch Metrics:* Identifies sign-up rate as a crucial signal and advises minimizing sign-up steps to reduce abandonment, shaping our success metrics and sign-up design.
