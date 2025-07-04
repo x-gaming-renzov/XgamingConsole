@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Target, TrendingUp, CheckCircle, AlertTriangle, Plus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Target, TrendingUp, CheckCircle, AlertTriangle, Plus, Trophy, Lightbulb, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
 
@@ -25,9 +26,45 @@ interface DashboardMetrics {
   }>;
 }
 
+interface TopExperience {
+  id: number;
+  name: string;
+  campaign: string;
+  uplift: number;
+  confidence: number;
+  participants: number;
+}
+
+interface CampaignHealth {
+  campaign: string;
+  d1Delta: number;
+  status: "Good" | "Warning" | "Critical";
+}
+
+interface InsightIdea {
+  id: number;
+  title: string;
+  description: string;
+  impact: "High" | "Medium" | "Low";
+  effort: "Low" | "Medium" | "High";
+  category: "Onboarding" | "Retention" | "Monetization";
+}
+
 export default function Dashboard() {
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/metrics/overview"],
+  });
+
+  const { data: topExperiences, isLoading: loadingTop } = useQuery<TopExperience[]>({
+    queryKey: ["/api/insights/top-experiences"],
+  });
+
+  const { data: campaignHealth, isLoading: loadingHealth } = useQuery<CampaignHealth[]>({
+    queryKey: ["/api/insights/campaign-health"],
+  });
+
+  const { data: ideas, isLoading: loadingIdeas } = useQuery<InsightIdea[]>({
+    queryKey: ["/api/insights/ideas"],
   });
 
   if (isLoading) {
@@ -223,6 +260,142 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Row A: Top Performing Experiences + Campaign Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Performing Experiences (Left) */}
+        <Card className="h-[240px]">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Trophy className="w-5 h-5 text-yellow-600" />
+              <span>Top Performing Experiences</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingTop ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : topExperiences && topExperiences.length > 0 ? (
+              <div className="space-y-3 max-h-32 overflow-y-auto">
+                {topExperiences.slice(0, 5).map((exp) => (
+                  <div key={exp.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{exp.name}</div>
+                      <div className="text-xs text-muted-foreground">{exp.campaign}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-green-600">+{exp.uplift}%</div>
+                      <div className="text-xs text-muted-foreground">{exp.participants.toLocaleString()} users</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Trophy className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No performance data available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Campaign Health (Right) */}
+        <Card className="h-[240px]">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
+              <span>Campaign Health</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingHealth ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : campaignHealth && campaignHealth.length > 0 ? (
+              <div className="space-y-3 max-h-32 overflow-y-auto">
+                {campaignHealth.map((campaign, index) => (
+                  <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{campaign.campaign}</div>
+                      <div className="flex items-center space-x-1 text-xs">
+                        {campaign.d1Delta > 0 ? (
+                          <ArrowUp className="w-3 h-3 text-green-600" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3 text-red-600" />
+                        )}
+                        <span className={campaign.d1Delta > 0 ? "text-green-600" : "text-red-600"}>
+                          {campaign.d1Delta > 0 ? '+' : ''}{campaign.d1Delta}% D1
+                        </span>
+                      </div>
+                    </div>
+                    <Badge variant={
+                      campaign.status === "Good" ? "default" : 
+                      campaign.status === "Warning" ? "secondary" : "destructive"
+                    }>
+                      {campaign.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No campaign health data</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row B: Optimization Ideas */}
+      <Card className="h-[260px]">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Lightbulb className="w-5 h-5 text-purple-600" />
+            <span>Optimization Ideas</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingIdeas ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : ideas && ideas.length > 0 ? (
+            <div className="space-y-4 max-h-44 overflow-y-auto">
+              {ideas.map((idea) => (
+                <div key={idea.id} className="p-4 bg-accent/30 rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-sm">{idea.title}</h4>
+                    <div className="flex space-x-2">
+                      <Badge variant="outline" className="text-xs">
+                        {idea.impact} Impact
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {idea.effort} Effort
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">{idea.description}</p>
+                  <Badge variant="secondary" className="text-xs">
+                    {idea.category}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Lightbulb className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No optimization ideas yet</h3>
+              <p className="text-muted-foreground">
+                Ideas will appear here as your experiments generate insights
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       </div>
     </ConsoleLayout>
   );

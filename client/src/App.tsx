@@ -11,7 +11,7 @@ import Campaigns from "@/pages/campaigns";
 import Objects from "@/pages/objects";
 import Experiences from "@/pages/experiences";
 import ExperienceWizard from "@/pages/experience-wizard";
-import Insights from "@/pages/insights";
+
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,7 +24,7 @@ function Router() {
       <Route path="/objects" component={Objects} />
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/new" component={ExperienceWizard} />
-      <Route path="/insights" component={Insights} />
+      <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>
   );

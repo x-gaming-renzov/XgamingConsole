@@ -48,13 +48,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       path: "/campaigns",
       description: "Player segments"
     },
-    {
-      id: "insights",
-      label: "Insights",
-      icon: Lightbulb,
-      path: "/insights",
-      description: "Performance analysis"
-    }
+
   ];
 
   return (
