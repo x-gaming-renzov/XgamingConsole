@@ -1064,7 +1064,7 @@ export default function ExperienceWizard() {
                       }}
                       disabled={!canProceed()}
                     >
-                      Save
+                      Save as Draft
                     </Button>
                     <Button
                       type="button"
@@ -1074,7 +1074,7 @@ export default function ExperienceWizard() {
                       }}
                       disabled={!canProceed()}
                     >
-                      Save & Launch
+                      Next
                       <ChevronRight className="w-4 h-4 ml-2" />
                     </Button>
                   </>
