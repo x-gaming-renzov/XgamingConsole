@@ -195,8 +195,8 @@ export default function ExperienceWizard() {
   const steps = [
     { number: 1, title: "Select Objects", description: "Choose objects to personalize", icon: <Layers className="w-4 h-4" /> },
     { number: 2, title: "Configure Variants", description: "Define versions for each object", icon: <Beaker className="w-4 h-4" /> },
-    { number: 3, title: "Traffic Split", description: "Set experience percentage", icon: <Sliders className="w-4 h-4" /> },
-    { number: 4, title: "Target & Schedule", description: "Choose campaign and timing", icon: <Target className="w-4 h-4" /> },
+    { number: 3, title: "Select Campaign", description: "Choose campaign and timing", icon: <Target className="w-4 h-4" /> },
+    { number: 4, title: "Traffic Split", description: "Set experience percentage", icon: <Sliders className="w-4 h-4" /> },
     { number: 5, title: "Review & Launch", description: "Final review and deployment", icon: <Zap className="w-4 h-4" /> }
   ];
 
