@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import ConsoleLayout from "@/components/console-layout";
@@ -38,7 +39,6 @@ interface SettingsTabProps {
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("profile");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -128,57 +128,48 @@ export default function Settings() {
     toast({ description: "Slack integration connected successfully" });
   };
 
-  const tabs = [
-    { id: "profile", label: "Profile", icon: User },
-    { id: "billing", label: "Billing", icon: CreditCard },
-    { id: "knowledge", label: "Knowledge Base", icon: FileText },
-    { id: "integrations", label: "Integrations", icon: Slack }
-  ];
+
 
   return (
     <ConsoleLayout>
-      <div className="flex h-full">
-      {/* Left Navigation */}
-      <div className="w-40 bg-muted/30 border-r p-4">
-        <nav className="space-y-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center space-x-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                  activeTab === tab.id 
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 p-6 max-w-4xl">
-        {/* Breadcrumb */}
-        <div className="mb-4">
-          <h6 className="text-sm text-muted-foreground mb-1">
-            Settings / {tabs.find(t => t.id === activeTab)?.label}
-          </h6>
-          <h1 className="text-2xl font-heading font-semibold">
-            {tabs.find(t => t.id === activeTab)?.label}
-          </h1>
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center text-sm text-muted-foreground mb-2">
+            <span>Settings</span>
+            <span className="mx-2">/</span>
+            <span className="text-foreground">Profile</span>
+          </div>
+          <h1 className="text-2xl font-semibold">Profile</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Profile changes save instantly except password.
+          </p>
         </div>
 
-        {/* Profile Tab */}
-        {activeTab === "profile" && (
-          <div className="space-y-6">
-            <div className="text-sm text-muted-foreground mb-4">
-              Profile changes save instantly except password.
-            </div>
+        {/* Horizontal Tabs */}
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Billing
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Knowledge Base
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <Slack className="w-4 h-4" />
+              Integrations
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-6">
+            <div className="space-y-6">
 
             {/* Account Section */}
             <Card>
@@ -337,12 +328,12 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+            </div>
+          </TabsContent>
 
-        {/* Billing Tab */}
-        {activeTab === "billing" && (
-          <div className="space-y-6">
+          {/* Billing Tab */}
+          <TabsContent value="billing" className="space-y-6">
+            <div className="space-y-6">
             {/* Credits Summary */}
             <Card>
               <CardHeader>
@@ -429,12 +420,12 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+            </div>
+          </TabsContent>
 
-        {/* Knowledge Base Tab */}
-        {activeTab === "knowledge" && (
-          <div className="space-y-6">
+          {/* Knowledge Base Tab */}
+          <TabsContent value="knowledge" className="space-y-6">
+            <div className="space-y-6">
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -537,12 +528,12 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+            </div>
+          </TabsContent>
 
-        {/* Integrations Tab */}
-        {activeTab === "integrations" && (
-          <div className="space-y-6">
+          {/* Integrations Tab */}
+          <TabsContent value="integrations" className="space-y-6">
+            <div className="space-y-6">
             {/* Slack Integration */}
             <Card>
               <CardHeader>
@@ -623,9 +614,9 @@ export default function Settings() {
                 )}
               </CardContent>
             </Card>
-          </div>
-        )}
-        </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </ConsoleLayout>
   );
