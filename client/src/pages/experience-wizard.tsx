@@ -98,6 +98,23 @@ export default function ExperienceWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [objectVariants, setObjectVariants] = useState<ObjectVariants>({});
+  const [trafficSplit, setTrafficSplit] = useState(50);
+  const [campaignType, setCampaignType] = useState<"existing" | "new">("existing");
+  const [campaignId, setCampaignId] = useState<string>("");
+  const [experienceName, setExperienceName] = useState("");
+  const [experienceDescription, setExperienceDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [autoRollout, setAutoRollout] = useState({
+    enabled: false,
+    upliftThreshold: 5,
+    minUsers: 1000
+  });
+  const [newCampaign, setNewCampaign] = useState({
+    name: "",
+    utmSource: "",
+    dailyTraffic: 0
+  });
   
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
@@ -312,16 +329,28 @@ export default function ExperienceWizard() {
       case 3:
         return getTotalCombinations() <= 8;
       case 4:
-        const formData = form.getValues();
-        return formData.campaignType === "new" || formData.campaignId;
+        return campaignType === "new" || campaignId;
       case 5:
-        return form.watch("name").length > 0;
+        return experienceName.length > 0;
       default:
         return false;
     }
   };
 
-  const onSubmit = (data: ExperienceForm) => {
+  const onSubmit = () => {
+    const data = {
+      name: experienceName,
+      description: experienceDescription,
+      selectedObjects,
+      objectVariants,
+      trafficSplit,
+      campaignType,
+      campaignId,
+      newCampaign,
+      startDate,
+      endDate,
+      autoRollout
+    };
     console.log("Creating experience:", data);
     setLocation("/experiences");
   };
@@ -369,7 +398,7 @@ export default function ExperienceWizard() {
       {/* Content */}
       <div className="p-6">
         <div className="max-w-6xl mx-auto">
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
             
             {/* Step 1: Select Objects */}
             {currentStep === 1 && (
@@ -404,7 +433,7 @@ export default function ExperienceWizard() {
                               </div>
                               <Checkbox
                                 checked={selectedObjects.includes(object.id)}
-                                onChange={() => {}}
+                                onCheckedChange={(checked) => handleObjectSelect(object.id, !!checked)}
                                 className="mt-1"
                               />
                             </div>
@@ -586,15 +615,15 @@ export default function ExperienceWizard() {
                     <Label className="text-base font-medium mb-4 block">Experience Traffic</Label>
                     <div className="space-y-4">
                       <Slider
-                        value={[form.watch("trafficSplit")]}
-                        onValueChange={(value) => form.setValue("trafficSplit", value[0])}
+                        value={[trafficSplit]}
+                        onValueChange={(value) => setTrafficSplit(value[0])}
                         max={100}
                         step={5}
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>0% (Full Control)</span>
-                        <span className="font-medium text-foreground">{form.watch("trafficSplit")}% Experience</span>
+                        <span className="font-medium text-foreground">{trafficSplit}% Experience</span>
                         <span>100% (Full Experience)</span>
                       </div>
                     </div>
@@ -648,8 +677,8 @@ export default function ExperienceWizard() {
                   <div>
                     <Label className="text-base font-medium mb-4 block">Select Campaign</Label>
                     <RadioGroup
-                      value={form.watch("campaignType")}
-                      onValueChange={(value) => form.setValue("campaignType", value as "existing" | "new")}
+                      value={campaignType}
+                      onValueChange={(value) => setCampaignType(value as "existing" | "new")}
                     >
                       <div className="space-y-4">
                         <div className="flex items-center space-x-2">
@@ -657,14 +686,14 @@ export default function ExperienceWizard() {
                           <Label htmlFor="existing">Use existing campaign</Label>
                         </div>
                         
-                        {form.watch("campaignType") === "existing" && (
+                        {campaignType === "existing" && (
                           <div className="ml-6 space-y-2">
                             {campaigns.map((campaign) => (
                               <div
                                 key={campaign.id}
-                                onClick={() => form.setValue("campaignId", campaign.id)}
+                                onClick={() => setCampaignId(campaign.id)}
                                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                  form.watch("campaignId") === campaign.id
+                                  campaignId === campaign.id
                                     ? "border-primary bg-primary/5"
                                     : "border-border hover:border-primary/50"
                                 }`}
@@ -689,7 +718,7 @@ export default function ExperienceWizard() {
                           <Label htmlFor="new">Create new campaign</Label>
                         </div>
                         
-                        {form.watch("campaignType") === "new" && (
+                        {campaignType === "new" && (
                           <div className="ml-6 space-y-4 p-4 border rounded-lg">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
@@ -697,10 +726,8 @@ export default function ExperienceWizard() {
                                 <Input
                                   id="campaign-name"
                                   placeholder="e.g., Summer Launch"
-                                  onChange={(e) => {
-                                    const newCampaign = form.getValues("newCampaign") || { name: "", utmSource: "", dailyTraffic: 0 };
-                                    form.setValue("newCampaign", { ...newCampaign, name: e.target.value });
-                                  }}
+                                  value={newCampaign.name}
+                                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
                                 />
                               </div>
                               <div>
@@ -708,10 +735,8 @@ export default function ExperienceWizard() {
                                 <Input
                                   id="utm-source"
                                   placeholder="e.g., facebook, google"
-                                  onChange={(e) => {
-                                    const newCampaign = form.getValues("newCampaign") || { name: "", utmSource: "", dailyTraffic: 0 };
-                                    form.setValue("newCampaign", { ...newCampaign, utmSource: e.target.value });
-                                  }}
+                                  value={newCampaign.utmSource}
+                                  onChange={(e) => setNewCampaign({ ...newCampaign, utmSource: e.target.value })}
                                 />
                               </div>
                             </div>
@@ -721,10 +746,8 @@ export default function ExperienceWizard() {
                                 id="daily-traffic"
                                 type="number"
                                 placeholder="1000"
-                                onChange={(e) => {
-                                  const newCampaign = form.getValues("newCampaign") || { name: "", utmSource: "", dailyTraffic: 0 };
-                                  form.setValue("newCampaign", { ...newCampaign, dailyTraffic: parseInt(e.target.value) || 0 });
-                                }}
+                                value={newCampaign.dailyTraffic || ""}
+                                onChange={(e) => setNewCampaign({ ...newCampaign, dailyTraffic: parseInt(e.target.value) || 0 })}
                               />
                             </div>
                           </div>
@@ -743,7 +766,8 @@ export default function ExperienceWizard() {
                         <Input
                           id="start-date"
                           type="datetime-local"
-                          onChange={(e) => form.setValue("startDate", e.target.value)}
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
                         />
                       </div>
                       <div>
@@ -751,7 +775,8 @@ export default function ExperienceWizard() {
                         <Input
                           id="end-date"
                           type="datetime-local"
-                          onChange={(e) => form.setValue("endDate", e.target.value)}
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
                         />
                       </div>
                     </div>
@@ -763,16 +788,13 @@ export default function ExperienceWizard() {
                     <div className="flex items-center space-x-2 mb-4">
                       <Switch
                         id="auto-rollout"
-                        checked={form.watch("autoRollout")?.enabled || false}
-                        onCheckedChange={(checked) => {
-                          const autoRollout = form.getValues("autoRollout") || { enabled: false, upliftThreshold: 5, minUsers: 1000 };
-                          form.setValue("autoRollout", { ...autoRollout, enabled: checked });
-                        }}
+                        checked={autoRollout.enabled}
+                        onCheckedChange={(checked) => setAutoRollout({ ...autoRollout, enabled: checked })}
                       />
                       <Label htmlFor="auto-rollout" className="text-base font-medium">Auto-rollout</Label>
                     </div>
                     
-                    {form.watch("autoRollout")?.enabled && (
+                    {autoRollout.enabled && (
                       <div className="ml-6 space-y-4 p-4 border rounded-lg">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
@@ -781,11 +803,8 @@ export default function ExperienceWizard() {
                               id="uplift-threshold"
                               type="number"
                               placeholder="5"
-                              defaultValue={form.watch("autoRollout")?.upliftThreshold || 5}
-                              onChange={(e) => {
-                                const autoRollout = form.getValues("autoRollout") || { enabled: true, upliftThreshold: 5, minUsers: 1000 };
-                                form.setValue("autoRollout", { ...autoRollout, upliftThreshold: parseInt(e.target.value) || 5 });
-                              }}
+                              value={autoRollout.upliftThreshold}
+                              onChange={(e) => setAutoRollout({ ...autoRollout, upliftThreshold: parseInt(e.target.value) || 5 })}
                             />
                           </div>
                           <div>
@@ -794,11 +813,8 @@ export default function ExperienceWizard() {
                               id="min-users"
                               type="number"
                               placeholder="1000"
-                              defaultValue={form.watch("autoRollout")?.minUsers || 1000}
-                              onChange={(e) => {
-                                const autoRollout = form.getValues("autoRollout") || { enabled: true, upliftThreshold: 5, minUsers: 1000 };
-                                form.setValue("autoRollout", { ...autoRollout, minUsers: parseInt(e.target.value) || 1000 });
-                              }}
+                              value={autoRollout.minUsers}
+                              onChange={(e) => setAutoRollout({ ...autoRollout, minUsers: parseInt(e.target.value) || 1000 })}
                             />
                           </div>
                         </div>
@@ -824,8 +840,8 @@ export default function ExperienceWizard() {
                     <Label className="text-base font-medium mb-4 block">Experience Name</Label>
                     <Input
                       placeholder="e.g., Enhanced Onboarding Experience"
-                      value={form.watch("name") || ""}
-                      onChange={(e) => form.setValue("name", e.target.value)}
+                      value={experienceName}
+                      onChange={(e) => setExperienceName(e.target.value)}
                     />
                   </div>
 
@@ -833,8 +849,8 @@ export default function ExperienceWizard() {
                     <Label className="text-base font-medium mb-4 block">Description (Optional)</Label>
                     <Textarea
                       placeholder="Describe this experience..."
-                      value={form.watch("description") || ""}
-                      onChange={(e) => form.setValue("description", e.target.value)}
+                      value={experienceDescription}
+                      onChange={(e) => setExperienceDescription(e.target.value)}
                       rows={3}
                     />
                   </div>
@@ -863,7 +879,7 @@ export default function ExperienceWizard() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span>Traffic Split:</span>
-                          <span className="font-medium">{form.watch("trafficSplit")}% experience</span>
+                          <span className="font-medium">{trafficSplit}% experience</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Total Combinations:</span>
@@ -872,16 +888,16 @@ export default function ExperienceWizard() {
                         <div className="flex justify-between">
                           <span>Campaign:</span>
                           <span className="font-medium">
-                            {form.watch("campaignType") === "existing" 
-                              ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "Select campaign"
+                            {campaignType === "existing" 
+                              ? campaigns.find(c => c.id === campaignId)?.name || "Select campaign"
                               : "New campaign"}
                           </span>
                         </div>
-                        {form.watch("autoRollout")?.enabled && (
+                        {autoRollout.enabled && (
                           <div className="flex justify-between">
                             <span>Auto-rollout:</span>
                             <span className="font-medium">
-                              {form.watch("autoRollout")?.upliftThreshold}% @ {form.watch("autoRollout")?.minUsers} users
+                              {autoRollout.upliftThreshold}% @ {autoRollout.minUsers} users
                             </span>
                           </div>
                         )}
@@ -896,13 +912,13 @@ export default function ExperienceWizard() {
                     <p className="text-sm text-muted-foreground">
                       You're about to deploy this experience to{" "}
                       <span className="font-medium text-foreground">
-                        {form.watch("campaignType") === "existing" 
-                          ? campaigns.find(c => c.id === form.watch("campaignId"))?.name || "selected campaign"
+                        {campaignType === "existing" 
+                          ? campaigns.find(c => c.id === campaignId)?.name || "selected campaign"
                           : "new campaign"}
                       </span>{" "}
-                      with a <span className="font-medium text-foreground">{form.watch("trafficSplit")}% split</span>
-                      {form.watch("startDate") && (
-                        <span> starting <span className="font-medium text-foreground">{new Date(form.watch("startDate")!).toLocaleDateString()}</span></span>
+                      with a <span className="font-medium text-foreground">{trafficSplit}% split</span>
+                      {startDate && (
+                        <span> starting <span className="font-medium text-foreground">{new Date(startDate).toLocaleDateString()}</span></span>
                       )}
                       .
                     </p>
