@@ -114,10 +114,12 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
 
               {/* Bottom Actions */}
               <div className="pt-4 border-t border-border space-y-2">
-                <Button variant="ghost" className="w-full justify-start text-muted-foreground">
-                  <Settings className="w-4 h-4 mr-3" />
-                  Settings
-                </Button>
+                <Link href="/settings">
+                  <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                    <Settings className="w-4 h-4 mr-3" />
+                    Settings
+                  </Button>
+                </Link>
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start text-muted-foreground hover:text-destructive"

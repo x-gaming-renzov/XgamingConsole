@@ -110,6 +110,12 @@ Changelog:
   - All players mode: single global traffic slider (default)
   - Specific segments mode: multi-segment selection with individual splits per segment
   - Added segment search, validation, helper buttons (copy split, equalize), and low traffic warnings
+- July 05, 2025. Implemented comprehensive Settings page with four-tab MVP structure:
+  - Profile tab: Account management, security settings, locale preferences, API key management
+  - Billing tab: Credit balance display, usage charts, payment methods, credit recharge options
+  - Knowledge Base tab: Document upload/management for LLM citations with file status tracking
+  - Integrations tab: Slack integration with workspace connection and event notifications
+  - Added Avatar and Textarea UI components, integrated with console navigation
 
 ## User Preferences
 

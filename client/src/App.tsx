@@ -12,6 +12,7 @@ import Segments from "@/pages/segments";
 import Objects from "@/pages/objects";
 import Experiences from "@/pages/experiences";
 import ExperienceWizard from "@/pages/experience-wizard";
+import Settings from "@/pages/settings";
 
 import NotFound from "@/pages/not-found";
 
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/new" component={ExperienceWizard} />
       <Route path="/experience-wizard" component={ExperienceWizard} />
+      <Route path="/settings" component={Settings} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>
