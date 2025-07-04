@@ -24,6 +24,7 @@ function Router() {
       <Route path="/objects" component={Objects} />
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/new" component={ExperienceWizard} />
+      <Route path="/experience-wizard" component={ExperienceWizard} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>
