@@ -115,6 +115,7 @@ export default function ExperienceWizard() {
     utmSource: "",
     dailyTraffic: 0
   });
+  const [searchQuery, setSearchQuery] = useState("");
   
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
@@ -309,6 +310,15 @@ export default function ExperienceWizard() {
     return total;
   };
 
+  const filteredObjects = objects.filter(object => 
+    object.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    object.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    object.flags.some(flag => 
+      flag.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      flag.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
   const nextStep = () => {
     if (currentStep < 5) setCurrentStep(currentStep + 1);
   };
@@ -410,48 +420,102 @@ export default function ExperienceWizard() {
                       <p className="text-sm text-muted-foreground">Choose multiple objects to compose your experience</p>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {objects.map((object) => (
-                          <div
-                            key={object.id}
-                            className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                              selectedObjects.includes(object.id)
-                                ? "border-primary bg-primary/5 shadow-sm"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => {
-                              const isCurrentlySelected = selectedObjects.includes(object.id);
-                              handleObjectSelect(object.id, !isCurrentlySelected);
-                            }}
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                                  {getTypeIcon(object.type)}
-                                </div>
-                                <div>
-                                  <h3 className="font-medium">{object.name}</h3>
-                                  <Badge variant="outline" className="mt-1">{object.type}</Badge>
-                                </div>
-                              </div>
-                              <div onClick={(e) => e.stopPropagation()}>
-                                <Checkbox
-                                  checked={selectedObjects.includes(object.id)}
-                                  onCheckedChange={(checked) => handleObjectSelect(object.id, checked === true)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {object.flags.length} flags available
-                            </p>
-                            <div className="text-xs text-muted-foreground">
-                              {object.flags.slice(0, 3).map(flag => flag.key).join(", ")}
-                              {object.flags.length > 3 && "..."}
-                            </div>
+                      {/* Search Bar */}
+                      <div className="mb-6">
+                        <div className="relative">
+                          <Input
+                            placeholder="Search objects by name, type, or flags..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 pr-10"
+                          />
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
                           </div>
-                        ))}
+                          {searchQuery && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute inset-y-0 right-0 pr-3 h-full"
+                              onClick={() => setSearchQuery("")}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          {searchQuery && (
+                            <p className="text-xs text-muted-foreground">
+                              Found {filteredObjects.length} object{filteredObjects.length === 1 ? '' : 's'}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground ml-auto">
+                            {selectedObjects.length} selected
+                          </p>
+                        </div>
                       </div>
+
+                      {filteredObjects.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-medium mb-2">No objects found</h3>
+                          <p className="text-muted-foreground mb-4">
+                            No objects match your search "{searchQuery}". Try a different search term.
+                          </p>
+                          <Button variant="outline" onClick={() => setSearchQuery("")}>
+                            Clear search
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {filteredObjects.map((object) => (
+                            <div
+                              key={object.id}
+                              className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                selectedObjects.includes(object.id)
+                                  ? "border-primary bg-primary/5 shadow-sm"
+                                  : "border-border hover:border-primary/50"
+                              }`}
+                              onClick={() => {
+                                const isCurrentlySelected = selectedObjects.includes(object.id);
+                                handleObjectSelect(object.id, !isCurrentlySelected);
+                              }}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                    {getTypeIcon(object.type)}
+                                  </div>
+                                  <div>
+                                    <h3 className="font-medium">{object.name}</h3>
+                                    <Badge variant="outline" className="mt-1">{object.type}</Badge>
+                                  </div>
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={selectedObjects.includes(object.id)}
+                                    onCheckedChange={(checked) => handleObjectSelect(object.id, checked === true)}
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {object.flags.length} flags available
+                              </p>
+                              <div className="text-xs text-muted-foreground">
+                                {object.flags.slice(0, 3).map(flag => flag.key).join(", ")}
+                                {object.flags.length > 3 && "..."}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
