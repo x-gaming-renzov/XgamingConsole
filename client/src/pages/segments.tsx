@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import ConsoleLayout from "@/components/console-layout";
 import { 
   Plus, 
   Users, 
@@ -265,7 +266,8 @@ export default function Segments() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <ConsoleLayout>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -640,6 +642,7 @@ export default function Segments() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </ConsoleLayout>
   );
 }
