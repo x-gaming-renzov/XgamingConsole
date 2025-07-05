@@ -303,7 +303,7 @@ export default function ProjectSettings() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin - Full access</SelectItem>
-                              <SelectItem value="collaborator">Product Manager - Create and Edit experiments</SelectItem>
+                              <SelectItem value="collaborator">Product - Create and Edit experiments</SelectItem>
                               <SelectItem value="developer">Developer - Manage integrations</SelectItem>
                               <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
                             </SelectContent>
@@ -364,7 +364,7 @@ export default function ProjectSettings() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="collaborator">Product Manager</SelectItem>
+                              <SelectItem value="collaborator">Product</SelectItem>
                               <SelectItem value="developer">Developer</SelectItem>
                               <SelectItem value="viewer">Analyst</SelectItem>
                             </SelectContent>
