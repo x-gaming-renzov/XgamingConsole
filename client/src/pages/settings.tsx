@@ -65,6 +65,15 @@ export default function Settings() {
     billingEmail: "billing@company.com"
   });
 
+  // Transaction history
+  const [transactions] = useState([
+    { id: 1, credits: 10000, cost: 169, date: "2024-12-01", status: "Completed" },
+    { id: 2, credits: 5000, cost: 89, date: "2024-11-15", status: "Completed" },
+    { id: 3, credits: 1000, cost: 19, date: "2024-11-01", status: "Completed" },
+    { id: 4, credits: 5000, cost: 89, date: "2024-10-20", status: "Completed" },
+    { id: 5, credits: 1000, cost: 19, date: "2024-10-05", status: "Failed" }
+  ]);
+
   // Knowledge Base state
   const [kbFiles, setKbFiles] = useState([
     { id: 1, name: "Game Design Bible.pdf", tokens: 15420, status: "Ready", category: "Design Bible", visibility: "Org-wide" },
@@ -340,7 +349,7 @@ export default function Settings() {
                 <CardTitle className="text-lg">Credit Balance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <div className="text-3xl font-bold">{billing.remainingCredits.toLocaleString()}</div>
                     <div className="text-sm text-muted-foreground">of {billing.totalCredits.toLocaleString()} credits</div>
@@ -349,12 +358,63 @@ export default function Settings() {
                     <div className="text-2xl font-semibold">{billing.estimatedDaysLeft} days</div>
                     <div className="text-sm text-muted-foreground">estimated remaining</div>
                   </div>
-                  <div>
-                    <Badge className="text-sm">{billing.currentPlan} · ${billing.planPrice}/mo</Badge>
-                  </div>
                 </div>
                 <div className="mt-4">
                   <Progress value={(billing.remainingCredits / billing.totalCredits) * 100} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Plan Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Plan Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-xl font-bold">{billing.currentPlan} Plan</div>
+                    <div className="text-sm text-muted-foreground mb-3">Current subscription</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Monthly Price</span>
+                        <span className="text-sm font-medium">${billing.planPrice}/mo</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Credits per month</span>
+                        <span className="text-sm font-medium">{billing.totalCredits.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Next billing date</span>
+                        <span className="text-sm font-medium">Dec 15, 2024</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-medium mb-3">Plan Features</div>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Unlimited experiments
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Advanced analytics
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Team collaboration
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        Priority support
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex space-x-2">
+                  <Button variant="outline">Change Plan</Button>
+                  <Button variant="destructive">Cancel Subscription</Button>
                 </div>
               </CardContent>
             </Card>
@@ -420,6 +480,57 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Transactions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium">Credits</th>
+                        <th className="text-left p-3 font-medium">Cost</th>
+                        <th className="text-left p-3 font-medium">Date</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((transaction) => (
+                        <tr key={transaction.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3">
+                            <span className="font-medium">+{transaction.credits.toLocaleString()}</span>
+                            <span className="text-sm text-muted-foreground ml-1">credits</span>
+                          </td>
+                          <td className="p-3 font-medium">${transaction.cost}</td>
+                          <td className="p-3 text-sm">
+                            {new Date(transaction.date).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short', 
+                              day: 'numeric'
+                            })}
+                          </td>
+                          <td className="p-3">
+                            <Badge variant={transaction.status === "Completed" ? "default" : "destructive"}>
+                              {transaction.status === "Completed" && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {transaction.status === "Failed" && <XCircle className="h-3 w-3 mr-1" />}
+                              {transaction.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {transactions.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No transactions found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             </div>
           </TabsContent>
 
@@ -480,7 +591,6 @@ export default function Settings() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
                 </div>
               </CardContent>
             </Card>
