@@ -67,11 +67,11 @@ export default function Settings() {
 
   // Transaction history
   const [transactions] = useState([
-    { id: 1, credits: 10000, cost: 169, date: "2024-12-01", status: "Completed" },
-    { id: 2, credits: 5000, cost: 89, date: "2024-11-15", status: "Completed" },
-    { id: 3, credits: 1000, cost: 19, date: "2024-11-01", status: "Completed" },
-    { id: 4, credits: 5000, cost: 89, date: "2024-10-20", status: "Completed" },
-    { id: 5, credits: 1000, cost: 19, date: "2024-10-05", status: "Failed" }
+    { id: 1, credits: 10000, cost: 169, date: "2025-06-01", status: "Completed" },
+    { id: 2, credits: 5000, cost: 89, date: "2025-05-15", status: "Completed" },
+    { id: 3, credits: 1000, cost: 19, date: "2025-05-01", status: "Completed" },
+    { id: 4, credits: 5000, cost: 89, date: "2025-04-05", status: "Completed" },
+    { id: 5, credits: 1000, cost: 19, date: "2025-04-05", status: "Failed" }
   ]);
 
   // Knowledge Base state
@@ -386,7 +386,7 @@ export default function Settings() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm">Next billing date</span>
-                        <span className="text-sm font-medium">Dec 15, 2024</span>
+                        <span className="text-sm font-medium">Dec 15, 2025</span>
                       </div>
                     </div>
                   </div>
