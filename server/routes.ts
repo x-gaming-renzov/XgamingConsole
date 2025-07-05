@@ -341,6 +341,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const campaigns = await storage.getCampaignsByProjectId(experiment.projectId);
       const campaign = campaigns.length > 0 ? campaigns[0] : null;
 
+      // Process variants with object defaults
+      const processVariants = async () => {
+        try {
+          // Parse the variants from the experiment if available
+          if (experiment.variants) {
+            const variants = typeof experiment.variants === 'string' 
+              ? JSON.parse(experiment.variants) 
+              : experiment.variants;
+            
+            // Get the object defaults for Control variant
+            const getObjectDefaults = async (objectId: string) => {
+              try {
+                const objectData = await storage.getObject(parseInt(objectId));
+                if (objectData && objectData.flags) {
+                  const flags = typeof objectData.flags === 'string' ? JSON.parse(objectData.flags) : objectData.flags;
+                  const defaults: any = {};
+                  flags.forEach((flag: any) => {
+                    if (flag.key && flag.defaultValue !== undefined) {
+                      defaults[flag.key] = flag.defaultValue;
+                    }
+                  });
+                  return defaults;
+                }
+              } catch (e) {
+                console.error('Error getting object defaults:', e);
+              }
+              return {};
+            };
+
+            // Convert to the expected format
+            const formattedVariants = await Promise.all(
+              Object.entries(variants).map(async ([objectId, data]: [string, any]) => {
+                const variantList = data.variants || [];
+                const objectDefaults = await getObjectDefaults(objectId);
+                
+                const formattedVariantList = [
+                  // Control variant with object defaults
+                  { name: "Control", parameters: objectDefaults }
+                ];
+                
+                // Add the actual variants
+                variantList.forEach((variant: any, index: number) => {
+                  formattedVariantList.push({
+                    name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
+                    parameters: variant.values || {}
+                  });
+                });
+                
+                return {
+                  objectName: `Object ${objectId}`,
+                  variants: formattedVariantList
+                };
+              })
+            );
+            
+            return formattedVariants;
+          }
+        } catch (e) {
+          console.error('Error parsing variants:', e);
+        }
+        
+        // Fallback to default structure
+        return [{
+          objectName: "Tutorial Object",
+          variants: [
+            { name: "Control", parameters: {} },
+            { name: "Variant A", parameters: {} }
+          ]
+        }];
+      };
+
+      const processedVariants = await processVariants();
+
       // Transform to detailed experience response
       const detailedExperience = {
         id: experiment.id,
@@ -369,49 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             users7d: 4871
           }
         ],
-        variants: (() => {
-          try {
-            // Parse the variants from the experiment if available
-            if (experiment.variants) {
-              const variants = typeof experiment.variants === 'string' 
-                ? JSON.parse(experiment.variants) 
-                : experiment.variants;
-              
-              // Convert to the expected format
-              return Object.entries(variants).map(([objectId, data]: [string, any]) => {
-                const variantList = data.variants || [];
-                const formattedVariants = [
-                  // Always include a Control variant
-                  { name: "Control", parameters: {} }
-                ];
-                
-                // Add the actual variants
-                variantList.forEach((variant: any, index: number) => {
-                  formattedVariants.push({
-                    name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
-                    parameters: variant.values || {}
-                  });
-                });
-                
-                return {
-                  objectName: `Object ${objectId}`,
-                  variants: formattedVariants
-                };
-              });
-            }
-          } catch (e) {
-            console.error('Error parsing variants:', e);
-          }
-          
-          // Fallback to default structure
-          return [{
-            objectName: "Tutorial Object",
-            variants: [
-              { name: "Control", parameters: {} },
-              { name: "Variant A", parameters: {} }
-            ]
-          }];
-        })(),
+        variants: processedVariants,
         metrics: [
           { date: "2025-07-08", control: 38, variantA: 42 },
           { date: "2025-07-09", control: 39, variantA: 43 },
