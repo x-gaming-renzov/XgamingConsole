@@ -409,7 +409,7 @@ export default function ExperienceWizard() {
       startDate,
       endDate,
       autoRollout,
-      status: "Draft" as const
+      status: "draft" as const
     };
     console.log("Saving draft...", draftData);
     createExperience.mutate(draftData);
@@ -428,7 +428,7 @@ export default function ExperienceWizard() {
       startDate,
       endDate,
       autoRollout,
-      status: "Active" as const
+      status: "active" as const
     };
     console.log("Creating experience:", data);
     createExperience.mutate(data);
