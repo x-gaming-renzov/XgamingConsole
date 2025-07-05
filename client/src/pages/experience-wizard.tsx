@@ -145,28 +145,10 @@ export default function ExperienceWizard() {
         setExperienceName(analysis.name || "");
         setExperienceDescription(analysis.description || "");
         
-        // Set suggested objects based on analysis - map names to IDs
+        // Store suggested object names for mapping when objects are loaded
         if (analysis.suggestedObjects && analysis.suggestedObjects.length > 0) {
-          // We need to map object names to IDs after objects are loaded
-          // For now, store the names and map them in a separate effect
-          const objectNameMapping: Record<string, string> = {
-            "Level 5 Tutorial": "1",
-            "Welcome Popup": "2", 
-            "Onboarding Flow": "3",
-            "Reward System": "4",
-            "UI Elements": "5",
-            "Currency System": "6",
-            "Achievement System": "7",
-            "Social Features": "8",
-            "Push Notifications": "9",
-            "In-App Purchase": "10"
-          };
-          
-          const mappedIds = analysis.suggestedObjects
-            .map((name: string) => objectNameMapping[name])
-            .filter(Boolean);
-          
-          setSelectedObjects(mappedIds);
+          // Store suggested object names to map them when objects are fetched
+          sessionStorage.setItem('aiSuggestedObjects', JSON.stringify(analysis.suggestedObjects));
         }
         
         // Set campaign information
@@ -191,41 +173,7 @@ export default function ExperienceWizard() {
           setSelectedSegments(segments);
         }
         
-        // Set variants based on analysis
-        if (analysis.variants && analysis.suggestedObjects) {
-          const objectNameMapping: Record<string, string> = {
-            "Level 5 Tutorial": "1",
-            "Welcome Popup": "2", 
-            "Onboarding Flow": "3",
-            "Reward System": "4",
-            "UI Elements": "5",
-            "Currency System": "6",
-            "Achievement System": "7",
-            "Social Features": "8",
-            "Push Notifications": "9",
-            "In-App Purchase": "10"
-          };
-          
-          const variants: ObjectVariants = {};
-          analysis.suggestedObjects.forEach((objName: string) => {
-            const objId = objectNameMapping[objName];
-            if (objId) {
-              variants[objId] = {
-                variants: [
-                  {
-                    name: analysis.variants.control.name || "Control",
-                    values: { enabled: false }
-                  },
-                  {
-                    name: analysis.variants.treatment.name || "Treatment",
-                    values: { enabled: true }
-                  }
-                ]
-              };
-            }
-          });
-          setObjectVariants(variants);
-        }
+        // Variants will be handled when objects are mapped
         
         // Remove analysis parameter from URL
         const newUrl = window.location.pathname;
@@ -263,6 +211,49 @@ export default function ExperienceWizard() {
     type: obj.type as "Level" | "Popup" | "Param",
     flags: Array.isArray(obj.flags) ? obj.flags : []
   })), [objectsData]);
+
+  // Handle AI suggested objects mapping when objects are loaded
+  useEffect(() => {
+    const aiSuggestedObjectsStr = sessionStorage.getItem('aiSuggestedObjects');
+    if (aiSuggestedObjectsStr && objects.length > 0) {
+      try {
+        const suggestedObjectNames: string[] = JSON.parse(aiSuggestedObjectsStr);
+        
+        // Map object names to IDs
+        const mappedIds = suggestedObjectNames
+          .map(name => objects.find(obj => obj.name === name)?.id)
+          .filter(Boolean) as string[];
+        
+        if (mappedIds.length > 0) {
+          setSelectedObjects(mappedIds);
+          
+          // Also create default variants for selected objects
+          const variants: ObjectVariants = {};
+          mappedIds.forEach((objId) => {
+            variants[objId] = {
+              variants: [
+                {
+                  name: "Control",
+                  values: { enabled: false }
+                },
+                {
+                  name: "Treatment",
+                  values: { enabled: true }
+                }
+              ]
+            };
+          });
+          setObjectVariants(variants);
+        }
+        
+        // Clear the session storage
+        sessionStorage.removeItem('aiSuggestedObjects');
+      } catch (error) {
+        console.error("Failed to parse AI suggested objects:", error);
+        sessionStorage.removeItem('aiSuggestedObjects');
+      }
+    }
+  }, [objects]);
 
   // Fetch campaigns from API
   const { data: campaignsData = [] } = useQuery<any[]>({

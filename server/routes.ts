@@ -1094,7 +1094,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Description must be at least 10 characters long" });
       }
 
-      const analysis = await analyzeExperienceDescription(description);
+      // Get user's first project (assuming single project for now)
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      if (projects.length === 0) {
+        return res.status(400).json({ message: "No project found for user" });
+      }
+      const projectId = projects[0].id;
+
+      // Get available objects from database
+      const objects = await storage.getObjectsByProjectId(projectId);
+      
+      // Get available segments from database 
+      const segments = await storage.getSegmentsByProjectId(projectId);
+
+      const analysis = await analyzeExperienceDescription(description, objects, segments);
       res.json(analysis);
     } catch (error) {
       console.error("Experience analysis failed:", error);
