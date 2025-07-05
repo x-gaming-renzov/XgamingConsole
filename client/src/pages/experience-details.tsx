@@ -83,7 +83,7 @@ export default function ExperienceDetails() {
   const queryClient = useQueryClient();
 
   const { data: experience, isLoading } = useQuery<ExperienceDetails>({
-    queryKey: ["/api/experiences", experienceId],
+    queryKey: [`/api/experiences/${experienceId}`],
   });
 
   const updateNameMutation = useMutation({
@@ -94,7 +94,7 @@ export default function ExperienceDetails() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/experiences", experienceId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
       setIsEditingName(false);
     }
   });
