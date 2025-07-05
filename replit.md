@@ -145,6 +145,16 @@ Changelog:
     * Integrations tab: Slack integration and notification settings
   - Added team member API endpoints for CRUD operations
   - Implemented project selector with mock project data in sidebar header
+- July 05, 2025. Enhanced campaigns with comprehensive detail page system:
+  - Removed non-functional manage buttons, made campaign table rows fully clickable
+  - Added launch date field to campaign creation supporting past/future dates
+  - Created comprehensive campaign details page (/campaigns/{id}) with four-tab layout:
+    * Overview: KPI tiles, experience allocation bar, top segments, bound objects
+    * Experiences: Table of campaign experiences with split percentages and performance
+    * Schedule: Read-only timeline showing campaign release dates (informational only)
+    * History: Chronological timeline of campaign events and modifications
+  - Campaign schedule section displays marketing team release dates, not user-editable
+  - Full breadcrumb navigation with status badges and action buttons
 
 ## User Preferences
 

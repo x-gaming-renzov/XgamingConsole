@@ -388,29 +388,55 @@ export default function CampaignDetails() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Change Schedule</CardTitle>
+                <CardTitle>Campaign Timeline</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Modify campaign timing. Changes take effect immediately.
+                  Timeline information is managed by your marketing team and reflects actual campaign launch dates.
                 </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">New Start Date</label>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Select date & time
-                    </Button>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Campaign Released</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(campaignData.startDate)}</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 border-green-200">Live</Badge>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">New End Date (Optional)</label>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Select date & time
-                    </Button>
+                  
+                  {campaignData.endDate ? (
+                    <div className="flex items-center space-x-4 p-3 border border-border rounded-lg">
+                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Scheduled End</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(campaignData.endDate)}</p>
+                      </div>
+                      <Badge variant="outline">Planned</Badge>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-4 p-3 border border-dashed border-border rounded-lg">
+                      <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">No End Date Scheduled</p>
+                        <p className="text-xs text-muted-foreground">Campaign will run indefinitely</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Schedule Information</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                        Campaign dates reflect when your marketing team released the campaign. 
+                        Contact your team lead to update timeline information.
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <Button>Save Schedule Changes</Button>
               </CardContent>
             </Card>
           </TabsContent>
