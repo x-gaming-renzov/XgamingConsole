@@ -37,6 +37,11 @@ export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({
+    utmSource: "",
+    label: "",
+    launchDate: new Date().toISOString().slice(0, 16)
+  });
 
   const { data: metrics } = useQuery<CampaignMetrics>({
     queryKey: ["/api/campaigns/metrics"],
@@ -56,6 +61,27 @@ export default function Campaigns() {
     if (retention >= avg + 5) return { label: "High", variant: "default" as const };
     if (retention < avg - 3) return { label: "Low", variant: "destructive" as const };
     return { label: "Normal", variant: "secondary" as const };
+  };
+
+  const handleCreateCampaign = () => {
+    if (!newCampaign.utmSource.trim()) {
+      alert("UTM Source is required");
+      return;
+    }
+
+    // Mock campaign creation - in real app this would call API
+    console.log("Creating campaign:", newCampaign);
+    
+    // Reset form and close modal
+    setNewCampaign({
+      utmSource: "",
+      label: "",
+      launchDate: new Date().toISOString().slice(0, 16)
+    });
+    setShowNewCampaign(false);
+    
+    // Show success message
+    alert(`Campaign created successfully! UTM Source: ${newCampaign.utmSource}`);
   };
 
   return (
@@ -82,24 +108,37 @@ export default function Campaigns() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="utmSource">UTM Source</Label>
-                <Input id="utmSource" placeholder="e.g., facebook" />
+                <Input 
+                  id="utmSource" 
+                  placeholder="e.g., facebook" 
+                  value={newCampaign.utmSource}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, utmSource: e.target.value }))}
+                />
               </div>
               <div>
                 <Label htmlFor="label">Label (optional)</Label>
-                <Input id="label" placeholder="e.g., Q1 Acquisition Campaign" />
+                <Input 
+                  id="label" 
+                  placeholder="e.g., Q1 Acquisition Campaign" 
+                  value={newCampaign.label}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, label: e.target.value }))}
+                />
               </div>
               <div>
                 <Label htmlFor="launchDate">Launch Date</Label>
                 <Input 
                   id="launchDate" 
                   type="datetime-local" 
-                  defaultValue={new Date().toISOString().slice(0, 16)}
+                  value={newCampaign.launchDate}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, launchDate: e.target.value }))}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Past dates will activate the campaign immediately
                 </p>
               </div>
-              <Button className="w-full">Create Campaign</Button>
+              <Button className="w-full" onClick={handleCreateCampaign}>
+                Create Campaign
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
