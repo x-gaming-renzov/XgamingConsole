@@ -41,7 +41,7 @@ interface TeamMember {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "collaborator" | "developer";
+  role: "admin" | "collaborator" | "developer" | "viewer";
   status: "active" | "pending" | "inactive";
   lastActive: string;
   invitedBy: string;
@@ -123,7 +123,7 @@ export default function ProjectSettings() {
   ]);
 
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer">("collaborator");
+  const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer" | "viewer">("collaborator");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   const handleFileUpload = (files: FileList | null) => {
@@ -185,7 +185,7 @@ export default function ProjectSettings() {
     toast({ description: "Team member removed" });
   };
 
-  const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer") => {
+  const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer" | "viewer") => {
     setTeamMembers(prev => 
       prev.map(m => m.id === memberId ? { ...m, role: newRole } : m)
     );
@@ -197,6 +197,7 @@ export default function ProjectSettings() {
       case "admin": return <Crown className="w-4 h-4" />;
       case "collaborator": return <UserCheck className="w-4 h-4" />;
       case "developer": return <Shield className="w-4 h-4" />;
+      case "viewer": return <Eye className="w-4 h-4" />;
       default: return <User className="w-4 h-4" />;
     }
   };
@@ -302,8 +303,9 @@ export default function ProjectSettings() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin - Full access</SelectItem>
-                              <SelectItem value="collaborator">Collaborator - Edit experiments</SelectItem>
-                              <SelectItem value="developer">Developer - View only</SelectItem>
+                              <SelectItem value="collaborator">Product Manager - Create and Edit experiments</SelectItem>
+                              <SelectItem value="developer">Developer - Manage integrations</SelectItem>
+                              <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -361,9 +363,10 @@ export default function ProjectSettings() {
                               </div>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="collaborator">Collaborator</SelectItem>
-                              <SelectItem value="developer">Developer</SelectItem>
+                              <SelectItem value="admin">Admin - Full access</SelectItem>
+                              <SelectItem value="collaborator">Product Manager - Create and Edit experiments</SelectItem>
+                              <SelectItem value="developer">Developer - Manage integrations</SelectItem>
+                              <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
