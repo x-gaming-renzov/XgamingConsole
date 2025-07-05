@@ -228,6 +228,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Experience routes (alternative view of experiments)
+  app.get("/api/experiences", authenticateToken, async (req, res) => {
+    try {
+      // Get all projects for the user
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json([]);
+      }
+
+      const allExperiments: any[] = [];
+      for (const project of projects) {
+        const experiments = await storage.getExperimentsByProjectId(project.id);
+        allExperiments.push(...experiments);
+      }
+
+      // Transform experiments to experience format
+      const experiences = allExperiments.map(exp => ({
+        id: exp.id,
+        name: exp.name,
+        campaign: exp.description || "Default Campaign", // Use description or fallback
+        object: `${exp.targetAudience || "All Players"}`, // Use target audience info
+        uplift: Math.floor(Math.random() * 20 - 5), // Mock uplift for now
+        status: exp.status === "running" ? "Active" : 
+               exp.status === "completed" ? "Completed" : 
+               exp.status === "paused" ? "Paused" : "Draft",
+        createdAt: new Date(exp.createdAt || Date.now()).toLocaleDateString(),
+        metrics: {
+          d0Retention: Math.floor(Math.random() * 20 + 40), // Mock metrics
+          d1Retention: Math.floor(Math.random() * 15 + 30),
+          activationRate: Math.floor(Math.random() * 25 + 50),
+          participants: Math.floor(Math.random() * 5000 + 1000)
+        }
+      }));
+
+      res.json(experiences);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiences" });
+    }
+  });
+
+  app.post("/api/experiences", authenticateToken, async (req, res) => {
+    try {
+      const experienceData = req.body;
+      
+      // Get user's first project (assuming single project for now)
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      if (projects.length === 0) {
+        return res.status(400).json({ message: "No project found for user" });
+      }
+
+      const projectId = projects[0].id;
+
+      // Transform experience data to experiment format
+      const experimentData = {
+        name: experienceData.name,
+        description: experienceData.description || "",
+        type: "onboarding" as const,
+        status: "draft" as const,
+        targetAudience: experienceData.targetAudience || "all_players",
+        trafficSplit: experienceData.trafficSplit || 50,
+        variants: JSON.stringify(experienceData.objectVariants || {}),
+        metrics: JSON.stringify({}),
+        startDate: experienceData.startDate ? new Date(experienceData.startDate) : null,
+        endDate: experienceData.endDate ? new Date(experienceData.endDate) : null
+      };
+
+      const experiment = await storage.createExperiment({
+        ...experimentData,
+        projectId,
+        userId: req.user.userId,
+      });
+
+      // Return in experience format
+      const experience = {
+        id: experiment.id,
+        name: experiment.name,
+        campaign: experiment.description || "Default Campaign",
+        object: experiment.targetAudience || "All Players",
+        uplift: 0,
+        status: "Draft",
+        createdAt: new Date().toLocaleDateString(),
+        metrics: {
+          d0Retention: 0,
+          d1Retention: 0,
+          activationRate: 0,
+          participants: 0
+        }
+      };
+
+      res.json(experience);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experience" });
+    }
+  });
+
   // Analytics routes
   app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
     try {

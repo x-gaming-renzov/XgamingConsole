@@ -2,7 +2,8 @@ import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,7 @@ interface ObjectVariants {
 
 export default function ExperienceWizard() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [objectVariants, setObjectVariants] = useState<ObjectVariants>({});
@@ -168,6 +170,21 @@ export default function ExperienceWizard() {
     utmSource: camp.utmSource,
     traffic: camp.installs || 0
   })), [campaignsData]);
+
+  // Create experience mutation
+  const createExperience = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/experiences", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
+      setLocation("/experiences");
+    },
+    onError: (error) => {
+      console.error("Failed to create experience:", error);
+    }
+  });
 
   // Mock segments data
   const availableSegments = [
@@ -415,7 +432,7 @@ export default function ExperienceWizard() {
       autoRollout
     };
     console.log("Creating experience:", data);
-    setLocation("/experiences");
+    createExperience.mutate(data);
   };
 
   return (

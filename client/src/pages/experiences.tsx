@@ -215,7 +215,7 @@ export default function Experiences() {
       {/* Experiences Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Experience Results</CardTitle>
+          <CardTitle>All Experiences</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
