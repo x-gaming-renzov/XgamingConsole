@@ -13,7 +13,12 @@ interface GameObject {
   id: number;
   name: string;
   type: "Level" | "Popup" | "Param";
-  flagsCount: number;
+  flags: Array<{
+    key: string;
+    type: "text" | "number" | "boolean";
+    defaultValue: any;
+    description: string;
+  }>;
   lastUsed: string;
   description: string;
 }
@@ -107,14 +112,18 @@ export default function Objects() {
                 <TableRow>
                   <TableHead>Object</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Flags Count</TableHead>
+                  <TableHead>Variants</TableHead>
                   <TableHead>Last Used</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {objects.map((object) => (
-                  <TableRow key={object.id} className="group hover:bg-accent/50">
+                  <TableRow 
+                    key={object.id} 
+                    className="group hover:bg-accent/50 cursor-pointer"
+                    onClick={() => window.location.href = `/objects/${object.id}`}
+                  >
                     <TableCell>
                       <div>
                         <div className="font-medium">{object.name}</div>
@@ -130,12 +139,12 @@ export default function Objects() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium">{object.flagsCount}</span> flags
+                      <span className="font-medium">{Array.isArray(object.flags) ? object.flags.length : 0}</span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-muted-foreground">{object.lastUsed}</span>
+                      <span className="text-muted-foreground">{object.lastUsed || "Never"}</span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Link href={`/experiences/new?object=${object.id}`}>
                         <Button 
                           variant="outline" 

@@ -122,6 +122,17 @@ Changelog:
   - Added database relations using Drizzle ORM with proper foreign key relationships
   - Migrated from memory storage to persistent PostgreSQL database via Neon
   - Updated storage interface to support objects and campaigns with comprehensive data models
+- July 05, 2025. Enhanced Objects page and added comprehensive Object Details functionality:
+  - Updated Objects list table to show "Variants" column instead of "Flags Count"
+  - Made object rows clickable to navigate to individual object detail pages
+  - Created full-featured Object Details page (/objects/:id) with tabbed interface:
+    * Overview tab: Summary tiles, description editing, quick actions
+    * Parameters tab: Detailed flag configuration with copy functionality
+    * Usage tab: List of experiences using the object with filtering
+    * History tab: Timeline of object changes and modifications
+  - Added API endpoints for object details, usage tracking, and history
+  - Replaced all hardcoded mock data with real database queries
+  - Fixed frontend components to use API data instead of static content
 
 ## User Preferences
 

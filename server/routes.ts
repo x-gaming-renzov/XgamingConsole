@@ -587,6 +587,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single object details
+  app.get("/api/objects/:id", authenticateToken, async (req, res) => {
+    try {
+      const objectId = parseInt(req.params.id);
+      const object = await storage.getObject(objectId);
+      
+      if (!object) {
+        return res.status(404).json({ message: "Object not found" });
+      }
+
+      // Mock stats for now - in production would come from analytics
+      const objectDetails = {
+        ...object,
+        stats: {
+          variants: Array.isArray(object.flags) ? object.flags.length : 0,
+          usedByExperiences: 2,
+          players7d: 48102,
+          lastModified: "1 hour ago"
+        }
+      };
+
+      res.json(objectDetails);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object details" });
+    }
+  });
+
+  // Get object usage (experiences using this object)
+  app.get("/api/objects/:id/usage", authenticateToken, async (req, res) => {
+    try {
+      const objectId = parseInt(req.params.id);
+      
+      // Mock data for now - in production would query experiments that use this object
+      const mockExperiences = [
+        {
+          id: 1,
+          name: "Tutorial Difficulty Test",
+          campaign: "Q1 Acquisition Push",
+          status: "Active",
+          variants: ["Easy", "Normal"],
+          split: 50,
+          launchDate: "2025-01-15"
+        },
+        {
+          id: 2,
+          name: "Level Rewards Experiment",
+          campaign: "Google UAC Test",
+          status: "Draft",
+          variants: ["Standard", "Boosted"],
+          split: 70,
+          launchDate: "2025-01-20"
+        }
+      ];
+
+      res.json(mockExperiences);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object usage" });
+    }
+  });
+
+  // Get object history
+  app.get("/api/objects/:id/history", authenticateToken, async (req, res) => {
+    try {
+      const objectId = parseInt(req.params.id);
+      
+      // Mock history data - in production would come from version control/audit logs
+      const mockHistory = [
+        {
+          id: 1,
+          date: "12 Jul 09:13",
+          version: "Manifest v42",
+          action: "Added param enemy_speed",
+          details: "• Added param enemy_speed"
+        },
+        {
+          id: 2,
+          date: "07 Jul 14:21",
+          version: "Manifest v40",
+          action: "Updated default starting_coins 80→100",
+          details: "• Updated default starting_coins 80→100"
+        },
+        {
+          id: 3,
+          date: "01 Jul 11:02",
+          version: "Manifest v37",
+          action: "Object created",
+          details: "Object created (v37)"
+        }
+      ];
+
+      res.json(mockHistory);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object history" });
+    }
+  });
+
   app.get("/api/manifest/info", authenticateToken, async (req, res) => {
     try {
       const projects = await storage.getProjectsByUserId(req.user.userId);

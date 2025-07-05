@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import Segments from "@/pages/segments";
 import Objects from "@/pages/objects";
+import ObjectDetails from "@/pages/object-details";
 import Experiences from "@/pages/experiences";
 import ExperienceWizard from "@/pages/experience-wizard";
 import Settings from "@/pages/settings";
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/segments" component={Segments} />
       <Route path="/objects" component={Objects} />
+      <Route path="/objects/:id" component={ObjectDetails} />
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/new" component={ExperienceWizard} />
       <Route path="/experience-wizard" component={ExperienceWizard} />
