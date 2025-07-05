@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ConsoleLayout from "@/components/console-layout";
+import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 import { 
   Plus, 
   Users, 
@@ -106,6 +107,7 @@ const OPERATORS = {
 };
 
 export default function Segments() {
+  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const [segments, setSegments] = useState<Segment[]>([
     {
       id: "1",
@@ -266,9 +268,10 @@ export default function Segments() {
   };
 
   return (
-    <ConsoleLayout>
-      <div className="p-6 space-y-6">
-      {/* Header */}
+    <>
+      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+        <div className="p-6 space-y-6">
+          {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground font-heading">Segments</h1>
@@ -641,8 +644,14 @@ export default function Segments() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-      </div>
-    </ConsoleLayout>
+        </Dialog>
+        </div>
+      </ConsoleLayout>
+      
+      <QuickExperiencePrompt 
+        open={showQuickPrompt} 
+        onClose={() => setShowQuickPrompt(false)} 
+      />
+    </>
   );
 }

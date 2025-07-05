@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Settings, DollarSign, Users, TrendingUp, Package } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
+import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface Campaign {
   id: number;
@@ -34,6 +35,7 @@ interface CampaignMetrics {
 export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewCampaign, setShowNewCampaign] = useState(false);
+  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
 
   const { data: metrics } = useQuery<CampaignMetrics>({
     queryKey: ["/api/campaigns/metrics"],
@@ -56,14 +58,15 @@ export default function Campaigns() {
   };
 
   return (
-    <ConsoleLayout>
-      <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Campaigns</h1>
-          <p className="text-muted-foreground">Manage your user acquisition campaigns and their FTUE experiences</p>
-        </div>
+    <>
+      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Campaigns</h1>
+              <p className="text-muted-foreground">Manage your user acquisition campaigns and their FTUE experiences</p>
+            </div>
         <Dialog open={showNewCampaign} onOpenChange={setShowNewCampaign}>
           <DialogTrigger asChild>
             <Button>
@@ -231,8 +234,14 @@ export default function Campaigns() {
             </div>
           )}
         </CardContent>
-      </Card>
-      </div>
-    </ConsoleLayout>
+        </Card>
+        </div>
+      </ConsoleLayout>
+      
+      <QuickExperiencePrompt 
+        open={showQuickPrompt} 
+        onClose={() => setShowQuickPrompt(false)} 
+      />
+    </>
   );
 }
