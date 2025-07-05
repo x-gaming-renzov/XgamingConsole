@@ -80,6 +80,7 @@ export const campaigns = pgTable("campaigns", {
   flagBundle: text("flag_bundle"),
   allocation: integer("allocation").default(0),
   status: text("status").default("Draft"), // 'Active', 'Paused', 'Draft'
+  launchDate: timestamp("launch_date").defaultNow(),
   projectId: integer("project_id").notNull(),
   userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),

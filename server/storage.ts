@@ -306,6 +306,7 @@ export class MemStorage implements IStorage {
     const campaign: Campaign = {
       id: this.currentCampaignId++,
       createdAt: new Date(),
+      launchDate: new Date(),
       ...campaignData,
     };
     this.campaigns.set(campaign.id, campaign);

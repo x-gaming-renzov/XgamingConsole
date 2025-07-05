@@ -54,27 +54,34 @@ export default function Campaigns() {
 
   const createCampaignMutation = useMutation({
     mutationFn: async (campaignData: { utmSource: string; label: string; launchDate: string }) => {
-      // For now, just simulate the API call and return a mock campaign
-      const newCampaign: Campaign = {
-        id: Date.now(), // Use timestamp as simple ID
+      const payload = {
         name: campaignData.label || `${campaignData.utmSource} Campaign`,
         utmSource: campaignData.utmSource,
         utmCampaign: campaignData.label || campaignData.utmSource,
-        installs: 0,
-        d0Retention: 0,
-        d1Retention: 0,
-        revenue: 0,
-        flagBundle: "New Bundle",
-        allocation: 0,
-        status: "Draft" as const
+        flagBundle: "Default Bundle",
+        status: "Draft",
+        launchDate: new Date(campaignData.launchDate).toISOString()
       };
-      return newCampaign;
-    },
-    onSuccess: (newCampaign) => {
-      // Optimistically update the campaigns list
-      queryClient.setQueryData(["/api/campaigns"], (oldCampaigns: Campaign[] | undefined) => {
-        return oldCampaigns ? [...oldCampaigns, newCampaign] : [newCampaign];
+
+      const response = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to create campaign");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate queries to refetch fresh data from the server
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns/metrics"] });
     }
   });
 
