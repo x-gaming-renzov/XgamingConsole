@@ -31,8 +31,8 @@ function Router() {
       <Route path="/objects" component={Objects} />
       <Route path="/objects/:id" component={ObjectDetails} />
       <Route path="/experiences" component={Experiences} />
-      <Route path="/experiences/:experienceId" component={ExperienceDetails} />
       <Route path="/experiences/new" component={ExperienceWizard} />
+      <Route path="/experiences/:experienceId" component={ExperienceDetails} />
       <Route path="/experience-wizard" component={ExperienceWizard} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
