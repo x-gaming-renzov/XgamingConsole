@@ -26,6 +26,12 @@ interface ExperienceAnalysis {
       description: string;
     };
   };
+  objectVariants?: {
+    [objectName: string]: {
+      control: Record<string, any>;
+      treatment: Record<string, any>;
+    };
+  };
 }
 
 export async function analyzeExperienceDescription(
@@ -63,8 +69,18 @@ export async function analyzeExperienceDescription(
                 "description": "string"
               },
               "treatment": {
-                "name": "string",
+                "name": "string", 
                 "description": "string"
+              }
+            },
+            "objectVariants": {
+              "objectName": {
+                "control": {
+                  "flagKey": "value"
+                },
+                "treatment": {
+                  "flagKey": "differentValue"
+                }
               }
             }
           }
@@ -77,9 +93,10 @@ export async function analyzeExperienceDescription(
           - level: Level design changes, difficulty adjustments
           
           Available objects to personalize (these are the exact object names from the database):
-          ${objects.map(obj => `- "${obj.name}": ${obj.description || obj.type || 'Game object'}`).join('\n          ')}
+          ${objects.map(obj => `- "${obj.name}": ${obj.description || obj.type || 'Game object'}${obj.flags ? '\n    Flags: ' + obj.flags.map((f: any) => `${f.key} (${f.type}, default: ${f.defaultValue})`).join(', ') : ''}`).join('\n          ')}
           
           IMPORTANT: Use the exact object names in quotes as they appear above for the suggestedObjects array.
+          For each suggested object, provide specific flag values in the objectVariants section based on the experiment description.
           
           Available user segments (these are the exact segment names from the database):
           ${segments.map(seg => `- "${seg.name}"`).join('\n          ')}
@@ -108,6 +125,9 @@ export async function analyzeExperienceDescription(
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     
+    // Log the raw OpenAI response for debugging
+    console.log("OpenAI Raw Response:", JSON.stringify(result, null, 2));
+    
     // Validate and format the response
     return {
       name: result.name || "New Experience",
@@ -131,7 +151,8 @@ export async function analyzeExperienceDescription(
           name: result.variants?.treatment?.name || "Treatment", 
           description: result.variants?.treatment?.description || "Modified experience"
         }
-      }
+      },
+      objectVariants: result.objectVariants || {}
     };
   } catch (error) {
     console.error("OpenAI analysis failed:", error);

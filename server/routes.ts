@@ -1119,6 +1119,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const segments = await storage.getSegmentsByProjectId(projectId);
 
       const analysis = await analyzeExperienceDescription(description, objects, segments);
+      
+      // Log the final analysis being sent to client
+      console.log("Analysis sent to client:", JSON.stringify(analysis, null, 2));
+      
       res.json(analysis);
     } catch (error) {
       console.error("Experience analysis failed:", error);

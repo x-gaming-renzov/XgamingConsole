@@ -141,6 +141,9 @@ export default function ExperienceWizard() {
       try {
         const analysis = JSON.parse(decodeURIComponent(analysisParam));
         
+        // Log the analysis data received from OpenAI
+        console.log("Experience Wizard received analysis:", analysis);
+        
         // Prefill form with AI analysis data
         setExperienceName(analysis.name || "");
         setExperienceDescription(analysis.description || "");
@@ -173,7 +176,10 @@ export default function ExperienceWizard() {
           setSelectedSegments(segments);
         }
         
-        // Variants will be handled when objects are mapped
+        // Store variant data for later use when objects are loaded
+        if (analysis.objectVariants) {
+          sessionStorage.setItem('aiObjectVariants', JSON.stringify(analysis.objectVariants));
+        }
         
         // Remove analysis parameter from URL
         const newUrl = window.location.pathname;
@@ -227,27 +233,83 @@ export default function ExperienceWizard() {
         if (mappedIds.length > 0) {
           setSelectedObjects(mappedIds);
           
-          // Also create default variants for selected objects
+          // Get AI-suggested variant values
+          const aiObjectVariantsStr = sessionStorage.getItem('aiObjectVariants');
+          let aiObjectVariants: Record<string, any> = {};
+          if (aiObjectVariantsStr) {
+            try {
+              aiObjectVariants = JSON.parse(aiObjectVariantsStr);
+            } catch (error) {
+              console.error("Failed to parse AI object variants:", error);
+            }
+          }
+          
+          // Create variants for selected objects using AI suggestions or defaults
           const variants: ObjectVariants = {};
           mappedIds.forEach((objId) => {
-            variants[objId] = {
-              variants: [
-                {
-                  name: "Control",
-                  values: { enabled: false }
-                },
-                {
-                  name: "Treatment",
-                  values: { enabled: true }
-                }
-              ]
-            };
+            const obj = objects.find(o => o.id === objId);
+            const objName = obj?.name;
+            const aiVariants = objName ? (aiObjectVariants as any)[objName] : null;
+            
+            if (aiVariants && aiVariants.control && aiVariants.treatment) {
+              // Use AI-suggested variant values
+              variants[objId] = {
+                variants: [
+                  {
+                    name: "Control",
+                    values: aiVariants.control
+                  },
+                  {
+                    name: "Treatment", 
+                    values: aiVariants.treatment
+                  }
+                ]
+              };
+            } else {
+              // Fallback to default values based on object flags
+              const defaultValues: Record<string, any> = {};
+              const controlValues: Record<string, any> = {};
+              const treatmentValues: Record<string, any> = {};
+              
+              if (obj?.flags) {
+                obj.flags.forEach(flag => {
+                  defaultValues[flag.key] = flag.defaultValue;
+                  controlValues[flag.key] = flag.defaultValue;
+                  // For treatment, modify the value based on flag type
+                  if (flag.type === 'boolean') {
+                    treatmentValues[flag.key] = !flag.defaultValue;
+                  } else if (flag.type === 'number') {
+                    treatmentValues[flag.key] = flag.defaultValue * 2; // Double the value
+                  } else {
+                    treatmentValues[flag.key] = flag.defaultValue;
+                  }
+                });
+              } else {
+                // Default fallback
+                controlValues.enabled = false;
+                treatmentValues.enabled = true;
+              }
+              
+              variants[objId] = {
+                variants: [
+                  {
+                    name: "Control",
+                    values: controlValues
+                  },
+                  {
+                    name: "Treatment",
+                    values: treatmentValues
+                  }
+                ]
+              };
+            }
           });
           setObjectVariants(variants);
         }
         
         // Clear the session storage
         sessionStorage.removeItem('aiSuggestedObjects');
+        sessionStorage.removeItem('aiObjectVariants');
       } catch (error) {
         console.error("Failed to parse AI suggested objects:", error);
         sessionStorage.removeItem('aiSuggestedObjects');
