@@ -55,22 +55,43 @@ export default function QuickExperiencePrompt({ open, onClose }: QuickExperience
       // Make API call to generate draft
       const response = await fetch("/api/ai/experience_draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({
           prompt: prompt.trim(),
           campaignHint: campaignHint || undefined
         })
       });
 
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            title: "Authentication required",
+            description: "Please log in to generate experiences",
+            variant: "destructive"
+          });
+          return;
+        }
+        throw new Error("Failed to generate experience");
+      }
+
       const draft: ExperienceDraft = await response.json();
+      
+      // Store the draft data for the wizard
+      sessionStorage.setItem('experienceDraft', JSON.stringify(draft));
       
       // Close modal and navigate to wizard with draft ID
       onClose();
       setLocation(`/experiences/new?draft=${draft.draftId}`);
       
+      const objectCount = draft.objects.length;
+      const targetType = draft.target?.segments ? 'specific segments' : 'all players';
+      
       toast({
-        title: "Draft Created",
-        description: "AI has generated your experience template. Review and customize before launching."
+        title: "Experience generated!",
+        description: `Created with ${objectCount} object${objectCount > 1 ? 's' : ''} targeting ${targetType}. Opening wizard...`
       });
       
     } catch (error) {

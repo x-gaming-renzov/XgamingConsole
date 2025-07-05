@@ -116,6 +116,13 @@ Changelog:
   - Knowledge Base tab: Document upload/management for LLM citations with file status tracking
   - Integrations tab: Slack integration with workspace connection and event notifications
   - Added Avatar and Textarea UI components, integrated with console navigation
+- July 05, 2025. Enhanced Quick Experience with random selection functionality:
+  - Updated API endpoint to randomly select 1-3 objects from available pool (levels, popups, params)
+  - Added random campaign selection from 6 available campaigns (TikTok, Facebook, Google, etc.)
+  - Implemented random targeting: either "all players" with random traffic split or specific segments
+  - Experience Wizard now pre-populates with draft data from Quick Experience
+  - Added detailed feedback showing selected objects and targeting type
+  - Integrated seamless workflow: Quick Experience prompt → AI generation → pre-filled wizard
 
 ## User Preferences
 
