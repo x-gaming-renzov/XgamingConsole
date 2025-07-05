@@ -85,22 +85,22 @@ export default function ObjectDetails() {
   const [experienceFilter, setExperienceFilter] = useState<"all" | "active" | "completed" | "draft">("all");
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
-    queryKey: ["/api/objects", objectId],
+    queryKey: [`/api/objects/${objectId}`],
     enabled: !!objectId
   });
 
   const { data: experiences = [] } = useQuery<Experience[]>({
-    queryKey: ["/api/objects", objectId, "usage"],
+    queryKey: [`/api/objects/${objectId}/usage`],
     enabled: !!objectId
   });
 
   const { data: history = [] } = useQuery<HistoryEntry[]>({
-    queryKey: ["/api/objects", objectId, "history"],
+    queryKey: [`/api/objects/${objectId}/history`],
     enabled: !!objectId
   });
 
   const { data: variants = [] } = useQuery<Variant[]>({
-    queryKey: ["/api/objects", objectId, "variants"],
+    queryKey: [`/api/objects/${objectId}/variants`],
     enabled: !!objectId
   });
 
@@ -355,74 +355,92 @@ export default function ObjectDetails() {
             </div>
 
             <div className="space-y-4">
-              {variants.map((variant, index) => (
-                <Card key={variant.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <CardTitle className="text-lg">{variant.name}</CardTitle>
-                        {variant.isDefault && (
-                          <Badge variant="secondary">Default</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-muted-foreground">
-                          {variant.allocation}% allocation
-                        </span>
-                        <Button variant="ghost" size="sm">
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      </div>
+              {variants.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center text-muted-foreground">
+                      No variants found for this object
                     </div>
-                    {variant.description && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {variant.description}
-                      </p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Parameter</TableHead>
-                          <TableHead>Value</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(variant.payload).map(([key, value]) => (
-                          <TableRow key={key}>
-                            <TableCell>
-                              <code className="bg-muted px-2 py-1 rounded text-sm">
-                                {key}
-                              </code>
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                type={typeof value === 'boolean' ? 'checkbox' : typeof value === 'number' ? 'number' : 'text'}
-                                defaultValue={typeof value === 'boolean' ? undefined : value.toString()}
-                                defaultChecked={typeof value === 'boolean' ? value : undefined}
-                                className="w-full px-2 py-1 border rounded text-sm"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {typeof value}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm">
-                                <Copy className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                variants.map((variant, index) => (
+                  <Card key={variant.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <CardTitle className="text-lg">{variant.name}</CardTitle>
+                          {variant.isDefault && (
+                            <Badge variant="secondary">Default</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-muted-foreground">
+                            {variant.allocation}% allocation
+                          </span>
+                          <Button variant="ghost" size="sm">
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      {variant.description && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {variant.description}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Parameter</TableHead>
+                            <TableHead>Value</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {variant.payload && Object.keys(variant.payload).length > 0 ? (
+                            Object.entries(variant.payload).map(([key, value]) => (
+                              <TableRow key={key}>
+                                <TableCell>
+                                  <code className="bg-muted px-2 py-1 rounded text-sm">
+                                    {key}
+                                  </code>
+                                </TableCell>
+                                <TableCell>
+                                  <input
+                                    type={typeof value === 'boolean' ? 'checkbox' : typeof value === 'number' ? 'number' : 'text'}
+                                    defaultValue={typeof value === 'boolean' ? undefined : value?.toString()}
+                                    defaultChecked={typeof value === 'boolean' ? value : undefined}
+                                    className="w-full px-2 py-1 border rounded text-sm"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {typeof value}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="sm">
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                                No parameters defined for this variant
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
 
