@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -143,71 +143,6 @@ export default function ExperienceWizard() {
       }
     }
   });
-
-  // Initialize wizard with draft data from Quick Experience
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const draftId = urlParams.get('draft');
-    
-    if (draftId) {
-      const draftData = sessionStorage.getItem('experienceDraft');
-      if (draftData) {
-        try {
-          const draft = JSON.parse(draftData);
-          
-          // Set experience name based on draft
-          setExperienceName(draft.name || `Quick Experience ${new Date().toLocaleDateString()}`);
-          
-          // Pre-select objects from draft
-          if (draft.objects && draft.objects.length > 0) {
-            const objectIds = draft.objects.map((obj: any) => obj.objectId);
-            setSelectedObjects(objectIds);
-            
-            // Set up object variants from draft
-            const variants: ObjectVariants = {};
-            draft.objects.forEach((obj: any) => {
-              if (obj.variants) {
-                variants[obj.objectId] = {
-                  variants: [
-                    { name: "Control", values: obj.variants.control || {} },
-                    { name: "Variant A", values: obj.variants.A || {} }
-                  ]
-                };
-              }
-            });
-            setObjectVariants(variants);
-          }
-          
-          // Set campaign from draft
-          if (draft.campaignId) {
-            setCampaignId(draft.campaignId);
-          }
-          
-          // Set targeting from draft
-          if (draft.target) {
-            if (draft.target.segments && draft.target.segments.length > 0) {
-              setTargetAudience("segments");
-              setSelectedSegments(draft.target.segments.map((seg: any) => ({
-                id: seg.segmentId || seg.id,
-                name: seg.name || `Segment ${seg.segmentId}`,
-                split: seg.split,
-                estimatedUsers: Math.floor(Math.random() * 10000) + 1000 // Mock estimate
-              })));
-            } else if (draft.target.split) {
-              setTargetAudience("all");
-              setTrafficSplit(draft.target.split);
-            }
-          }
-          
-          // Clear draft from sessionStorage after use
-          sessionStorage.removeItem('experienceDraft');
-          
-        } catch (error) {
-          console.error('Failed to parse draft data:', error);
-        }
-      }
-    }
-  }, []);
 
   // Mock data for objects and campaigns
   const objects: GameObject[] = useMemo(() => [

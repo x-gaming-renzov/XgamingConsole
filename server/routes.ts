@@ -423,96 +423,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a unique draft ID
       const draftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Random selection data pools
-      const availableObjects = [
-        { id: "level_5_tutorial", name: "Level 5 Tutorial", type: "Level", flags: ["coins_multiplier", "enemy_count", "time_limit"] },
-        { id: "welcome_popup", name: "Welcome Popup", type: "Popup", flags: ["title_text", "button_text", "show_rewards"] },
-        { id: "onboarding_flow", name: "Onboarding Flow", type: "Param", flags: ["skip_tutorial", "tutorial_steps"] },
-        { id: "reward_system", name: "Reward System", type: "Param", flags: ["daily_bonus", "streak_multiplier"] },
-        { id: "ui_theme", name: "UI Theme", type: "Popup", flags: ["theme_name", "ui_animations"] },
-        { id: "level_progression", name: "Level Progression", type: "Level", flags: ["xp_multiplier", "unlock_rate"] }
-      ];
-
-      const availableCampaigns = [
-        { id: "tiktok", name: "TikTok Acquisition", utmSource: "tiktok" },
-        { id: "facebook", name: "Facebook Campaign", utmSource: "facebook" },
-        { id: "google", name: "Google Ads", utmSource: "google" },
-        { id: "organic", name: "Organic Growth", utmSource: "organic" },
-        { id: "youtube", name: "YouTube Ads", utmSource: "youtube" },
-        { id: "influencer", name: "Influencer Partnership", utmSource: "influencer" }
-      ];
-
-      const availableSegments = [
-        { id: "new_users", name: "New Users", split: 30 },
-        { id: "returning_users", name: "Returning Users", split: 25 },
-        { id: "high_spenders", name: "High Spenders", split: 20 },
-        { id: "casual_players", name: "Casual Players", split: 25 }
-      ];
-
-      // Helper function to randomly select items
-      const getRandomItems = (array: any[], count: number) => {
-        const shuffled = [...array].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, count);
-      };
-
-      // Randomly select 1-3 objects
-      const objectCount = Math.floor(Math.random() * 3) + 1;
-      const selectedObjects = getRandomItems(availableObjects, objectCount);
-      
-      // Randomly select a campaign (override campaignHint if provided)
-      const selectedCampaign = campaignHint ? 
-        availableCampaigns.find(c => c.id === campaignHint) || availableCampaigns[Math.floor(Math.random() * availableCampaigns.length)] :
-        availableCampaigns[Math.floor(Math.random() * availableCampaigns.length)];
-      
-      // Randomly decide between "All players" or segment targeting
-      const useSegmentTargeting = Math.random() > 0.6;
-      
-      let target;
-      if (useSegmentTargeting) {
-        // Select 1-2 segments randomly
-        const segmentCount = Math.floor(Math.random() * 2) + 1;
-        const selectedSegments = getRandomItems(availableSegments, segmentCount);
-        target = { segments: selectedSegments };
-      } else {
-        // Use global traffic split
-        const splits = [50, 60, 70, 80, 90];
-        target = { split: splits[Math.floor(Math.random() * splits.length)] };
-      }
-
-      // Generate random variants for each object
-      const objects = selectedObjects.map(obj => {
-        const variants: any = { control: {}, A: {} };
-        
-        // Generate random values for each flag
-        obj.flags.forEach((flag: string) => {
-          if (flag.includes('multiplier') || flag.includes('count') || flag.includes('limit')) {
-            variants.control[flag] = 1;
-            variants.A[flag] = Math.floor(Math.random() * 3) + 2; // 2-4
-          } else if (flag.includes('text') || flag.includes('name')) {
-            variants.control[flag] = `Default ${flag.replace('_', ' ')}`;
-            variants.A[flag] = `Enhanced ${flag.replace('_', ' ')}`;
-          } else if (flag.includes('show') || flag.includes('skip')) {
-            variants.control[flag] = false;
-            variants.A[flag] = true;
-          } else {
-            variants.control[flag] = 'default';
-            variants.A[flag] = 'variant_a';
-          }
-        });
-
-        return {
-          objectId: obj.id,
-          variants
-        };
-      });
-      
-      // Mock AI-generated experience template with random selections
+      // Mock AI-generated experience template for now
+      // In production, this would use OpenAI API
       const draft = {
         draftId,
-        name: `AI Generated: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`,
-        objects,
-        campaignId: selectedCampaign.id,
-        target
+        name: `AI Generated: ${prompt.substring(0, 50)}...`,
+        objects: [
+          {
+            objectId: "level_5",
+            variants: {
+              control: { coins_multiplier: 1 },
+              A: { coins_multiplier: 2 }
+            }
+          }
+        ],
+        campaignId: campaignHint || "tiktok",
+        target: {
+          split: 50
+        }
       };
       
       res.json(draft);
