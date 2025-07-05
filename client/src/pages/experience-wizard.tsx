@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,63 +145,29 @@ export default function ExperienceWizard() {
     }
   });
 
-  // Mock data for objects and campaigns
-  const objects: GameObject[] = useMemo(() => [
-    {
-      id: "level_5_tutorial",
-      name: "Level 5 Tutorial",
-      type: "Level",
-      flags: [
-        { key: "starting_coins", type: "number", defaultValue: 100, description: "Initial coins given to player" },
-        { key: "enemy_count", type: "number", defaultValue: 5, description: "Number of enemies in level" },
-        { key: "time_limit", type: "number", defaultValue: 120, description: "Time limit in seconds" }
-      ]
-    },
-    {
-      id: "welcome_popup", 
-      name: "Welcome Popup",
-      type: "Popup",
-      flags: [
-        { key: "title_text", type: "text", defaultValue: "Welcome!", description: "Popup title" },
-        { key: "button_text", type: "text", defaultValue: "Get Started", description: "CTA button text" },
-        { key: "show_rewards", type: "boolean", defaultValue: true, description: "Show reward preview" }
-      ]
-    },
-    {
-      id: "onboarding_flow",
-      name: "Onboarding Flow",
-      type: "Param",
-      flags: [
-        { key: "skip_tutorial", type: "boolean", defaultValue: false, description: "Allow skipping tutorial" },
-        { key: "tutorial_steps", type: "number", defaultValue: 7, description: "Number of tutorial steps" }
-      ]
-    },
-    {
-      id: "reward_system",
-      name: "Reward System",
-      type: "Param",
-      flags: [
-        { key: "daily_bonus", type: "number", defaultValue: 50, description: "Daily bonus coins" },
-        { key: "streak_multiplier", type: "number", defaultValue: 1.5, description: "Streak bonus multiplier" }
-      ]
-    },
-    {
-      id: "ui_theme",
-      name: "UI Theme",
-      type: "Popup",
-      flags: [
-        { key: "theme_name", type: "text", defaultValue: "default", description: "Theme identifier" },
-        { key: "use_animations", type: "boolean", defaultValue: true, description: "Enable UI animations" }
-      ]
-    }
-  ], []);
+  // Fetch objects from API
+  const { data: objectsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/objects"]
+  });
 
-  const campaigns: Campaign[] = [
-    { id: "facebook_ads", name: "Facebook Campaign", utmSource: "facebook", traffic: 1250 },
-    { id: "google_ads", name: "Google Ads", utmSource: "google", traffic: 850 },
-    { id: "tiktok_ads", name: "TikTok Ads", utmSource: "tiktok", traffic: 420 },
-    { id: "instagram_ads", name: "Instagram Ads", utmSource: "instagram", traffic: 680 }
-  ];
+  const objects: GameObject[] = useMemo(() => objectsData.map((obj: any) => ({
+    id: obj.id.toString(),
+    name: obj.name,
+    type: obj.type as "Level" | "Popup" | "Param",
+    flags: Array.isArray(obj.flags) ? obj.flags : []
+  })), [objectsData]);
+
+  // Fetch campaigns from API
+  const { data: campaignsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/campaigns"]
+  });
+
+  const campaigns: Campaign[] = useMemo(() => campaignsData.map((camp: any) => ({
+    id: camp.id.toString(),
+    name: camp.name,
+    utmSource: camp.utmSource,
+    traffic: camp.installs || 0
+  })), [campaignsData]);
 
   // Mock segments data
   const availableSegments = [

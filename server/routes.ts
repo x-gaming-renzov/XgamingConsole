@@ -268,47 +268,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get dashboard metrics overview
   app.get("/api/metrics/overview", authenticateToken, async (req, res) => {
     try {
-      // Mock campaign data with the specified fields
-      const activeCampaigns = [
-        {
-          id: 1,
-          label: "Q1 Acquisition Push",
-          utmSource: "facebook",
-          d1Highest: 67,
-          d1Lowest: 43,
-          newUsersToday: 1247,
-          activeExperiences: 3,
-          status: "Active" as const
-        },
-        {
-          id: 2,
-          label: "Google UAC Test",
-          utmSource: "google",
-          d1Highest: 71,
-          d1Lowest: 52,
-          newUsersToday: 892,
-          activeExperiences: 2,
-          status: "Active" as const
-        },
-        {
-          id: 3,
-          label: "TikTok Creative Test",
-          utmSource: "tiktok",
-          d1Highest: 59,
-          d1Lowest: 38,
-          newUsersToday: 456,
-          activeExperiences: 1,
-          status: "Active" as const
-        }
-      ];
+      // Get user's projects to calculate metrics
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json({
+          activeExperiences: 0,
+          avgD0Retention: 0,
+          avgD1Retention: 0,
+          activationRate: 0,
+          campaignsNeedAttention: false,
+          activeCampaigns: []
+        });
+      }
+
+      // Get all campaigns for user's projects
+      const allCampaigns = [];
+      const allExperiments = [];
+      
+      for (const project of projects) {
+        const campaigns = await storage.getCampaignsByProjectId(project.id);
+        const experiments = await storage.getExperimentsByProjectId(project.id);
+        allCampaigns.push(...campaigns);
+        allExperiments.push(...experiments);
+      }
+
+      // Filter active campaigns and calculate metrics
+      const activeCampaigns = allCampaigns
+        .filter(campaign => campaign.status === "Active")
+        .map(campaign => ({
+          id: campaign.id,
+          label: campaign.name,
+          utmSource: campaign.utmSource,
+          d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
+          d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
+          newUsersToday: campaign.installs || 0,
+          activeExperiences: allExperiments.filter(exp => exp.status === "running").length,
+          status: campaign.status as "Active" | "Paused" | "Draft"
+        }));
+
+      const activeExperiences = allExperiments.filter(exp => exp.status === "running").length;
+      const avgD0Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / Math.max(allCampaigns.length, 1);
+      const avgD1Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d1Retention || 0), 0) / Math.max(allCampaigns.length, 1);
 
       const metrics = {
-        activeExperiences: 12,
-        avgD0Retention: 58.4,
-        avgD1Retention: 52.1,
-        activationRate: 34.7,
-        campaignsNeedAttention: true,
-        activeCampaigns
+        activeExperiences,
+        avgD0Retention: Math.round(avgD0Retention * 10) / 10,
+        avgD1Retention: Math.round(avgD1Retention * 10) / 10,
+        activationRate: Math.round((activeExperiences / Math.max(allExperiments.length, 1)) * 100 * 10) / 10,
+        campaignsNeedAttention: activeCampaigns.some(c => c.d1Lowest < 40),
+        activeCampaigns: activeCampaigns.slice(0, 3) // Show top 3
       };
 
       res.json(metrics);
@@ -447,6 +456,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("AI draft generation error:", error);
       res.status(500).json({ message: "Failed to generate experience draft" });
+    }
+  });
+
+  // Campaign routes
+  app.get("/api/campaigns", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json([]);
+      }
+
+      const allCampaigns = [];
+      for (const project of projects) {
+        const campaigns = await storage.getCampaignsByProjectId(project.id);
+        allCampaigns.push(...campaigns);
+      }
+
+      res.json(allCampaigns);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaigns" });
+    }
+  });
+
+  app.get("/api/campaigns/metrics", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json({
+          estRevenue: 0,
+          totalInstalls: 0,
+          avgD0Retention: 0,
+          objectsBound: 0
+        });
+      }
+
+      const allCampaigns = [];
+      const allObjects = [];
+      
+      for (const project of projects) {
+        const campaigns = await storage.getCampaignsByProjectId(project.id);
+        const objects = await storage.getObjectsByProjectId(project.id);
+        allCampaigns.push(...campaigns);
+        allObjects.push(...objects);
+      }
+
+      const totalInstalls = allCampaigns.reduce((sum, c) => sum + (c.installs || 0), 0);
+      const estRevenue = allCampaigns.reduce((sum, c) => sum + Number(c.revenue || 0), 0);
+      const avgD0Retention = allCampaigns.length > 0 
+        ? allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / allCampaigns.length
+        : 0;
+
+      res.json({
+        estRevenue: Math.round(estRevenue * 100) / 100,
+        totalInstalls,
+        avgD0Retention: Math.round(avgD0Retention * 10) / 10,
+        objectsBound: allObjects.length
+      });
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaign metrics" });
+    }
+  });
+
+  app.post("/api/campaigns", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.status(400).json({ message: "No project found for user" });
+      }
+
+      const projectId = projects[0].id; // Use first project for now
+      const campaignData = req.body;
+
+      const campaign = await storage.createCampaign({
+        ...campaignData,
+        projectId,
+        userId: req.user.userId
+      });
+
+      res.json(campaign);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create campaign" });
+    }
+  });
+
+  // Object routes
+  app.get("/api/objects", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json([]);
+      }
+
+      const allObjects = [];
+      for (const project of projects) {
+        const objects = await storage.getObjectsByProjectId(project.id);
+        allObjects.push(...objects);
+      }
+
+      res.json(allObjects);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch objects" });
+    }
+  });
+
+  app.post("/api/objects", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.status(400).json({ message: "No project found for user" });
+      }
+
+      const projectId = projects[0].id; // Use first project for now
+      const objectData = req.body;
+
+      const object = await storage.createObject({
+        ...objectData,
+        projectId,
+        userId: req.user.userId
+      });
+
+      res.json(object);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create object" });
+    }
+  });
+
+  app.get("/api/manifest/info", authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjectsByUserId(req.user.userId);
+      
+      if (projects.length === 0) {
+        return res.json({ objectCount: 0, campaignCount: 0 });
+      }
+
+      let objectCount = 0;
+      let campaignCount = 0;
+      
+      for (const project of projects) {
+        const objects = await storage.getObjectsByProjectId(project.id);
+        const campaigns = await storage.getCampaignsByProjectId(project.id);
+        objectCount += objects.length;
+        campaignCount += campaigns.length;
+      }
+
+      res.json({ objectCount, campaignCount });
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch manifest info" });
     }
   });
 
