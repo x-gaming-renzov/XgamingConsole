@@ -1,0 +1,71 @@
+to know and fill the values in form, you also need structured output with know/expected values from openai. Are we passing that information in prompt? if not that might be the root case
+
+AC
+
+AviralChandra1
+Assistant
+just now
+Yes, you are correct that passing the expected structured output from the OpenAI response to the prompt is crucial for correctly filling the values in the form. Looking at your implementation, the prompt in the analyzeExperienceDescription function should ensure that the API is requested to produce the structured output that matches the ExperienceAnalysis interface.
+
+Here’s an updated version of the prompt you can use to ensure that you specify the structure correctly:
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [
+    {
+      role: "system",
+      content: `You are an expert in mobile game A/B testing and FTUE (First Time User Experience) optimization. 
+      
+      Analyze the user's experiment description and extract structured information for creating an A/B test experiment in a mobile game.
+      
+      Please provide the output in the following JSON structure:
+      {
+        "name": "string",
+        "type": "onboarding" | "tutorial" | "rewards" | "ui" | "level",
+        "description": "string",
+        "suggestedObjects": ["string"],
+        "targetAudience": {
+          "segments": ["string"],
+          "description": "string"
+        },
+        "campaign": {
+          "name": "string",
+          "utmSource": "string"
+        },
+        "variants": {
+          "control": {
+            "name": "string",
+            "description": "string"
+          },
+          "treatment": {
+            "name": "string",
+            "description": "string"
+          }
+        }
+      }
+      
+      Available experiment types:
+      - onboarding: Changes to user registration/signup flow
+      - tutorial: Modifications to game tutorials or learning flows  
+      - rewards: Adjustments to reward systems, currencies, bonuses
+      - ui: User interface changes, layout modifications
+      - level: Level design changes, difficulty adjustments
+      
+      Available objects to personalize (these are the exact object names from the database):
+      ${objects.map(obj => `- "${obj.name}": ${obj.description || obj.type || 'Game object'}`).join('\n      ')}
+      
+      Available user segments (these are the exact segment names from the database):
+      ${segments.map(seg => `- "${seg.name}"`).join('\n      ')}
+      Return valid JSON only.`
+    },
+    {
+      role: "user",
+      content: `Analyze this experiment idea: "${description}"`
+    }
+  ],
+  response_format: { type: "json_object" },
+  temperature: 0.3
+});
+Ensure that your OpenAI request specifies the expected JSON structure. By clearly defining what the output should look like, you can improve the likelihood of getting a valid structured response that your experience wizard can then use to pre-fill the appropriate fields.
+
+This change should address the issue of values not being correctly filled in the form based on the OpenAI response. If you encounter any errors, please log the response before parsing to troubleshoot further.
