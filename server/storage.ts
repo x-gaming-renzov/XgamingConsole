@@ -1,5 +1,7 @@
-import { users, projects, experiments, teamMembers, segments, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember, type Segment, type InsertSegment } from "@shared/schema";
+import { users, projects, experiments, teamMembers, segments, objects, campaigns, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember, type Segment, type InsertSegment, type Object, type InsertObject, type Campaign, type InsertCampaign } from "@shared/schema";
 import { nanoid } from "nanoid";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // User methods
@@ -33,6 +35,20 @@ export interface IStorage {
   updateSegment(id: number, segment: Partial<Segment>): Promise<Segment | undefined>;
   deleteSegment(id: number): Promise<boolean>;
   estimateSegmentSize(rulesJson: any): Promise<number>;
+
+  // Object methods
+  getObject(id: number): Promise<Object | undefined>;
+  getObjectsByProjectId(projectId: number): Promise<Object[]>;
+  createObject(object: InsertObject & { projectId: number; userId: number }): Promise<Object>;
+  updateObject(id: number, object: Partial<Object>): Promise<Object | undefined>;
+  deleteObject(id: number): Promise<boolean>;
+
+  // Campaign methods
+  getCampaign(id: number): Promise<Campaign | undefined>;
+  getCampaignsByProjectId(projectId: number): Promise<Campaign[]>;
+  createCampaign(campaign: InsertCampaign & { projectId: number; userId: number }): Promise<Campaign>;
+  updateCampaign(id: number, campaign: Partial<Campaign>): Promise<Campaign | undefined>;
+  deleteCampaign(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -41,11 +57,15 @@ export class MemStorage implements IStorage {
   private experiments: Map<number, Experiment>;
   private teamMembers: Map<number, TeamMember>;
   private segments: Map<number, Segment>;
+  private objects: Map<number, Object>;
+  private campaigns: Map<number, Campaign>;
   private currentUserId: number;
   private currentProjectId: number;
   private currentExperimentId: number;
   private currentTeamMemberId: number;
   private currentSegmentId: number;
+  private currentObjectId: number;
+  private currentCampaignId: number;
 
   constructor() {
     this.users = new Map();
@@ -53,11 +73,15 @@ export class MemStorage implements IStorage {
     this.experiments = new Map();
     this.teamMembers = new Map();
     this.segments = new Map();
+    this.objects = new Map();
+    this.campaigns = new Map();
     this.currentUserId = 1;
     this.currentProjectId = 1;
     this.currentExperimentId = 1;
     this.currentTeamMemberId = 1;
     this.currentSegmentId = 1;
+    this.currentObjectId = 1;
+    this.currentCampaignId = 1;
   }
 
   // User methods
@@ -225,6 +249,286 @@ export class MemStorage implements IStorage {
     await new Promise(resolve => setTimeout(resolve, 500));
     return Math.floor(Math.random() * 5000) + 500;
   }
+
+  // Object methods
+  async getObject(id: number): Promise<Object | undefined> {
+    return this.objects.get(id);
+  }
+
+  async getObjectsByProjectId(projectId: number): Promise<Object[]> {
+    return Array.from(this.objects.values()).filter(
+      (object) => object.projectId === projectId
+    );
+  }
+
+  async createObject(objectData: InsertObject & { projectId: number; userId: number }): Promise<Object> {
+    const object: Object = {
+      id: this.currentObjectId++,
+      createdAt: new Date(),
+      ...objectData,
+    };
+    this.objects.set(object.id, object);
+    return object;
+  }
+
+  async updateObject(id: number, updates: Partial<Object>): Promise<Object | undefined> {
+    const object = this.objects.get(id);
+    if (!object) return undefined;
+    
+    const updatedObject = { ...object, ...updates };
+    this.objects.set(id, updatedObject);
+    return updatedObject;
+  }
+
+  async deleteObject(id: number): Promise<boolean> {
+    return this.objects.delete(id);
+  }
+
+  // Campaign methods
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    return this.campaigns.get(id);
+  }
+
+  async getCampaignsByProjectId(projectId: number): Promise<Campaign[]> {
+    return Array.from(this.campaigns.values()).filter(
+      (campaign) => campaign.projectId === projectId
+    );
+  }
+
+  async createCampaign(campaignData: InsertCampaign & { projectId: number; userId: number }): Promise<Campaign> {
+    const campaign: Campaign = {
+      id: this.currentCampaignId++,
+      createdAt: new Date(),
+      ...campaignData,
+    };
+    this.campaigns.set(campaign.id, campaign);
+    return campaign;
+  }
+
+  async updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+    const campaign = this.campaigns.get(id);
+    if (!campaign) return undefined;
+    
+    const updatedCampaign = { ...campaign, ...updates };
+    this.campaigns.set(id, updatedCampaign);
+    return updatedCampaign;
+  }
+
+  async deleteCampaign(id: number): Promise<boolean> {
+    return this.campaigns.delete(id);
+  }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  private db = db;
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await this.db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await this.db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  // Project methods
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await this.db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async getProjectsByUserId(userId: number): Promise<Project[]> {
+    return await this.db.select().from(projects).where(eq(projects.userId, userId));
+  }
+
+  async createProject(projectData: InsertProject & { userId: number }): Promise<Project> {
+    const [project] = await this.db
+      .insert(projects)
+      .values({ ...projectData, apiKey: nanoid() })
+      .returning();
+    return project;
+  }
+
+  async updateProject(id: number, updates: Partial<Project>): Promise<Project | undefined> {
+    const [project] = await this.db
+      .update(projects)
+      .set(updates)
+      .where(eq(projects.id, id))
+      .returning();
+    return project || undefined;
+  }
+
+  // Experiment methods
+  async getExperiment(id: number): Promise<Experiment | undefined> {
+    const [experiment] = await this.db.select().from(experiments).where(eq(experiments.id, id));
+    return experiment || undefined;
+  }
+
+  async getExperimentsByProjectId(projectId: number): Promise<Experiment[]> {
+    return await this.db.select().from(experiments).where(eq(experiments.projectId, projectId));
+  }
+
+  async createExperiment(experimentData: InsertExperiment & { projectId: number; userId: number }): Promise<Experiment> {
+    const [experiment] = await this.db
+      .insert(experiments)
+      .values(experimentData)
+      .returning();
+    return experiment;
+  }
+
+  async updateExperiment(id: number, updates: Partial<Experiment>): Promise<Experiment | undefined> {
+    const [experiment] = await this.db
+      .update(experiments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(experiments.id, id))
+      .returning();
+    return experiment || undefined;
+  }
+
+  async deleteExperiment(id: number): Promise<boolean> {
+    const result = await this.db.delete(experiments).where(eq(experiments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Team member methods
+  async getTeamMembersByProjectId(projectId: number): Promise<TeamMember[]> {
+    return await this.db.select().from(teamMembers).where(eq(teamMembers.projectId, projectId));
+  }
+
+  async createTeamMember(teamMemberData: InsertTeamMember & { invitedBy: number }): Promise<TeamMember> {
+    const [teamMember] = await this.db
+      .insert(teamMembers)
+      .values(teamMemberData)
+      .returning();
+    return teamMember;
+  }
+
+  async deleteTeamMember(id: number): Promise<boolean> {
+    const result = await this.db.delete(teamMembers).where(eq(teamMembers.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Segment methods
+  async getSegment(id: number): Promise<Segment | undefined> {
+    const [segment] = await this.db.select().from(segments).where(eq(segments.id, id));
+    return segment || undefined;
+  }
+
+  async getSegmentsByProjectId(projectId: number): Promise<Segment[]> {
+    return await this.db.select().from(segments).where(eq(segments.projectId, projectId));
+  }
+
+  async createSegment(segmentData: InsertSegment & { projectId: number; userId: number }): Promise<Segment> {
+    const [segment] = await this.db
+      .insert(segments)
+      .values(segmentData)
+      .returning();
+    return segment;
+  }
+
+  async updateSegment(id: number, updates: Partial<Segment>): Promise<Segment | undefined> {
+    const [segment] = await this.db
+      .update(segments)
+      .set(updates)
+      .where(eq(segments.id, id))
+      .returning();
+    return segment || undefined;
+  }
+
+  async deleteSegment(id: number): Promise<boolean> {
+    const result = await this.db.delete(segments).where(eq(segments.id, id));
+    return result.rowCount > 0;
+  }
+
+  async estimateSegmentSize(rulesJson: any): Promise<number> {
+    // In a real implementation, this would query actual user data based on rules
+    // For now, return a simulated estimate
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return Math.floor(Math.random() * 5000) + 500;
+  }
+
+  // Object methods
+  async getObject(id: number): Promise<Object | undefined> {
+    const [object] = await this.db.select().from(objects).where(eq(objects.id, id));
+    return object || undefined;
+  }
+
+  async getObjectsByProjectId(projectId: number): Promise<Object[]> {
+    return await this.db.select().from(objects).where(eq(objects.projectId, projectId));
+  }
+
+  async createObject(objectData: InsertObject & { projectId: number; userId: number }): Promise<Object> {
+    const [object] = await this.db
+      .insert(objects)
+      .values(objectData)
+      .returning();
+    return object;
+  }
+
+  async updateObject(id: number, updates: Partial<Object>): Promise<Object | undefined> {
+    const [object] = await this.db
+      .update(objects)
+      .set(updates)
+      .where(eq(objects.id, id))
+      .returning();
+    return object || undefined;
+  }
+
+  async deleteObject(id: number): Promise<boolean> {
+    const result = await this.db.delete(objects).where(eq(objects.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Campaign methods
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    const [campaign] = await this.db.select().from(campaigns).where(eq(campaigns.id, id));
+    return campaign || undefined;
+  }
+
+  async getCampaignsByProjectId(projectId: number): Promise<Campaign[]> {
+    return await this.db.select().from(campaigns).where(eq(campaigns.projectId, projectId));
+  }
+
+  async createCampaign(campaignData: InsertCampaign & { projectId: number; userId: number }): Promise<Campaign> {
+    const [campaign] = await this.db
+      .insert(campaigns)
+      .values(campaignData)
+      .returning();
+    return campaign;
+  }
+
+  async updateCampaign(id: number, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+    const [campaign] = await this.db
+      .update(campaigns)
+      .set(updates)
+      .where(eq(campaigns.id, id))
+      .returning();
+    return campaign || undefined;
+  }
+
+  async deleteCampaign(id: number): Promise<boolean> {
+    const result = await this.db.delete(campaigns).where(eq(campaigns.id, id));
+    return result.rowCount > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();

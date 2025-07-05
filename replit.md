@@ -116,6 +116,12 @@ Changelog:
   - Knowledge Base tab: Document upload/management for LLM citations with file status tracking
   - Integrations tab: Slack integration with workspace connection and event notifications
   - Added Avatar and Textarea UI components, integrated with console navigation
+- July 05, 2025. Added PostgreSQL database integration with complete schema migration:
+  - Created database tables for users, projects, experiments, team members, segments, objects, and campaigns
+  - Implemented DatabaseStorage class with full CRUD operations for all entities
+  - Added database relations using Drizzle ORM with proper foreign key relationships
+  - Migrated from memory storage to persistent PostgreSQL database via Neon
+  - Updated storage interface to support objects and campaigns with comprehensive data models
 
 ## User Preferences
 

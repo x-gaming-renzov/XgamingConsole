@@ -1,5 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 export const users = pgTable("users", {
@@ -57,6 +58,33 @@ export const segments = pgTable("segments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const objects = pgTable("objects", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'Level', 'Popup', 'Param'
+  flags: jsonb("flags").notNull(), // array of flag definitions
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  utmSource: text("utm_source").notNull(),
+  utmCampaign: text("utm_campaign"),
+  installs: integer("installs").default(0),
+  d0Retention: decimal("d0_retention", { precision: 5, scale: 2 }).default("0.00"),
+  d1Retention: decimal("d1_retention", { precision: 5, scale: 2 }).default("0.00"),
+  revenue: decimal("revenue", { precision: 10, scale: 2 }).default("0.00"),
+  flagBundle: text("flag_bundle"),
+  allocation: integer("allocation").default(0),
+  status: text("status").default("Draft"), // 'Active', 'Paused', 'Draft'
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
@@ -91,6 +119,25 @@ export const insertSegmentSchema = createInsertSchema(segments).pick({
   isAdvanced: true,
 });
 
+export const insertObjectSchema = createInsertSchema(objects).pick({
+  name: true,
+  type: true,
+  flags: true,
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns).pick({
+  name: true,
+  utmSource: true,
+  utmCampaign: true,
+  installs: true,
+  d0Retention: true,
+  d1Retention: true,
+  revenue: true,
+  flagBundle: true,
+  allocation: true,
+  status: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -101,3 +148,88 @@ export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
 export type TeamMember = typeof teamMembers.$inferSelect;
 export type InsertSegment = z.infer<typeof insertSegmentSchema>;
 export type Segment = typeof segments.$inferSelect;
+export type InsertObject = z.infer<typeof insertObjectSchema>;
+export type Object = typeof objects.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+
+// Database relations
+export const usersRelations = relations(users, ({ many }) => ({
+  projects: many(projects),
+  experiments: many(experiments),
+  teamMembers: many(teamMembers),
+  segments: many(segments),
+  objects: many(objects),
+  campaigns: many(campaigns),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, {
+    fields: [projects.userId],
+    references: [users.id],
+  }),
+  experiments: many(experiments),
+  teamMembers: many(teamMembers),
+  segments: many(segments),
+  objects: many(objects),
+  campaigns: many(campaigns),
+}));
+
+export const experimentsRelations = relations(experiments, ({ one }) => ({
+  project: one(projects, {
+    fields: [experiments.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [experiments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  project: one(projects, {
+    fields: [teamMembers.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [teamMembers.userId],
+    references: [users.id],
+  }),
+  inviter: one(users, {
+    fields: [teamMembers.invitedBy],
+    references: [users.id],
+  }),
+}));
+
+export const segmentsRelations = relations(segments, ({ one }) => ({
+  project: one(projects, {
+    fields: [segments.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [segments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const objectsRelations = relations(objects, ({ one }) => ({
+  project: one(projects, {
+    fields: [objects.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [objects.userId],
+    references: [users.id],
+  }),
+}));
+
+export const campaignsRelations = relations(campaigns, ({ one }) => ({
+  project: one(projects, {
+    fields: [campaigns.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [campaigns.userId],
+    references: [users.id],
+  }),
+}));
