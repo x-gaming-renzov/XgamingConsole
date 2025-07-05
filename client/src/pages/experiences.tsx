@@ -34,7 +34,6 @@ export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedExperiences, setSelectedExperiences] = useState<number[]>([]);
-  const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const queryClient = useQueryClient();
 
@@ -107,65 +106,7 @@ export default function Experiences() {
     }
   };
 
-  const ExperienceDrawer = ({ experience }: { experience: Experience }) => (
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
-        <DialogTitle className="flex items-center space-x-2">
-          <Target className="w-5 h-5" />
-          <span>{experience.name}</span>
-          <Badge variant="outline" className={getStatusColor(experience.status)}>
-            {experience.status}
-          </Badge>
-        </DialogTitle>
-      </DialogHeader>
-      
-      <div className="space-y-6">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-accent/50 rounded-lg">
-            <div className="text-2xl font-bold text-foreground">{experience.uplift > 0 ? '+' : ''}{experience.uplift}%</div>
-            <div className="text-sm text-muted-foreground">Uplift</div>
-          </div>
-          <div className="text-center p-4 bg-accent/50 rounded-lg">
-            <div className="text-2xl font-bold text-foreground">{experience.metrics.participants.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground">Participants</div>
-          </div>
-          <div className="text-center p-4 bg-accent/50 rounded-lg">
-            <div className="text-2xl font-bold text-foreground">{experience.metrics.d1Retention}%</div>
-            <div className="text-sm text-muted-foreground">D1 Retention</div>
-          </div>
-          <div className="text-center p-4 bg-accent/50 rounded-lg">
-            <div className="text-2xl font-bold text-foreground">{experience.metrics.activationRate}%</div>
-            <div className="text-sm text-muted-foreground">Activation</div>
-          </div>
-        </div>
 
-        {/* Mini Line Chart Placeholder */}
-        <div className="h-32 bg-accent/30 rounded-lg flex items-center justify-center">
-          <TrendingUp className="w-8 h-8 text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Retention Chart</span>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline">
-            <Settings className="w-4 h-4 mr-2" />
-            Adjust Split
-          </Button>
-          <Button>
-            Roll-out Winner
-          </Button>
-          <Button variant="outline">
-            End Experience
-          </Button>
-          <Button variant="outline">
-            <Copy className="w-4 h-4 mr-2" />
-            Duplicate
-          </Button>
-        </div>
-      </div>
-    </DialogContent>
-  );
 
   return (
     <>
@@ -283,11 +224,7 @@ export default function Experiences() {
               </TableHeader>
               <TableBody>
                 {filteredExperiences.map((experience) => (
-                  <TableRow 
-                    key={experience.id} 
-                    className="cursor-pointer hover:bg-accent/50"
-                    onClick={() => setSelectedExperience(experience)}
-                  >
+                  <TableRow key={experience.id}>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedExperiences.includes(experience.id)}
@@ -297,26 +234,38 @@ export default function Experiences() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{experience.name}</div>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <div className="font-medium hover:text-primary">{experience.name}</div>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <span className="text-muted-foreground">{experience.campaign}</span>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <span className="text-muted-foreground">{experience.campaign}</span>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <span className="text-muted-foreground">{experience.object}</span>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <span className="text-muted-foreground">{experience.object}</span>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <span className={`font-medium ${experience.uplift > 0 ? 'text-green-600' : experience.uplift < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                        {experience.uplift > 0 ? '+' : ''}{experience.uplift}%
-                      </span>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <span className={`font-medium ${experience.uplift > 0 ? 'text-green-600' : experience.uplift < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          {experience.uplift > 0 ? '+' : ''}{experience.uplift}%
+                        </span>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getStatusColor(experience.status)}>
-                        {experience.status}
-                      </Badge>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <Badge variant="outline" className={getStatusColor(experience.status)}>
+                          {experience.status}
+                        </Badge>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <span className="text-muted-foreground">{experience.createdAt}</span>
+                      <Link href={`/experiences/${experience.id}`} className="block w-full">
+                        <span className="text-muted-foreground">{experience.createdAt}</span>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -340,10 +289,6 @@ export default function Experiences() {
         </CardContent>
       </Card>
 
-      {/* Experience Detail Drawer */}
-      <Dialog open={selectedExperience !== null} onOpenChange={() => setSelectedExperience(null)}>
-        {selectedExperience && <ExperienceDrawer experience={selectedExperience} />}
-      </Dialog>
       </div>
       </ConsoleLayout>
 

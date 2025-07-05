@@ -324,6 +324,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single experience with detailed information
+  app.get("/api/experiences/:id", authenticateToken, async (req, res) => {
+    try {
+      const experienceId = parseInt(req.params.id);
+      const experiment = await storage.getExperiment(experienceId);
+      
+      if (!experiment) {
+        return res.status(404).json({ message: "Experience not found" });
+      }
+
+      // Get associated project and campaign
+      const project = await storage.getProject(experiment.projectId);
+      const campaign = await storage.getCampaign(experiment.campaignId);
+
+      // Transform to detailed experience response
+      const detailedExperience = {
+        id: experiment.id,
+        name: experiment.name,
+        status: experiment.status,
+        description: experiment.description || "",
+        campaign: campaign?.name || "Default Campaign",
+        objects: [experiment.objectName],
+        uplift: 4.2, // Mock data for now
+        participants: 9742,
+        d1Retention: 40,
+        activation: 65,
+        startDate: experiment.createdAt,
+        endDate: null,
+        autoRollout: {
+          enabled: false,
+          upliftThreshold: 5,
+          minUsers: 5000
+        },
+        campaigns: [
+          {
+            name: campaign?.name || "Default Campaign",
+            segment: "All Players",
+            experiencePercent: experiment.trafficSplit || 50,
+            controlPercent: 100 - (experiment.trafficSplit || 50),
+            users7d: 4871
+          }
+        ],
+        variants: [
+          {
+            objectName: experiment.objectName,
+            variants: [
+              {
+                name: "Control",
+                parameters: { original: true }
+              },
+              {
+                name: "Variant A", 
+                parameters: experiment.variantConfig || { modified: true }
+              }
+            ]
+          }
+        ],
+        metrics: [
+          { date: "2025-07-08", control: 38, variantA: 42 },
+          { date: "2025-07-09", control: 39, variantA: 43 },
+          { date: "2025-07-10", control: 37, variantA: 41 },
+          { date: "2025-07-11", control: 40, variantA: 44 },
+          { date: "2025-07-12", control: 38, variantA: 42 }
+        ],
+        history: [
+          {
+            date: experiment.createdAt,
+            event: `Experience created (${experiment.status})`,
+            by: "System",
+            type: "created"
+          }
+        ]
+      };
+
+      res.json(detailedExperience);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
+    }
+  });
+
   // Bulk experience actions
   app.post("/api/experiences/bulk-action", authenticateToken, async (req, res) => {
     try {
