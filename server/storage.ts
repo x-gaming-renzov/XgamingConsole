@@ -1,4 +1,4 @@
-import { users, projects, experiments, teamMembers, segments, objects, campaigns, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember, type Segment, type InsertSegment, type Object, type InsertObject, type Campaign, type InsertCampaign } from "@shared/schema";
+import { users, projects, experiments, teamMembers, segments, objects, campaigns, variants, type User, type InsertUser, type Project, type InsertProject, type Experiment, type InsertExperiment, type TeamMember, type InsertTeamMember, type Segment, type InsertSegment, type Object, type InsertObject, type Campaign, type InsertCampaign, type Variant, type InsertVariant } from "@shared/schema";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
@@ -49,6 +49,13 @@ export interface IStorage {
   createCampaign(campaign: InsertCampaign & { projectId: number; userId: number }): Promise<Campaign>;
   updateCampaign(id: number, campaign: Partial<Campaign>): Promise<Campaign | undefined>;
   deleteCampaign(id: number): Promise<boolean>;
+
+  // Variant methods
+  getVariant(id: number): Promise<Variant | undefined>;
+  getVariantsByObjectId(objectId: number): Promise<Variant[]>;
+  createVariant(variant: InsertVariant & { objectId: number }): Promise<Variant>;
+  updateVariant(id: number, variant: Partial<Variant>): Promise<Variant | undefined>;
+  deleteVariant(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -317,6 +324,27 @@ export class MemStorage implements IStorage {
   async deleteCampaign(id: number): Promise<boolean> {
     return this.campaigns.delete(id);
   }
+
+  // Variant methods (stub implementations for MemStorage)
+  async getVariant(id: number): Promise<Variant | undefined> {
+    return undefined;
+  }
+
+  async getVariantsByObjectId(objectId: number): Promise<Variant[]> {
+    return [];
+  }
+
+  async createVariant(variant: InsertVariant & { objectId: number }): Promise<Variant> {
+    throw new Error("MemStorage variant methods not implemented");
+  }
+
+  async updateVariant(id: number, variant: Partial<Variant>): Promise<Variant | undefined> {
+    throw new Error("MemStorage variant methods not implemented");
+  }
+
+  async deleteVariant(id: number): Promise<boolean> {
+    throw new Error("MemStorage variant methods not implemented");
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -527,6 +555,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCampaign(id: number): Promise<boolean> {
     const result = await this.db.delete(campaigns).where(eq(campaigns.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Variant methods
+  async getVariant(id: number): Promise<Variant | undefined> {
+    const [variant] = await this.db.select().from(variants).where(eq(variants.id, id));
+    return variant || undefined;
+  }
+
+  async getVariantsByObjectId(objectId: number): Promise<Variant[]> {
+    return await this.db.select().from(variants).where(eq(variants.objectId, objectId));
+  }
+
+  async createVariant(variantData: InsertVariant & { objectId: number }): Promise<Variant> {
+    const [variant] = await this.db
+      .insert(variants)
+      .values({
+        objectId: variantData.objectId,
+        version: variantData.version,
+        name: variantData.name,
+        payload: variantData.payload,
+        description: variantData.description,
+        isDefault: variantData.isDefault || false,
+        allocation: variantData.allocation || 0,
+      })
+      .returning();
+    return variant;
+  }
+
+  async updateVariant(id: number, updates: Partial<Variant>): Promise<Variant | undefined> {
+    const [variant] = await this.db
+      .update(variants)
+      .set(updates)
+      .where(eq(variants.id, id))
+      .returning();
+    return variant || undefined;
+  }
+
+  async deleteVariant(id: number): Promise<boolean> {
+    const result = await this.db.delete(variants).where(eq(variants.id, id));
     return result.rowCount > 0;
   }
 }

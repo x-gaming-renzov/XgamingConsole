@@ -47,6 +47,18 @@ interface ObjectDetails {
   };
 }
 
+interface Variant {
+  id: number;
+  objectId: number;
+  version: string;
+  name: string;
+  payload: Record<string, any>;
+  description?: string;
+  isDefault: boolean;
+  allocation: number;
+  createdAt: string;
+}
+
 interface Experience {
   id: number;
   name: string;
@@ -84,6 +96,11 @@ export default function ObjectDetails() {
 
   const { data: history = [] } = useQuery<HistoryEntry[]>({
     queryKey: ["/api/objects", objectId, "history"],
+    enabled: !!objectId
+  });
+
+  const { data: variants = [] } = useQuery<Variant[]>({
+    queryKey: ["/api/objects", objectId, "variants"],
     enabled: !!objectId
   });
 
@@ -215,7 +232,7 @@ export default function ObjectDetails() {
                       <Layers className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{objectDetails.stats?.variants || 0}</div>
+                      <div className="text-2xl font-bold">{variants.length}</div>
                       <div className="text-sm text-muted-foreground">Variants defined</div>
                     </div>
                   </div>
@@ -338,7 +355,7 @@ export default function ObjectDetails() {
             </div>
 
             <div className="space-y-4">
-              {(objectDetails.variants || []).map((variant, index) => (
+              {variants.map((variant, index) => (
                 <Card key={variant.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -357,6 +374,11 @@ export default function ObjectDetails() {
                         </Button>
                       </div>
                     </div>
+                    {variant.description && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {variant.description}
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent>
                     <Table>
@@ -369,7 +391,7 @@ export default function ObjectDetails() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.entries(variant.parameters).map(([key, value]) => (
+                        {Object.entries(variant.payload).map(([key, value]) => (
                           <TableRow key={key}>
                             <TableCell>
                               <code className="bg-muted px-2 py-1 rounded text-sm">

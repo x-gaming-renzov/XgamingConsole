@@ -85,6 +85,18 @@ export const campaigns = pgTable("campaigns", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const variants = pgTable("variants", {
+  id: serial("id").primaryKey(),
+  objectId: integer("object_id").notNull(),
+  version: text("version").notNull(),
+  name: text("name").notNull(),
+  payload: jsonb("payload").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+  allocation: integer("allocation").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
@@ -138,6 +150,15 @@ export const insertCampaignSchema = createInsertSchema(campaigns).pick({
   status: true,
 });
 
+export const insertVariantSchema = createInsertSchema(variants).pick({
+  version: true,
+  name: true,
+  payload: true,
+  description: true,
+  isDefault: true,
+  allocation: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -152,6 +173,8 @@ export type InsertObject = z.infer<typeof insertObjectSchema>;
 export type Object = typeof objects.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type Campaign = typeof campaigns.$inferSelect;
+export type InsertVariant = z.infer<typeof insertVariantSchema>;
+export type Variant = typeof variants.$inferSelect;
 
 // Database relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -212,7 +235,7 @@ export const segmentsRelations = relations(segments, ({ one }) => ({
   }),
 }));
 
-export const objectsRelations = relations(objects, ({ one }) => ({
+export const objectsRelations = relations(objects, ({ one, many }) => ({
   project: one(projects, {
     fields: [objects.projectId],
     references: [projects.id],
@@ -221,6 +244,7 @@ export const objectsRelations = relations(objects, ({ one }) => ({
     fields: [objects.userId],
     references: [users.id],
   }),
+  variants: many(variants),
 }));
 
 export const campaignsRelations = relations(campaigns, ({ one }) => ({
@@ -231,5 +255,12 @@ export const campaignsRelations = relations(campaigns, ({ one }) => ({
   user: one(users, {
     fields: [campaigns.userId],
     references: [users.id],
+  }),
+}));
+
+export const variantsRelations = relations(variants, ({ one }) => ({
+  object: one(objects, {
+    fields: [variants.objectId],
+    references: [objects.id],
   }),
 }));
