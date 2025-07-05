@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaign: exp.description || "Default Campaign", // Use description or fallback
         object: `${exp.targetAudience || "All Players"}`, // Use target audience info
         uplift: Math.floor(Math.random() * 20 - 5), // Mock uplift for now
-        status: exp.status === "running" ? "Active" : 
+        status: exp.status === "active" ? "Active" : 
                exp.status === "completed" ? "Completed" : 
                exp.status === "paused" ? "Paused" : "Draft",
         createdAt: new Date(exp.createdAt || Date.now()).toLocaleDateString(),
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: experienceData.name,
         description: experienceData.description || "",
         type: "onboarding" as const,
-        status: "draft" as const,
+        status: (experienceData.status || "draft") as "draft" | "active" | "paused" | "completed",
         targetAudience: experienceData.targetAudience || "all_players",
         trafficSplit: experienceData.trafficSplit || 50,
         variants: JSON.stringify(experienceData.objectVariants || {}),
@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaign: experiment.description || "Default Campaign",
         object: experiment.targetAudience || "All Players",
         uplift: 0,
-        status: "Draft",
+        status: experiment.status === "active" ? "Active" : experiment.status === "draft" ? "Draft" : experiment.status,
         createdAt: new Date().toLocaleDateString(),
         metrics: {
           d0Retention: 0,

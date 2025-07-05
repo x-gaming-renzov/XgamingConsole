@@ -412,9 +412,7 @@ export default function ExperienceWizard() {
       status: "Draft" as const
     };
     console.log("Saving draft...", draftData);
-    // Here you would typically make an API call to save the draft
-    // For now, we'll just navigate back to experiences
-    setLocation("/experiences");
+    createExperience.mutate(draftData);
   };
 
   const onSubmit = () => {
@@ -429,7 +427,8 @@ export default function ExperienceWizard() {
       newCampaign,
       startDate,
       endDate,
-      autoRollout
+      autoRollout,
+      status: "Active" as const
     };
     console.log("Creating experience:", data);
     createExperience.mutate(data);
