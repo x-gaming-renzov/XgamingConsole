@@ -60,7 +60,7 @@ export default function Campaigns() {
         utmCampaign: campaignData.label || campaignData.utmSource,
         flagBundle: "Default Bundle",
         status: "Draft",
-        launchDate: new Date(campaignData.launchDate).toISOString()
+        launchDate: campaignData.launchDate
       };
 
       const response = await apiRequest("POST", "/api/campaigns", payload);

@@ -814,6 +814,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectId = projects[0].id; // Use first project for now
       const campaignData = req.body;
 
+      // Convert launchDate string to Date object if provided
+      if (campaignData.launchDate) {
+        campaignData.launchDate = new Date(campaignData.launchDate);
+      }
+
       const campaign = await storage.createCampaign({
         ...campaignData,
         projectId,
