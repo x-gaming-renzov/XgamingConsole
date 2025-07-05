@@ -179,7 +179,7 @@ export default function ObjectDetails() {
                   </span>
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  Last sync {objectDetails.stats.lastModified}
+                  Last sync {objectDetails.stats?.lastModified || "Unknown"}
                 </span>
               </div>
               <p className="text-muted-foreground mt-1">
@@ -215,7 +215,7 @@ export default function ObjectDetails() {
                       <Layers className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{objectDetails.stats.variants}</div>
+                      <div className="text-2xl font-bold">{objectDetails.stats?.variants || 0}</div>
                       <div className="text-sm text-muted-foreground">Variants defined</div>
                     </div>
                   </div>
@@ -229,7 +229,7 @@ export default function ObjectDetails() {
                       <Activity className="w-5 h-5 text-green-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{objectDetails.stats.usedByExperiences}</div>
+                      <div className="text-2xl font-bold">{objectDetails.stats?.usedByExperiences || 0}</div>
                       <div className="text-sm text-muted-foreground">Experiences using</div>
                     </div>
                   </div>
@@ -243,7 +243,7 @@ export default function ObjectDetails() {
                       <Users className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{objectDetails.stats.players7d.toLocaleString()}</div>
+                      <div className="text-2xl font-bold">{(objectDetails.stats?.players7d || 0).toLocaleString()}</div>
                       <div className="text-sm text-muted-foreground">Players affected (7d)</div>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ export default function ObjectDetails() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {objectDetails.flags.map((flag, index) => (
+                    {(objectDetails.flags || []).map((flag, index) => (
                       <TableRow key={index}>
                         <TableCell>
                           <div className="flex items-center space-x-2">

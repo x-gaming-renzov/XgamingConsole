@@ -597,11 +597,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Object not found" });
       }
 
-      // Mock stats for now - in production would come from analytics
+      // Mock stats and flags for now - in production would come from analytics and actual object configuration
+      const mockFlags = [
+        {
+          key: "starting_coins",
+          type: "number" as const,
+          defaultValue: 100,
+          description: "Initial coins given to player",
+          min: 0,
+          max: 1000
+        },
+        {
+          key: "enemy_speed",
+          type: "number" as const,
+          defaultValue: 1.5,
+          description: "Speed multiplier for enemies",
+          min: 0.1,
+          max: 3.0
+        },
+        {
+          key: "show_tutorial",
+          type: "boolean" as const,
+          defaultValue: true,
+          description: "Whether to show tutorial popup"
+        }
+      ];
+
       const objectDetails = {
         ...object,
+        flags: mockFlags,
         stats: {
-          variants: Array.isArray(object.flags) ? object.flags.length : 0,
+          variants: mockFlags.length,
           usedByExperiences: 2,
           players7d: 48102,
           lastModified: "1 hour ago"
