@@ -1,0 +1,108 @@
+### **Segment Detail – Compact Drawer Spec**
+
+*(adds rich, but not overwhelming, insight & controls to each segment card without leaving the Segments page)*
+
+---
+
+## 1 · Interaction Pattern
+
+1. **Clickable row** – entire segment card gets a link cursor.
+2. **Right‑hand Drawer** (480 px) slides in.
+3. Drawer has two subtabs **Overview · Edit Rules** (no deep navigation).
+4. Close on **ESC**, outside‑click, or × icon.
+
+---
+
+## 2 · Drawer Header
+
+```
+High‑Tier iOS
+[tier = pro  AND  device_os = iOS]                 (✎ Rename)
+📈  3 250 avg daily users        +1.8 % vs last wk
+```
+
+* renaming inline (Editors & Owners).
+* Grey “Advanced” wrench icon 🔧 appears after title if segment includes object‑parameter rules.
+
+---
+
+## 3 · Tab A — Overview  (default)
+
+| Block                              | Content                                                                                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Key metrics** (4‑up mini tiles)  | • Avg D1 Retention (last 7 d)<br>• Avg D7 Retention<br>• Avg Activation<br>• Active Experiences count                                              |
+| **Experiences table**              | Variant experiences targeting this segment (status badge). Columns: *Experience Name · Split % · Uplift (ΔD1)*. Row click opens Experience drawer. |
+| **Past Outcomes accordion**        | Collapsed list of completed experiences with their uplift results (best to worst).                                                                 |
+| **Segment size trend** small chart | Sparklines users/day (28 d).                                                                                                                       |
+
+*“Create Experience” CTA bottom – pre‑loads wizard Step 4 with this segment selected.*
+
+---
+
+## 4 · Tab B — Edit Rules
+
+| UI                      | Details                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| **Rule builder**        | Same component used in segment modal. Pre‑populated with current rules.                            |
+| **Live estimate**       | Refresh button (calls `POST /segments/estimate`).                                                  |
+| **Save Changes** button | Enabled if diff detected; shows toast “Segment updated. All future traffic will follow new rules.” |
+| **Danger zone**         | “Delete Segment” (disabled if used by active experience).                                          |
+
+Validation: warn if rule update shrinks size by >50 %.
+
+---
+
+## 5 · API surface
+
+```
+GET    /v1/segments/{id}/detail   // returns metrics, experiences, rules
+PUT    /v1/segments/{id}          { name, rules_json }
+POST   /v1/segments/{id}/estimate { rules_json }
+DELETE /v1/segments/{id}          // only if no active references
+```
+
+Metrics endpoint aggregates from BigQuery login\_events table.
+
+---
+
+## 6 · Copy & Microcopy
+
+| Location                | Text                                                                     |
+| ----------------------- | ------------------------------------------------------------------------ |
+| Metrics tile subtitle   | “last 7 days”                                                            |
+| Experiences table empty | “No experiences use this segment yet.”                                   |
+| Delete confirm          | “This segment is not used in any active experience. Delete permanently?” |
+| Size‑change warning     | “New rules reduce daily users from 3 250 → 980. Continue?”               |
+
+---
+
+## 7 · Visual Hints
+
+* Metric tiles use same styling as Dashboard cards (consistent).
+* Active status badge = green; Completed = grey; Draft = white line badge.
+* Rule builder rows get light outline; “AND” / “OR” chips coloured dim‑green / dim‑purple for quick scan.
+
+---
+
+## 8 · Dev Effort (incremental)
+
+| Item                                |                       Hrs |
+| ----------------------------------- | ------------------------: |
+| Click handler & drawer shell        |                         2 |
+| Overview metrics & chart            |                         4 |
+| Experiences table query             |                         3 |
+| Rule builder reuse & diff detect    |                         3 |
+| API hooks                           |                         3 |
+| Delete / rename flows               |                         2 |
+| QA (open, edit, delete constraints) |                         2 |
+| **Total**                           | **19 hrs (\~1 dev‑week)** |
+
+---
+
+### Benefits
+
+* **In‑context insight** – PM sees whether a segment is worth targeting (size & retention).
+* **Instant iteration** – tweak rules, hit Save, no modal maze.
+* **No page reloads** – drawer keeps original list visible for fast hopping across segments.
+
+Roll this out and Segments page moves from static list to actionable audience cockpit—still lightweight.

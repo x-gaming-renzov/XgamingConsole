@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 import { 
@@ -22,7 +24,13 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
-  Info
+  Info,
+  Edit2,
+  TrendingUp,
+  Target,
+  Activity,
+  BarChart3,
+  Wrench
 } from "lucide-react";
 
 interface Segment {
@@ -33,6 +41,30 @@ interface Segment {
   usedIn: string[];
   isAdvanced: boolean;
   rules: SegmentRule[];
+  metrics?: {
+    d1Retention: number;
+    d7Retention: number;
+    activation: number;
+    activeExperiences: number;
+    growthPercent: number;
+  };
+  experiences?: Experience[];
+  pastOutcomes?: PastOutcome[];
+}
+
+interface Experience {
+  id: string;
+  name: string;
+  status: 'active' | 'completed' | 'draft';
+  splitPercent: number;
+  uplift: number;
+}
+
+interface PastOutcome {
+  id: string;
+  name: string;
+  uplift: number;
+  completedDate: string;
 }
 
 interface SegmentRule {
@@ -108,6 +140,10 @@ const OPERATORS = {
 
 export default function Segments() {
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
+  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
   const [segments, setSegments] = useState<Segment[]>([
     {
       id: "1",
@@ -119,6 +155,22 @@ export default function Segments() {
       rules: [
         { attribute: "tier", operator: "=", value: "pro", group: "and" },
         { attribute: "device_os", operator: "=", value: "iOS", group: "and" }
+      ],
+      metrics: {
+        d1Retention: 68,
+        d7Retention: 42,
+        activation: 85,
+        activeExperiences: 2,
+        growthPercent: 1.8
+      },
+      experiences: [
+        { id: "exp1", name: "Enhanced Onboarding", status: "active", splitPercent: 70, uplift: 12.3 },
+        { id: "exp2", name: "VIP Tutorial", status: "active", splitPercent: 50, uplift: 8.7 }
+      ],
+      pastOutcomes: [
+        { id: "past1", name: "Premium Welcome Flow", uplift: 18.2, completedDate: "2025-06-15" },
+        { id: "past2", name: "Elite Badge System", uplift: 14.5, completedDate: "2025-05-20" },
+        { id: "past3", name: "Exclusive Content", uplift: 9.1, completedDate: "2025-04-10" }
       ]
     },
     {
@@ -130,6 +182,20 @@ export default function Segments() {
       isAdvanced: false,
       rules: [
         { attribute: "utm_source", operator: "=", value: "tiktok", group: "and" }
+      ],
+      metrics: {
+        d1Retention: 42,
+        d7Retention: 28,
+        activation: 67,
+        activeExperiences: 1,
+        growthPercent: 3.2
+      },
+      experiences: [
+        { id: "exp3", name: "Social Media Onboarding", status: "active", splitPercent: 60, uplift: 5.4 }
+      ],
+      pastOutcomes: [
+        { id: "past4", name: "TikTok Creator Flow", uplift: 7.8, completedDate: "2025-06-01" },
+        { id: "past5", name: "Viral Features Test", uplift: 4.2, completedDate: "2025-05-15" }
       ]
     },
     {
@@ -141,6 +207,17 @@ export default function Segments() {
       isAdvanced: true,
       rules: [
         { attribute: "level_number", operator: "=", value: "5", group: "and" }
+      ],
+      metrics: {
+        d1Retention: 35,
+        d7Retention: 18,
+        activation: 45,
+        activeExperiences: 0,
+        growthPercent: -2.1
+      },
+      experiences: [],
+      pastOutcomes: [
+        { id: "past6", name: "Difficulty Helper", uplift: 8.9, completedDate: "2025-05-30" }
       ]
     }
   ]);
@@ -258,6 +335,28 @@ export default function Segments() {
     setSegments(prev => prev.filter(seg => seg.id !== id));
   };
 
+  const openSegmentDetail = (segment: Segment) => {
+    setSelectedSegment(segment);
+    setEditedName(segment.name);
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedSegment(null);
+    setEditingName(false);
+  };
+
+  const handleNameEdit = () => {
+    if (selectedSegment && editedName.trim()) {
+      setSegments(prev => prev.map(seg => 
+        seg.id === selectedSegment.id ? { ...seg, name: editedName.trim() } : seg
+      ));
+      setSelectedSegment(prev => prev ? { ...prev, name: editedName.trim() } : null);
+      setEditingName(false);
+    }
+  };
+
   const canProceedStep = () => {
     switch (builderStep) {
       case 1: return builderData.name.trim().length > 0;
@@ -317,7 +416,11 @@ export default function Segments() {
           <CardContent>
             <div className="space-y-4">
               {segments.map((segment) => (
-                <div key={segment.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                <div 
+                  key={segment.id} 
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => openSegmentDetail(segment)}
+                >
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
                       <h3 className="font-medium">{segment.name}</h3>
@@ -351,13 +454,23 @@ export default function Segments() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSegmentDetail(segment);
+                      }}
+                    >
                       <Eye className="w-4 h-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      onClick={() => deleteSegment(segment.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSegment(segment.id);
+                      }}
                       disabled={segment.usedIn.length > 0}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -652,6 +765,262 @@ export default function Segments() {
         open={showQuickPrompt} 
         onClose={() => setShowQuickPrompt(false)} 
       />
+
+      {/* Segment Detail Drawer */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="right" className="w-[480px] overflow-y-auto">
+          {selectedSegment && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {editingName ? (
+                      <Input
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        onBlur={handleNameEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleNameEdit();
+                          if (e.key === 'Escape') setEditingName(false);
+                        }}
+                        className="text-lg font-semibold"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="text-lg font-semibold">{selectedSegment.name}</span>
+                    )}
+                    {selectedSegment.isAdvanced && (
+                      <Wrench className="w-4 h-4 text-muted-foreground" title="Advanced segment" />
+                    )}
+                    {!editingName && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setEditingName(true)}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </SheetTitle>
+                <div className="text-sm font-mono text-muted-foreground">
+                  {selectedSegment.rulesSummary}
+                </div>
+                <div className="flex items-center space-x-4 text-sm">
+                  <span>📈 {selectedSegment.avgDailyUsers.toLocaleString()} avg daily users</span>
+                  {selectedSegment.metrics && (
+                    <span className={`${selectedSegment.metrics.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {selectedSegment.metrics.growthPercent >= 0 ? '+' : ''}{selectedSegment.metrics.growthPercent}% vs last wk
+                    </span>
+                  )}
+                </div>
+              </SheetHeader>
+
+              <div className="mt-6">
+                <Tabs defaultValue="overview" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="edit-rules">Edit Rules</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="overview" className="space-y-6 mt-6">
+                    {/* Key Metrics */}
+                    {selectedSegment.metrics && (
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Key Metrics (last 7 days)</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="text-2xl font-bold">{selectedSegment.metrics.d1Retention}%</div>
+                              <div className="text-xs text-muted-foreground">Avg D1 Retention</div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="text-2xl font-bold">{selectedSegment.metrics.d7Retention}%</div>
+                              <div className="text-xs text-muted-foreground">Avg D7 Retention</div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="text-2xl font-bold">{selectedSegment.metrics.activation}%</div>
+                              <div className="text-xs text-muted-foreground">Avg Activation</div>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="p-3">
+                              <div className="text-2xl font-bold">{selectedSegment.metrics.activeExperiences}</div>
+                              <div className="text-xs text-muted-foreground">Active Experiences</div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Active Experiences */}
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Experiences</h3>
+                      {selectedSegment.experiences && selectedSegment.experiences.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedSegment.experiences.map((exp) => (
+                            <Card key={exp.id} className="cursor-pointer hover:bg-muted/50">
+                              <CardContent className="p-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-sm">{exp.name}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {exp.splitPercent}% split • +{exp.uplift}% uplift
+                                    </div>
+                                  </div>
+                                  <Badge 
+                                    variant={exp.status === 'active' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
+                                  >
+                                    {exp.status}
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No experiences use this segment yet.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Past Outcomes */}
+                    {selectedSegment.pastOutcomes && selectedSegment.pastOutcomes.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Past Outcomes</h3>
+                        <div className="space-y-2">
+                          {selectedSegment.pastOutcomes
+                            .sort((a, b) => b.uplift - a.uplift)
+                            .map((outcome) => (
+                              <div key={outcome.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                                <div className="text-sm">{outcome.name}</div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm font-medium text-green-600">+{outcome.uplift}%</span>
+                                  <span className="text-xs text-muted-foreground">{new Date(outcome.completedDate).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Segment Size Trend */}
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Segment Size Trend</h3>
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-center h-16 text-muted-foreground">
+                            <BarChart3 className="w-8 h-8 mr-2" />
+                            <span className="text-sm">28-day trend chart</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Create Experience CTA */}
+                    <div className="pt-4">
+                      <Button className="w-full" onClick={() => {
+                        setShowQuickPrompt(true);
+                        closeDrawer();
+                      }}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Experience
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="edit-rules" className="space-y-6 mt-6">
+                    {/* Live Estimate */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-medium text-muted-foreground">Live Estimate</h3>
+                        <Button variant="outline" size="sm" onClick={estimateSegmentSize}>
+                          <Activity className="w-4 h-4 mr-2" />
+                          Refresh
+                        </Button>
+                      </div>
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="text-2xl font-bold">{selectedSegment.avgDailyUsers.toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">estimated daily users</div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Rule Builder */}
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Rules</h3>
+                      <div className="text-sm text-muted-foreground mb-4">
+                        Modify the rules that define this segment. Changes will affect all future traffic.
+                      </div>
+                      
+                      {/* Simplified rule display for now */}
+                      <div className="space-y-3">
+                        {selectedSegment.rules.map((rule, index) => (
+                          <Card key={index}>
+                            <CardContent className="p-3">
+                              <div className="flex items-center space-x-2 text-sm">
+                                {index > 0 && (
+                                  <Badge variant="outline" className="uppercase">
+                                    {rule.group}
+                                  </Badge>
+                                )}
+                                <span className="font-mono">{rule.attribute}</span>
+                                <span>{rule.operator}</span>
+                                <span className="font-medium">{rule.value}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Save Changes */}
+                    <div className="flex space-x-2">
+                      <Button className="flex-1">
+                        Save Changes
+                      </Button>
+                      <Button variant="outline">
+                        Reset
+                      </Button>
+                    </div>
+
+                    {/* Danger Zone */}
+                    <div className="pt-6 border-t border-border">
+                      <div className="text-sm font-medium text-red-600 mb-2">Danger Zone</div>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        disabled={selectedSegment.usedIn.length > 0}
+                        onClick={() => {
+                          if (window.confirm('This segment is not used in any active experience. Delete permanently?')) {
+                            deleteSegment(selectedSegment.id);
+                            closeDrawer();
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Segment
+                      </Button>
+                      {selectedSegment.usedIn.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Cannot delete: used in {selectedSegment.usedIn.length} active experience(s)
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
