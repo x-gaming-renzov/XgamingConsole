@@ -480,12 +480,7 @@ export default function Settings() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-end">
-                    <div className="flex items-center space-x-2">
-                      <Switch />
-                      <Label>Private to me</Label>
-                    </div>
-                  </div>
+                  
                 </div>
               </CardContent>
             </Card>
