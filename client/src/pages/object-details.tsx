@@ -22,7 +22,9 @@ import {
   Users,
   Clock,
   Activity,
-  TrendingUp
+  TrendingUp,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 
@@ -83,6 +85,7 @@ export default function ObjectDetails() {
   const [description, setDescription] = useState("");
   const [showVariantValues, setShowVariantValues] = useState(false);
   const [experienceFilter, setExperienceFilter] = useState<"all" | "active" | "completed" | "draft">("all");
+  const [expandedVariants, setExpandedVariants] = useState<Record<number, boolean>>({});
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
     queryKey: [`/api/objects/${objectId}`],
@@ -132,6 +135,13 @@ export default function ObjectDetails() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const toggleVariantExpansion = (variantId: number) => {
+    setExpandedVariants(prev => ({
+      ...prev,
+      [variantId]: !prev[variantId]
+    }));
   };
 
   const filteredExperiences = experiences.filter(exp => {
@@ -354,7 +364,7 @@ export default function ObjectDetails() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {variants.length === 0 ? (
                 <Card>
                   <CardContent className="p-6">
@@ -364,82 +374,100 @@ export default function ObjectDetails() {
                   </CardContent>
                 </Card>
               ) : (
-                variants.map((variant, index) => (
-                  <Card key={variant.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <CardTitle className="text-lg">{variant.name}</CardTitle>
-                          {variant.isDefault && (
-                            <Badge variant="secondary">Default</Badge>
-                          )}
+                variants.map((variant, index) => {
+                  const isExpanded = expandedVariants[variant.id];
+                  const hasParameters = variant.payload && Object.keys(variant.payload).length > 0;
+                  
+                  return (
+                    <Card key={variant.id} className="overflow-hidden">
+                      <div 
+                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50"
+                        onClick={() => toggleVariantExpansion(variant.id)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            <div className="font-medium">{variant.name}</div>
+                            {variant.isDefault && (
+                              <Badge variant="secondary">Default</Badge>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-4">
+                          <div className="text-sm text-muted-foreground">
                             {variant.allocation}% allocation
-                          </span>
-                          <Button variant="ghost" size="sm">
-                            <Copy className="w-4 h-4" />
-                          </Button>
+                          </div>
+                          {hasParameters && (
+                            <div className="text-xs text-muted-foreground">
+                              {Object.keys(variant.payload).length} parameters
+                            </div>
+                          )}
                         </div>
                       </div>
-                      {variant.description && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {variant.description}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Parameter</TableHead>
-                            <TableHead>Value</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {variant.payload && Object.keys(variant.payload).length > 0 ? (
-                            Object.entries(variant.payload).map(([key, value]) => (
-                              <TableRow key={key}>
-                                <TableCell>
-                                  <code className="bg-muted px-2 py-1 rounded text-sm">
-                                    {key}
-                                  </code>
-                                </TableCell>
-                                <TableCell>
-                                  <input
-                                    type={typeof value === 'boolean' ? 'checkbox' : typeof value === 'number' ? 'number' : 'text'}
-                                    defaultValue={typeof value === 'boolean' ? undefined : value?.toString()}
-                                    defaultChecked={typeof value === 'boolean' ? value : undefined}
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">
-                                    {typeof value}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Button variant="ghost" size="sm">
-                                    <Copy className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                No parameters defined for this variant
-                              </TableCell>
-                            </TableRow>
+                      
+                      {isExpanded && (
+                        <div className="border-t bg-muted/20">
+                          {variant.description && (
+                            <div className="px-4 py-3 border-b bg-background">
+                              <p className="text-sm text-muted-foreground">
+                                {variant.description}
+                              </p>
+                            </div>
                           )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                ))
+                          
+                          <div className="p-4">
+                            {hasParameters ? (
+                              <div className="grid gap-3">
+                                {Object.entries(variant.payload).map(([key, value]) => (
+                                  <div key={key} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                                    <div>
+                                      <Label htmlFor={`${variant.id}-${key}`} className="text-sm font-medium">
+                                        {key}
+                                      </Label>
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {typeof value === 'string' ? 'Text' : 
+                                         typeof value === 'number' ? 'Number' : 
+                                         typeof value === 'boolean' ? 'Boolean' : 'Unknown'}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      {typeof value === 'boolean' ? (
+                                        <div className="flex items-center space-x-2">
+                                          <Switch
+                                            id={`${variant.id}-${key}`}
+                                            checked={value}
+                                            disabled
+                                          />
+                                          <span className="text-sm">{value ? 'True' : 'False'}</span>
+                                        </div>
+                                      ) : (
+                                        <input
+                                          id={`${variant.id}-${key}`}
+                                          type={typeof value === 'number' ? 'number' : 'text'}
+                                          defaultValue={value?.toString()}
+                                          className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                                          readOnly
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-6 text-muted-foreground text-sm">
+                                No parameters defined for this variant
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })
               )}
             </div>
           </TabsContent>
