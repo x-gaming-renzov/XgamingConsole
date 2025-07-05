@@ -371,14 +371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ],
         variants: (() => {
           try {
-            // Parse the object variants from the experiment if available
-            if (experiment.objectVariants) {
-              const objectVariants = typeof experiment.objectVariants === 'string' 
-                ? JSON.parse(experiment.objectVariants) 
-                : experiment.objectVariants;
+            // Parse the variants from the experiment if available
+            if (experiment.variants) {
+              const variants = typeof experiment.variants === 'string' 
+                ? JSON.parse(experiment.variants) 
+                : experiment.variants;
               
               // Convert to the expected format
-              return Object.entries(objectVariants).map(([objectId, data]: [string, any]) => ({
+              return Object.entries(variants).map(([objectId, data]: [string, any]) => ({
                 objectName: `Object ${objectId}`,
                 variants: data.variants?.map((variant: any, index: number) => ({
                   name: variant.name || (index === 0 ? "Control" : `Variant ${String.fromCharCode(65 + index - 1)}`),
@@ -390,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }));
             }
           } catch (e) {
-            console.error('Error parsing object variants:', e);
+            console.error('Error parsing variants:', e);
           }
           
           // Fallback to default structure

@@ -415,58 +415,98 @@ export default function ExperienceDetails() {
           <TabsContent value="variants" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Variants Configuration</h2>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Variant
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Copy className="w-4 h-4 mr-2" />
-                  Duplicate Variant
-                </Button>
-                <Button size="sm">Save Changes</Button>
-              </div>
+              {experience.status === "paused" && (
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Variant
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate Variant
+                  </Button>
+                  <Button size="sm">Save Changes</Button>
+                </div>
+              )}
             </div>
 
-            <Accordion type="single" collapsible className="space-y-4">
-              {(experience.variants || []).map((objectVariant, index) => (
-                <AccordionItem key={index} value={`object-${index}`}>
-                  <AccordionTrigger className="text-lg font-semibold">
-                    {objectVariant?.objectName || 'Unnamed Object'} – {(objectVariant?.variants || []).length} variant{(objectVariant?.variants || []).length > 1 ? 's' : ''}
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left p-3 font-medium">Parameter</th>
-                            {(objectVariant?.variants || []).map((variant, vIndex) => (
-                              <th key={vIndex} className="text-left p-3 font-medium">
-                                {variant?.name || 'Unnamed Variant'}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.keys((objectVariant?.variants || [])[0]?.parameters || {}).map((param) => (
-                            <tr key={param} className="border-b">
-                              <td className="p-3 font-mono text-sm">{param}</td>
-                              {(objectVariant?.variants || []).map((variant, vIndex) => (
-                                <td key={vIndex} className="p-3">
-                                  <code className="bg-muted px-2 py-1 rounded text-sm">
-                                    {JSON.stringify(variant?.parameters?.[param] || 'undefined')}
-                                  </code>
-                                </td>
+            <div className="space-y-4">
+              {(experience.variants || []).map((objectVariant, objectIndex) => (
+                <Card key={objectIndex}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{objectVariant?.objectName || 'Unnamed Object'} – {(objectVariant?.variants || []).length} variant{(objectVariant?.variants || []).length > 1 ? 's' : ''}</span>
+                      {experience.status === "paused" && (
+                        <Button variant="outline" size="sm">
+                          <Settings className="w-4 h-4 mr-2" />
+                          Configure
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {(objectVariant?.variants || []).map((variant, variantIndex) => (
+                        <Card key={variantIndex} className="border-2">
+                          <CardHeader>
+                            <CardTitle className="text-lg flex items-center justify-between">
+                              <span>{variant?.name || 'Unnamed Variant'}</span>
+                              {experience.status === "paused" && (
+                                <Button variant="ghost" size="sm">
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {Object.entries(variant?.parameters || {}).map(([param, value]) => (
+                                <div key={param} className="space-y-1">
+                                  <label className="text-sm font-medium text-muted-foreground">
+                                    {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </label>
+                                  {experience.status === "paused" ? (
+                                    <Input
+                                      value={String(value)}
+                                      onChange={(e) => {
+                                        // Handle parameter updates when paused
+                                        console.log(`Updating ${param} to ${e.target.value}`);
+                                      }}
+                                      className="font-mono text-sm"
+                                    />
+                                  ) : (
+                                    <div className="bg-muted px-3 py-2 rounded border font-mono text-sm">
+                                      {String(value)}
+                                    </div>
+                                  )}
+                                </div>
                               ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              {Object.keys(variant?.parameters || {}).length === 0 && (
+                                <div className="text-sm text-muted-foreground italic">
+                                  No parameters configured
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+                  </CardContent>
+                </Card>
               ))}
-            </Accordion>
+            </div>
+
+            {(experience.variants || []).length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <div className="text-muted-foreground">
+                    <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No Variants Configured</h3>
+                    <p className="text-sm">Add variants to start testing different configurations.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
