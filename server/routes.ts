@@ -324,6 +324,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk experience actions
+  app.post("/api/experiences/bulk-action", authenticateToken, async (req, res) => {
+    try {
+      const { action, experienceIds } = req.body;
+      
+      if (!action || !experienceIds || !Array.isArray(experienceIds)) {
+        return res.status(400).json({ message: "Invalid action or experience IDs" });
+      }
+
+      const validActions = ["pause", "resume", "archive"];
+      if (!validActions.includes(action)) {
+        return res.status(400).json({ message: "Invalid action" });
+      }
+
+      const statusMap = {
+        pause: "paused",
+        resume: "active", 
+        archive: "completed"
+      };
+
+      const newStatus = statusMap[action as keyof typeof statusMap];
+      const updatedExperiences = [];
+
+      for (const id of experienceIds) {
+        // Verify user has access to experiment
+        const experiment = await storage.getExperiment(Number(id));
+        if (experiment && experiment.userId === req.user.userId) {
+          const updated = await storage.updateExperiment(Number(id), { status: newStatus });
+          if (updated) {
+            updatedExperiences.push(updated);
+          }
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        updated: updatedExperiences.length,
+        action,
+        status: newStatus
+      });
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to perform bulk action" });
+    }
+  });
+
   // Analytics routes
   app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
     try {

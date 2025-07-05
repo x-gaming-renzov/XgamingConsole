@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,10 +36,35 @@ export default function Experiences() {
   const [selectedExperiences, setSelectedExperiences] = useState<number[]>([]);
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: experiences, isLoading } = useQuery<Experience[]>({
     queryKey: ["/api/experiences"],
   });
+
+  // Bulk action mutation
+  const bulkActionMutation = useMutation({
+    mutationFn: async ({ action, experienceIds }: { action: string; experienceIds: number[] }) => {
+      const response = await apiRequest("POST", "/api/experiences/bulk-action", {
+        action,
+        experienceIds
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
+      setSelectedExperiences([]); // Clear selection after action
+    },
+    onError: (error) => {
+      console.error("Bulk action failed:", error);
+    }
+  });
+
+  // Bulk action handlers
+  const handleBulkAction = (action: string) => {
+    if (selectedExperiences.length === 0) return;
+    bulkActionMutation.mutate({ action, experienceIds: selectedExperiences });
+  };
 
   const filteredExperiences = experiences?.filter(exp => {
     const matchesSearch = exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -194,15 +220,30 @@ export default function Experiences() {
                 {selectedExperiences.length} experience{selectedExperiences.length > 1 ? 's' : ''} selected
               </span>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleBulkAction("pause")}
+                  disabled={bulkActionMutation.isPending}
+                >
                   <Pause className="w-4 h-4 mr-2" />
                   Pause
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleBulkAction("resume")}
+                  disabled={bulkActionMutation.isPending}
+                >
                   <Play className="w-4 h-4 mr-2" />
                   Resume
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleBulkAction("archive")}
+                  disabled={bulkActionMutation.isPending}
+                >
                   <Archive className="w-4 h-4 mr-2" />
                   Archive
                 </Button>
