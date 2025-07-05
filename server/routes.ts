@@ -844,7 +844,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allObjects = [];
       for (const project of projects) {
         const objects = await storage.getObjectsByProjectId(project.id);
-        allObjects.push(...objects);
+        // Ensure flags are properly parsed as JSON
+        const parsedObjects = objects.map(obj => ({
+          ...obj,
+          flags: typeof obj.flags === 'string' ? JSON.parse(obj.flags) : obj.flags
+        }));
+        allObjects.push(...parsedObjects);
       }
 
       res.json(allObjects);
@@ -886,6 +891,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Object not found" });
       }
 
+      // Ensure flags are properly parsed as JSON
+      const parsedObject = {
+        ...object,
+        flags: typeof object.flags === 'string' ? JSON.parse(object.flags) : object.flags
+      };
+
       // Mock variants data - in production would come from actual object configuration
       const mockVariants = [
         {
@@ -924,7 +935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       const objectDetails = {
-        ...object,
+        ...parsedObject,
         variants: mockVariants,
         stats: {
           variants: mockVariants.length,

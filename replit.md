@@ -163,6 +163,12 @@ Changelog:
   - Added automatic prefilling of wizard steps including objects, campaigns, target audiences, and variants
   - Implemented object name to ID mapping for proper selection in wizard interface
   - System can now interpret user intent and suggest relevant objects, segments, and campaign settings
+- July 05, 2025. Fixed database flag parsing issue in objects API:
+  - Resolved issue where object flags were returned as JSON strings instead of parsed objects
+  - Updated /api/objects endpoint to properly parse flags field from database
+  - Fixed individual object details endpoint to ensure flags are correctly formatted
+  - Objects page now displays all flag details correctly instead of showing empty arrays
+  - Improved OpenAI integration to use actual database objects and segments for accurate suggestions
 
 ## User Preferences
 
