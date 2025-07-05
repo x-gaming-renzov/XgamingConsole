@@ -468,7 +468,7 @@ export default function ObjectDetails() {
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-1">
-                              {experience.variants.map((variant, index) => (
+                              {(experience.variants || []).map((variant, index) => (
                                 <Badge key={index} variant="outline" className="text-xs">
                                   {variant}
                                 </Badge>
