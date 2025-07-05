@@ -1,8 +1,10 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
-import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
@@ -14,11 +16,19 @@ interface ConsoleLayoutProps {
 export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
+  const [selectedProject, setSelectedProject] = useState("project-1");
 
   const handleLogout = () => {
     logout();
     setLocation("/");
   };
+
+  // Mock projects - in real app, this would come from API
+  const projects = [
+    { id: "project-1", name: "Mobile RPG", description: "Main game project" },
+    { id: "project-2", name: "Puzzle Quest", description: "Casual puzzle game" },
+    { id: "project-3", name: "Racing Elite", description: "Racing game project" }
+  ];
 
   const navigationItems = [
     {
@@ -64,7 +74,7 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
       <div className="min-h-screen flex w-full bg-background">
         <Sidebar className="border-r border-border">
           <SidebarHeader className="p-6 border-b border-border">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-primary" />
               </div>
@@ -72,6 +82,26 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
                 <h2 className="font-bold text-foreground">Xgaming Nova</h2>
                 <p className="text-xs text-muted-foreground">FTUE Console</p>
               </div>
+            </div>
+            
+            {/* Project Selector */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">PROJECT</p>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div>
+                        <div className="font-medium">{project.name}</div>
+                        <div className="text-xs text-muted-foreground">{project.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </SidebarHeader>
           
@@ -116,12 +146,29 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
 
               {/* Bottom Actions */}
               <div className="pt-4 border-t border-border space-y-2">
-                <Link href="/settings">
-                  <Button variant="ghost" className="w-full justify-start text-muted-foreground">
-                    <Settings className="w-4 h-4 mr-3" />
-                    Settings
-                  </Button>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                      <Settings className="w-4 h-4 mr-3" />
+                      Settings
+                      <ChevronDown className="w-4 h-4 ml-auto" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <Link href="/personal-settings">
+                      <DropdownMenuItem>
+                        Personal Settings
+                      </DropdownMenuItem>
+                    </Link>
+                    <Link href="/project-settings">
+                      <DropdownMenuItem>
+                        Project Settings
+                      </DropdownMenuItem>
+                    </Link>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button 
                   variant="ghost" 
                   className="w-full justify-start text-muted-foreground hover:text-destructive"

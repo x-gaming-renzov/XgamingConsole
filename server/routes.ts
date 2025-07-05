@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSegmentSchema } from "@shared/schema";
+import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSegmentSchema, insertTeamMemberSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -1017,6 +1017,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ objectCount, campaignCount });
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch manifest info" });
+    }
+  });
+
+  // Team member endpoints
+  app.get("/api/team-members/:projectId", authenticateToken, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const teamMembers = await storage.getTeamMembersByProjectId(projectId);
+      res.json(teamMembers);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch team members" });
+    }
+  });
+
+  app.post("/api/team-members", authenticateToken, async (req, res) => {
+    try {
+      const validation = insertTeamMemberSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Invalid team member data", errors: validation.error.errors });
+      }
+
+      const teamMemberData = {
+        ...validation.data,
+        invitedBy: req.user.userId
+      };
+
+      const teamMember = await storage.createTeamMember(teamMemberData);
+      res.status(201).json(teamMember);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create team member" });
+    }
+  });
+
+  app.delete("/api/team-members/:id", authenticateToken, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTeamMember(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Team member not found" });
+      }
+
+      res.json({ message: "Team member removed successfully" });
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to remove team member" });
     }
   });
 

@@ -15,6 +15,8 @@ import Experiences from "@/pages/experiences";
 import ExperienceDetails from "@/pages/experience-details";
 import ExperienceWizard from "@/pages/experience-wizard";
 import Settings from "@/pages/settings";
+import PersonalSettings from "@/pages/personal-settings";
+import ProjectSettings from "@/pages/project-settings";
 
 import NotFound from "@/pages/not-found";
 
@@ -33,6 +35,8 @@ function Router() {
       <Route path="/experiences/new" component={ExperienceWizard} />
       <Route path="/experience-wizard" component={ExperienceWizard} />
       <Route path="/settings" component={Settings} />
+      <Route path="/personal-settings" component={PersonalSettings} />
+      <Route path="/project-settings" component={ProjectSettings} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>

@@ -133,6 +133,18 @@ Changelog:
   - Added API endpoints for object details, usage tracking, and history
   - Replaced all hardcoded mock data with real database queries
   - Fixed frontend components to use API data instead of static content
+- July 05, 2025. Implemented project-based settings architecture with restructured navigation:
+  - Updated sidebar to include project selector dropdown and settings menu
+  - Replaced single settings link with dropdown containing Personal Settings and Project Settings
+  - Created Personal Settings page (/personal-settings) with Profile and Members tabs:
+    * Profile tab: Account information, security settings, API key management
+    * Members tab: Team member management with role assignments and invitation system
+  - Created Project Settings page (/project-settings) with Billing, Knowledge Base, and Integrations tabs:
+    * Billing tab: Credit balance, payment methods, transaction history
+    * Knowledge Base tab: Document upload/management for LLM citations
+    * Integrations tab: Slack integration and notification settings
+  - Added team member API endpoints for CRUD operations
+  - Implemented project selector with mock project data in sidebar header
 
 ## User Preferences
 
