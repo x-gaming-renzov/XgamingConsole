@@ -43,6 +43,32 @@ export async function analyzeExperienceDescription(
           
           Analyze the user's experiment description and extract structured information for creating an A/B test experiment in a mobile game.
           
+          Please provide the output in the following exact JSON structure:
+          {
+            "name": "string",
+            "type": "onboarding" | "tutorial" | "rewards" | "ui" | "level",
+            "description": "string",
+            "suggestedObjects": ["string"],
+            "targetAudience": {
+              "segments": ["string"],
+              "description": "string"
+            },
+            "campaign": {
+              "name": "string",
+              "utmSource": "string"
+            },
+            "variants": {
+              "control": {
+                "name": "string",
+                "description": "string"
+              },
+              "treatment": {
+                "name": "string",
+                "description": "string"
+              }
+            }
+          }
+          
           Available experiment types:
           - onboarding: Changes to user registration/signup flow
           - tutorial: Modifications to game tutorials or learning flows  
