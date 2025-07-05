@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Settings, DollarSign, Users, TrendingUp, Package } from "lucide-react";
+import { Search, Plus, DollarSign, Users, TrendingUp, Package } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
@@ -86,6 +87,17 @@ export default function Campaigns() {
               <div>
                 <Label htmlFor="label">Label (optional)</Label>
                 <Input id="label" placeholder="e.g., Q1 Acquisition Campaign" />
+              </div>
+              <div>
+                <Label htmlFor="launchDate">Launch Date</Label>
+                <Input 
+                  id="launchDate" 
+                  type="datetime-local" 
+                  defaultValue={new Date().toISOString().slice(0, 16)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Past dates will activate the campaign immediately
+                </p>
               </div>
               <Button className="w-full">Create Campaign</Button>
             </div>
@@ -177,14 +189,17 @@ export default function Campaigns() {
                   <TableHead>Revenue</TableHead>
                   <TableHead>Flag Bundle</TableHead>
                   <TableHead>Allocation</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => {
                   const retentionBadge = getRetentionBadge(campaign.d0Retention, metrics?.avgD0Retention || 0);
                   return (
-                    <TableRow key={campaign.id}>
+                    <TableRow 
+                      key={campaign.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => window.location.href = `/campaigns/${campaign.id}`}
+                    >
                       <TableCell>
                         <div>
                           <div className="font-medium">{campaign.name}</div>
@@ -209,12 +224,6 @@ export default function Campaigns() {
                         </Badge>
                       </TableCell>
                       <TableCell>{campaign.allocation}%</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm">
-                          <Settings className="w-4 h-4 mr-2" />
-                          Manage
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   );
                 })}

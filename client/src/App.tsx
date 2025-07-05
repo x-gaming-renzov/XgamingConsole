@@ -8,6 +8,7 @@ import Landing from "@/pages/landing";
 import Console from "@/pages/console";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
+import CampaignDetails from "@/pages/campaign-details";
 import Segments from "@/pages/segments";
 import Objects from "@/pages/objects";
 import ObjectDetails from "@/pages/object-details";
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/console" component={Console} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/campaigns" component={Campaigns} />
+      <Route path="/campaigns/:campaignId" component={CampaignDetails} />
       <Route path="/segments" component={Segments} />
       <Route path="/objects" component={Objects} />
       <Route path="/objects/:id" component={ObjectDetails} />
