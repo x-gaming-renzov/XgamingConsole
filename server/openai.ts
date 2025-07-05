@@ -95,8 +95,14 @@ export async function analyzeExperienceDescription(
           Available objects to personalize (these are the exact object names from the database):
           ${objects.map(obj => `- "${obj.name}": ${obj.description || obj.type || 'Game object'}${obj.flags ? '\n    Flags: ' + obj.flags.map((f: any) => `${f.key} (${f.type}, default: ${f.defaultValue})`).join(', ') : ''}`).join('\n          ')}
           
-          IMPORTANT: Use the exact object names in quotes as they appear above for the suggestedObjects array.
-          For each suggested object, provide specific flag values in the objectVariants section based on the experiment description.
+          IMPORTANT: 
+          - Use the exact object names in quotes as they appear above for the suggestedObjects array.
+          - Suggest ALL relevant objects needed for the experiment, not just one. For example:
+            * For coin/reward experiments: include both "Currency System" AND the relevant level/popup objects
+            * For level-based experiments: include both the level object AND any reward/UI objects affected
+            * For onboarding experiments: include tutorial objects AND any UI/reward objects shown
+          - For each suggested object, provide specific flag values in the objectVariants section based on the experiment description.
+          - Think comprehensively about what objects need to work together to create the complete experience.
           
           Available user segments (these are the exact segment names from the database):
           ${segments.map(seg => `- "${seg.name}"`).join('\n          ')}
@@ -116,7 +122,14 @@ export async function analyzeExperienceDescription(
         },
         {
           role: "user",
-          content: `Analyze this experiment idea: "${description}"`
+          content: `Analyze this experiment idea: "${description}"
+
+Examples of comprehensive object selection:
+- "Double coins for level 5 players" → Select: ["Level 5 Tutorial", "Currency System"] 
+- "Welcome popup for new users" → Select: ["Welcome Popup", "Onboarding Flow"]
+- "Tutorial skip for TikTok users" → Select: ["Level 5 Tutorial", "Onboarding Flow"]
+
+Make sure to select ALL objects that need to work together for this experiment.`
         }
       ],
       response_format: { type: "json_object" },
