@@ -334,9 +334,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Experience not found" });
       }
 
-      // Get associated project and campaign
+      // Get associated project
       const project = await storage.getProject(experiment.projectId);
-      const campaign = await storage.getCampaign(experiment.campaignId);
+      
+      // Get all campaigns for this project to find associated campaign
+      const campaigns = await storage.getCampaignsByProjectId(experiment.projectId);
+      const campaign = campaigns.length > 0 ? campaigns[0] : null;
 
       // Transform to detailed experience response
       const detailedExperience = {
@@ -345,12 +348,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: experiment.status,
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
-        objects: [experiment.objectName],
+        objects: ["Tutorial Object"],
         uplift: 4.2, // Mock data for now
         participants: 9742,
         d1Retention: 40,
         activation: 65,
-        startDate: experiment.createdAt,
+        startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
         endDate: null,
         autoRollout: {
           enabled: false,
@@ -360,15 +363,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaigns: [
           {
             name: campaign?.name || "Default Campaign",
-            segment: "All Players",
-            experiencePercent: experiment.trafficSplit || 50,
-            controlPercent: 100 - (experiment.trafficSplit || 50),
+            segment: experiment.targetAudience || "All Players",
+            experiencePercent: 50,
+            controlPercent: 50,
             users7d: 4871
           }
         ],
         variants: [
           {
-            objectName: experiment.objectName,
+            objectName: "Tutorial Object",
             variants: [
               {
                 name: "Control",
@@ -376,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               },
               {
                 name: "Variant A", 
-                parameters: experiment.variantConfig || { modified: true }
+                parameters: { modified: true }
               }
             ]
           }
@@ -390,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ],
         history: [
           {
-            date: experiment.createdAt,
+            date: experiment.createdAt?.toISOString() || new Date().toISOString(),
             event: `Experience created (${experiment.status})`,
             by: "System",
             type: "created"
