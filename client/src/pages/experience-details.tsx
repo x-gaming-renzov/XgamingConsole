@@ -139,11 +139,25 @@ export default function ExperienceDetails() {
   const getPrimaryAction = (status: string) => {
     switch (status) {
       case "draft": return { label: "Launch", icon: Play };
-      case "active": return { label: "Adjust Split", icon: Settings };
+      case "active": return null; // No primary action when active
       case "rolling_out": return { label: "Pause Roll-out", icon: Pause };
       case "paused": return { label: "Resume", icon: Play };
       case "completed": return { label: "Duplicate", icon: Copy };
       default: return { label: "Edit", icon: Edit2 };
+    }
+  };
+
+  const getSecondaryActions = (status: string) => {
+    switch (status) {
+      case "active": return [
+        { label: "Pause", icon: Pause },
+        { label: "Archive", icon: Archive }
+      ];
+      case "paused": return [
+        { label: "Adjust Split", icon: Settings },
+        { label: "Archive", icon: Archive }
+      ];
+      default: return [];
     }
   };
 
@@ -180,6 +194,7 @@ export default function ExperienceDetails() {
   }
 
   const primaryAction = getPrimaryAction(experience.status);
+  const secondaryActions = getSecondaryActions(experience.status);
 
   return (
     <div className="min-h-screen bg-background">
@@ -223,10 +238,20 @@ export default function ExperienceDetails() {
                 </Badge>
               </div>
             </div>
-            <Button>
-              <primaryAction.icon className="w-4 h-4 mr-2" />
-              {primaryAction.label}
-            </Button>
+            <div className="flex items-center space-x-2">
+              {primaryAction && (
+                <Button>
+                  <primaryAction.icon className="w-4 h-4 mr-2" />
+                  {primaryAction.label}
+                </Button>
+              )}
+              {secondaryActions.map((action, index) => (
+                <Button key={index} variant="outline">
+                  <action.icon className="w-4 h-4 mr-2" />
+                  {action.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

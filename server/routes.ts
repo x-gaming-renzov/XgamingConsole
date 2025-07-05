@@ -369,21 +369,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
             users7d: 4871
           }
         ],
-        variants: [
-          {
+        variants: (() => {
+          try {
+            // Parse the object variants from the experiment if available
+            if (experiment.objectVariants) {
+              const objectVariants = typeof experiment.objectVariants === 'string' 
+                ? JSON.parse(experiment.objectVariants) 
+                : experiment.objectVariants;
+              
+              // Convert to the expected format
+              return Object.entries(objectVariants).map(([objectId, data]: [string, any]) => ({
+                objectName: `Object ${objectId}`,
+                variants: data.variants?.map((variant: any, index: number) => ({
+                  name: variant.name || (index === 0 ? "Control" : `Variant ${String.fromCharCode(65 + index - 1)}`),
+                  parameters: variant.values || {}
+                })) || [
+                  { name: "Control", parameters: {} },
+                  { name: "Variant A", parameters: {} }
+                ]
+              }));
+            }
+          } catch (e) {
+            console.error('Error parsing object variants:', e);
+          }
+          
+          // Fallback to default structure
+          return [{
             objectName: "Tutorial Object",
             variants: [
-              {
-                name: "Control",
-                parameters: { original: true }
-              },
-              {
-                name: "Variant A", 
-                parameters: { modified: true }
-              }
+              { name: "Control", parameters: {} },
+              { name: "Variant A", parameters: {} }
             ]
-          }
-        ],
+          }];
+        })(),
         metrics: [
           { date: "2025-07-08", control: 38, variantA: 42 },
           { date: "2025-07-09", control: 39, variantA: 43 },
