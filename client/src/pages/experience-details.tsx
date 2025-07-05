@@ -430,22 +430,22 @@ export default function ExperienceDetails() {
               )}
             </div>
 
-            <div className="space-y-4">
+            <Accordion type="single" collapsible className="space-y-4">
               {(experience.variants || []).map((objectVariant, objectIndex) => (
-                <Card key={objectIndex}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
+                <AccordionItem key={objectIndex} value={`object-${objectIndex}`}>
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center justify-between w-full mr-4">
                       <span>{objectVariant?.objectName || 'Unnamed Object'} – {(objectVariant?.variants || []).length} variant{(objectVariant?.variants || []).length > 1 ? 's' : ''}</span>
                       {experience.status === "paused" && (
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
                           <Settings className="w-4 h-4 mr-2" />
                           Configure
                         </Button>
                       )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid gap-4 md:grid-cols-2 pt-4">
                       {(objectVariant?.variants || []).map((variant, variantIndex) => (
                         <Card key={variantIndex} className="border-2">
                           <CardHeader>
@@ -491,10 +491,10 @@ export default function ExperienceDetails() {
                         </Card>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
 
             {(experience.variants || []).length === 0 && (
               <Card>

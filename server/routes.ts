@@ -378,16 +378,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 : experiment.variants;
               
               // Convert to the expected format
-              return Object.entries(variants).map(([objectId, data]: [string, any]) => ({
-                objectName: `Object ${objectId}`,
-                variants: data.variants?.map((variant: any, index: number) => ({
-                  name: variant.name || (index === 0 ? "Control" : `Variant ${String.fromCharCode(65 + index - 1)}`),
-                  parameters: variant.values || {}
-                })) || [
-                  { name: "Control", parameters: {} },
-                  { name: "Variant A", parameters: {} }
-                ]
-              }));
+              return Object.entries(variants).map(([objectId, data]: [string, any]) => {
+                const variantList = data.variants || [];
+                const formattedVariants = [
+                  // Always include a Control variant
+                  { name: "Control", parameters: {} }
+                ];
+                
+                // Add the actual variants
+                variantList.forEach((variant: any, index: number) => {
+                  formattedVariants.push({
+                    name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
+                    parameters: variant.values || {}
+                  });
+                });
+                
+                return {
+                  objectName: `Object ${objectId}`,
+                  variants: formattedVariants
+                };
+              });
             }
           } catch (e) {
             console.error('Error parsing variants:', e);
