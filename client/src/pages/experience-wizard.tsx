@@ -211,8 +211,7 @@ export default function ExperienceWizard() {
           ...objectVariants,
           [objectId]: {
             variants: [
-              { name: "Control", values: defaultValues },
-              { name: "Variant A", values: { ...defaultValues } }
+              { name: "New Variant", values: defaultValues }
             ]
           }
         };
@@ -621,7 +620,7 @@ export default function ExperienceWizard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Configure Variants</CardTitle>
-                  <p className="text-sm text-muted-foreground">Define different versions for each selected object</p>
+                  <p className="text-sm text-muted-foreground">Customize parameters for each selected object</p>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
@@ -639,7 +638,7 @@ export default function ExperienceWizard() {
                               <div className="text-left">
                                 <div className="font-medium">{object?.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {variants?.variants.length || 0} variants
+                                  Ready to customize
                                 </div>
                               </div>
                             </div>
@@ -648,21 +647,9 @@ export default function ExperienceWizard() {
                             <div className="space-y-4 pt-4">
                               {variants?.variants.map((variant, variantIndex) => (
                                 <div key={variantIndex} className="border rounded-lg p-4 bg-accent/20">
-                                  <div className="flex items-center justify-between mb-4">
+                                  <div className="mb-4">
                                     <h4 className="font-medium">{variant.name}</h4>
-                                    <div className="flex items-center space-x-2">
-                                      {variants.variants.length > 1 && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => removeVariant(objectId, variantIndex)}
-                                          className="h-6 w-6 p-0"
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </Button>
-                                      )}
-                                    </div>
+                                    <p className="text-xs text-muted-foreground">Customize the parameters below for this experience</p>
                                   </div>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {object?.flags.map((flag) => (
@@ -703,19 +690,6 @@ export default function ExperienceWizard() {
                                   </div>
                                 </div>
                               ))}
-                              
-                              {variants && variants.variants.length < 3 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => addVariant(objectId)}
-                                  className="w-full"
-                                >
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Add Variant
-                                </Button>
-                              )}
                             </div>
                           </AccordionContent>
                         </AccordionItem>
