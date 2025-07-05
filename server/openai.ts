@@ -46,17 +46,19 @@ export async function analyzeExperienceDescription(description: string): Promise
           - ui: User interface changes, layout modifications
           - level: Level design changes, difficulty adjustments
           
-          Available objects to personalize (choose relevant ones):
-          - Level 5 Tutorial: Tutorial content and progression
-          - Welcome Popup: First-time user welcome messages
-          - Onboarding Flow: User registration and setup process
-          - Reward System: In-game rewards and bonuses
-          - UI Elements: Interface components and layouts
-          - Currency System: Coins, gems, and other currencies
-          - Achievement System: Badges and accomplishments
-          - Social Features: Friend connections and sharing
-          - Push Notifications: Alert messages and timing
-          - In-App Purchase: Store and payment flows
+          Available objects to personalize (these are the exact object names in the system):
+          - "Level 5 Tutorial": Tutorial content and progression
+          - "Welcome Popup": First-time user welcome messages
+          - "Onboarding Flow": User registration and setup process
+          - "Reward System": In-game rewards and bonuses
+          - "UI Elements": Interface components and layouts
+          - "Currency System": Coins, gems, and other currencies
+          - "Achievement System": Badges and accomplishments
+          - "Social Features": Friend connections and sharing
+          - "Push Notifications": Alert messages and timing
+          - "In-App Purchase": Store and payment flows
+          
+          IMPORTANT: Use the exact object names in quotes as they appear above for the suggestedObjects array.
           
           Common user segments:
           - New Users (first 7 days)

@@ -155,6 +155,14 @@ Changelog:
     * History: Chronological timeline of campaign events and modifications
   - Campaign schedule section displays marketing team release dates, not user-editable
   - Full breadcrumb navigation with status badges and action buttons
+- July 05, 2025. Implemented OpenAI integration for AI-powered experience creation:
+  - Created OpenAI service to analyze user descriptions like "Double coins on Level 5 for TikTok users"
+  - Added /api/analyze-experience endpoint for processing natural language experiment ideas
+  - Updated Quick Experience Prompt component to use OpenAI API for draft generation
+  - Modified experience wizard to accept AI analysis data via URL parameters
+  - Added automatic prefilling of wizard steps including objects, campaigns, target audiences, and variants
+  - Implemented object name to ID mapping for proper selection in wizard interface
+  - System can now interpret user intent and suggest relevant objects, segments, and campaign settings
 
 ## User Preferences
 

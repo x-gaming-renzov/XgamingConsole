@@ -145,9 +145,28 @@ export default function ExperienceWizard() {
         setExperienceName(analysis.name || "");
         setExperienceDescription(analysis.description || "");
         
-        // Set suggested objects based on analysis
+        // Set suggested objects based on analysis - map names to IDs
         if (analysis.suggestedObjects && analysis.suggestedObjects.length > 0) {
-          setSelectedObjects(analysis.suggestedObjects);
+          // We need to map object names to IDs after objects are loaded
+          // For now, store the names and map them in a separate effect
+          const objectNameMapping: Record<string, string> = {
+            "Level 5 Tutorial": "1",
+            "Welcome Popup": "2", 
+            "Onboarding Flow": "3",
+            "Reward System": "4",
+            "UI Elements": "5",
+            "Currency System": "6",
+            "Achievement System": "7",
+            "Social Features": "8",
+            "Push Notifications": "9",
+            "In-App Purchase": "10"
+          };
+          
+          const mappedIds = analysis.suggestedObjects
+            .map((name: string) => objectNameMapping[name])
+            .filter(Boolean);
+          
+          setSelectedObjects(mappedIds);
         }
         
         // Set campaign information
@@ -174,20 +193,36 @@ export default function ExperienceWizard() {
         
         // Set variants based on analysis
         if (analysis.variants && analysis.suggestedObjects) {
+          const objectNameMapping: Record<string, string> = {
+            "Level 5 Tutorial": "1",
+            "Welcome Popup": "2", 
+            "Onboarding Flow": "3",
+            "Reward System": "4",
+            "UI Elements": "5",
+            "Currency System": "6",
+            "Achievement System": "7",
+            "Social Features": "8",
+            "Push Notifications": "9",
+            "In-App Purchase": "10"
+          };
+          
           const variants: ObjectVariants = {};
-          analysis.suggestedObjects.forEach((objId: string) => {
-            variants[objId] = {
-              variants: [
-                {
-                  name: analysis.variants.control.name || "Control",
-                  values: { enabled: false }
-                },
-                {
-                  name: analysis.variants.treatment.name || "Treatment",
-                  values: { enabled: true }
-                }
-              ]
-            };
+          analysis.suggestedObjects.forEach((objName: string) => {
+            const objId = objectNameMapping[objName];
+            if (objId) {
+              variants[objId] = {
+                variants: [
+                  {
+                    name: analysis.variants.control.name || "Control",
+                    values: { enabled: false }
+                  },
+                  {
+                    name: analysis.variants.treatment.name || "Treatment",
+                    values: { enabled: true }
+                  }
+                ]
+              };
+            }
           });
           setObjectVariants(variants);
         }
