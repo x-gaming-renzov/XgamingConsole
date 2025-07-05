@@ -52,39 +52,46 @@ export default function QuickExperiencePrompt({ open, onClose }: QuickExperience
     setIsGenerating(true);
     
     try {
-      // Make API call to generate draft
-      const response = await fetch("/api/ai/experience_draft", {
+      // Make API call to analyze experience description
+      const response = await fetch("/api/analyze-experience", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`
+        },
         body: JSON.stringify({
-          prompt: prompt.trim(),
-          campaignHint: campaignHint || undefined
+          description: prompt.trim()
         })
       });
 
-      const draft: ExperienceDraft = await response.json();
+      if (!response.ok) {
+        throw new Error("Failed to analyze experience");
+      }
+
+      const analysis = await response.json();
       
-      // Close modal and navigate to wizard with draft ID
+      // Close modal and navigate to wizard with analysis data
       onClose();
-      setLocation(`/experiences/new?draft=${draft.draftId}`);
+      const analysisData = encodeURIComponent(JSON.stringify(analysis));
+      setLocation(`/experiences/new?analysis=${analysisData}`);
       
       toast({
-        title: "Draft Created",
-        description: "AI has generated your experience template. Review and customize before launching."
+        title: "Experience Analyzed",
+        description: "AI has analyzed your idea and prefilled the experience wizard. Review and customize before launching."
       });
       
     } catch (error) {
-      console.error("Failed to generate draft:", error);
+      console.error("Failed to analyze experience:", error);
       
-      // Show fallback dialog
-      const shouldContinue = confirm(
-        "Couldn't create draft. Open blank wizard?"
-      );
+      toast({
+        title: "Analysis Failed",
+        description: "Couldn't analyze your experience. Opening blank wizard instead.",
+        variant: "destructive"
+      });
       
-      if (shouldContinue) {
-        onClose();
-        setLocation("/experiences/new");
-      }
+      // Open blank wizard as fallback
+      onClose();
+      setLocation("/experiences/new");
       
     } finally {
       setIsGenerating(false);

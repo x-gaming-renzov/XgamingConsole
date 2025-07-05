@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSegmentSchema, insertTeamMemberSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { analyzeExperienceDescription } from "./openai";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -1081,6 +1082,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ objectCount, campaignCount });
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch manifest info" });
+    }
+  });
+
+  // OpenAI experience analysis
+  app.post("/api/analyze-experience", authenticateToken, async (req, res) => {
+    try {
+      const { description } = req.body;
+      
+      if (!description || description.trim().length < 10) {
+        return res.status(400).json({ message: "Description must be at least 10 characters long" });
+      }
+
+      const analysis = await analyzeExperienceDescription(description);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Experience analysis failed:", error);
+      res.status(500).json({ message: "Failed to analyze experience description" });
     }
   });
 

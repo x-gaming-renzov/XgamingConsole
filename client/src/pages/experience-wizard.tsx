@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -131,6 +131,76 @@ export default function ExperienceWizard() {
     estimatedUsers: number;
   }>>([]);
   const [segmentSearchQuery, setSegmentSearchQuery] = useState("");
+  
+  // Check for AI analysis data in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const analysisParam = urlParams.get('analysis');
+    
+    if (analysisParam) {
+      try {
+        const analysis = JSON.parse(decodeURIComponent(analysisParam));
+        
+        // Prefill form with AI analysis data
+        setExperienceName(analysis.name || "");
+        setExperienceDescription(analysis.description || "");
+        
+        // Set suggested objects based on analysis
+        if (analysis.suggestedObjects && analysis.suggestedObjects.length > 0) {
+          setSelectedObjects(analysis.suggestedObjects);
+        }
+        
+        // Set campaign information
+        if (analysis.campaign) {
+          setNewCampaign({
+            name: analysis.campaign.name || "",
+            utmSource: analysis.campaign.utmSource || "",
+            dailyTraffic: 1000 // Default value
+          });
+          setCampaignType("new");
+        }
+        
+        // Set target audience based on analysis
+        if (analysis.targetAudience && analysis.targetAudience.segments) {
+          setTargetAudience("segments");
+          const segments = analysis.targetAudience.segments.map((segmentName: string, index: number) => ({
+            id: `segment-${index}`,
+            name: segmentName,
+            split: 50, // Default split
+            estimatedUsers: 1000 // Default estimate
+          }));
+          setSelectedSegments(segments);
+        }
+        
+        // Set variants based on analysis
+        if (analysis.variants && analysis.suggestedObjects) {
+          const variants: ObjectVariants = {};
+          analysis.suggestedObjects.forEach((objId: string) => {
+            variants[objId] = {
+              variants: [
+                {
+                  name: analysis.variants.control.name || "Control",
+                  values: { enabled: false }
+                },
+                {
+                  name: analysis.variants.treatment.name || "Treatment",
+                  values: { enabled: true }
+                }
+              ]
+            };
+          });
+          setObjectVariants(variants);
+        }
+        
+        // Remove analysis parameter from URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        
+      } catch (error) {
+        console.error("Failed to parse analysis data:", error);
+      }
+    }
+  }, []);
   
   const form = useForm<ExperienceForm>({
     resolver: zodResolver(experienceSchema),
