@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,32 @@ export default function Campaigns() {
     queryKey: ["/api/campaigns"],
   });
 
+  const createCampaignMutation = useMutation({
+    mutationFn: async (campaignData: { utmSource: string; label: string; launchDate: string }) => {
+      // For now, just simulate the API call and return a mock campaign
+      const newCampaign: Campaign = {
+        id: Date.now(), // Use timestamp as simple ID
+        name: campaignData.label || `${campaignData.utmSource} Campaign`,
+        utmSource: campaignData.utmSource,
+        utmCampaign: campaignData.label || campaignData.utmSource,
+        installs: 0,
+        d0Retention: 0,
+        d1Retention: 0,
+        revenue: 0,
+        flagBundle: "New Bundle",
+        allocation: 0,
+        status: "Draft" as const
+      };
+      return newCampaign;
+    },
+    onSuccess: (newCampaign) => {
+      // Optimistically update the campaigns list
+      queryClient.setQueryData(["/api/campaigns"], (oldCampaigns: Campaign[] | undefined) => {
+        return oldCampaigns ? [...oldCampaigns, newCampaign] : [newCampaign];
+      });
+    }
+  });
+
   const filteredCampaigns = campaigns?.filter(campaign =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     campaign.utmSource.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -63,25 +90,29 @@ export default function Campaigns() {
     return { label: "Normal", variant: "secondary" as const };
   };
 
-  const handleCreateCampaign = () => {
+  const handleCreateCampaign = async () => {
     if (!newCampaign.utmSource.trim()) {
       alert("UTM Source is required");
       return;
     }
 
-    // Mock campaign creation - in real app this would call API
-    console.log("Creating campaign:", newCampaign);
-    
-    // Reset form and close modal
-    setNewCampaign({
-      utmSource: "",
-      label: "",
-      launchDate: new Date().toISOString().slice(0, 16)
-    });
-    setShowNewCampaign(false);
-    
-    // Show success message
-    alert(`Campaign created successfully! UTM Source: ${newCampaign.utmSource}`);
+    try {
+      await createCampaignMutation.mutateAsync(newCampaign);
+      
+      // Reset form and close modal
+      setNewCampaign({
+        utmSource: "",
+        label: "",
+        launchDate: new Date().toISOString().slice(0, 16)
+      });
+      setShowNewCampaign(false);
+      
+      // Show success message
+      alert(`Campaign created successfully! UTM Source: ${newCampaign.utmSource}`);
+    } catch (error) {
+      console.error("Failed to create campaign:", error);
+      alert("Failed to create campaign. Please try again.");
+    }
   };
 
   return (
