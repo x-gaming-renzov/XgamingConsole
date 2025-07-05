@@ -199,7 +199,7 @@ export default function ObjectDetails() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="parameters">Parameters</TabsTrigger>
+            <TabsTrigger value="variants">Variants</TabsTrigger>
             <TabsTrigger value="usage">Usage</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
@@ -317,12 +317,12 @@ export default function ObjectDetails() {
           </TabsContent>
 
           {/* Parameters Tab */}
-          <TabsContent value="parameters" className="space-y-6">
+          <TabsContent value="variants" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium">Parameters</h3>
+                <h3 className="text-lg font-medium">Variants</h3>
                 <p className="text-sm text-muted-foreground">
-                  Configure the flags that can be modified in this object
+                  Manage all variants and their properties including default/control variant
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -337,63 +337,71 @@ export default function ObjectDetails() {
               </div>
             </div>
 
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Parameter (key)</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Default</TableHead>
-                      <TableHead>Min</TableHead>
-                      <TableHead>Max</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(objectDetails.flags || []).map((flag, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <code className="bg-muted px-2 py-1 rounded text-sm">
-                              {flag.key}
-                            </code>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => copyToClipboard(flag.key)}
-                            >
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{flag.type}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-sm">{String(flag.defaultValue)}</code>
-                        </TableCell>
-                        <TableCell>
-                          {flag.min !== undefined ? flag.min : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {flag.max !== undefined ? flag.max : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {flag.description}
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" disabled>
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {(objectDetails.variants || []).map((variant, index) => (
+                <Card key={variant.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CardTitle className="text-lg">{variant.name}</CardTitle>
+                        {variant.isDefault && (
+                          <Badge variant="secondary">Default</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-muted-foreground">
+                          {variant.allocation}% allocation
+                        </span>
+                        <Button variant="ghost" size="sm">
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Parameter</TableHead>
+                          <TableHead>Value</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(variant.parameters).map(([key, value]) => (
+                          <TableRow key={key}>
+                            <TableCell>
+                              <code className="bg-muted px-2 py-1 rounded text-sm">
+                                {key}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              <input
+                                type={typeof value === 'boolean' ? 'checkbox' : typeof value === 'number' ? 'number' : 'text'}
+                                defaultValue={typeof value === 'boolean' ? undefined : value.toString()}
+                                defaultChecked={typeof value === 'boolean' ? value : undefined}
+                                className="w-full px-2 py-1 border rounded text-sm"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {typeof value}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm">
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
           {/* Usage Tab */}

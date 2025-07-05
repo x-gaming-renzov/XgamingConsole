@@ -597,37 +597,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Object not found" });
       }
 
-      // Mock stats and flags for now - in production would come from analytics and actual object configuration
-      const mockFlags = [
+      // Mock variants data - in production would come from actual object configuration
+      const mockVariants = [
         {
-          key: "starting_coins",
-          type: "number" as const,
-          defaultValue: 100,
-          description: "Initial coins given to player",
-          min: 0,
-          max: 1000
+          id: "control",
+          name: "Control",
+          isDefault: true,
+          allocation: 50,
+          parameters: {
+            starting_coins: 100,
+            enemy_speed: 1.5,
+            show_tutorial: true
+          }
         },
         {
-          key: "enemy_speed",
-          type: "number" as const,
-          defaultValue: 1.5,
-          description: "Speed multiplier for enemies",
-          min: 0.1,
-          max: 3.0
+          id: "variant_a",
+          name: "Variant A",
+          isDefault: false,
+          allocation: 30,
+          parameters: {
+            starting_coins: 150,
+            enemy_speed: 1.2,
+            show_tutorial: true
+          }
         },
         {
-          key: "show_tutorial",
-          type: "boolean" as const,
-          defaultValue: true,
-          description: "Whether to show tutorial popup"
+          id: "variant_b",
+          name: "Variant B",
+          isDefault: false,
+          allocation: 20,
+          parameters: {
+            starting_coins: 200,
+            enemy_speed: 1.0,
+            show_tutorial: false
+          }
         }
       ];
 
       const objectDetails = {
         ...object,
-        flags: mockFlags,
+        variants: mockVariants,
         stats: {
-          variants: mockFlags.length,
+          variants: mockVariants.length,
           usedByExperiences: 2,
           players7d: 48102,
           lastModified: "1 hour ago"
