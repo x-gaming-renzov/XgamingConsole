@@ -250,7 +250,7 @@ export default function ExperienceDetails() {
                     <TrendingUp className="w-5 h-5 text-green-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">Uplift</p>
-                      <p className="text-2xl font-bold text-green-500">+{experience.uplift}%</p>
+                      <p className="text-2xl font-bold text-green-500">+{experience.uplift || 0}%</p>
                       <p className="text-xs text-muted-foreground">rolling 7d</p>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export default function ExperienceDetails() {
                     <Users className="w-5 h-5 text-blue-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">Participants</p>
-                      <p className="text-2xl font-bold">{experience.participants.toLocaleString()}</p>
+                      <p className="text-2xl font-bold">{experience.participants?.toLocaleString() || '0'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -275,7 +275,7 @@ export default function ExperienceDetails() {
                     <Target className="w-5 h-5 text-purple-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">D1 Retention</p>
-                      <p className="text-2xl font-bold">{experience.d1Retention}%</p>
+                      <p className="text-2xl font-bold">{experience.d1Retention || 0}%</p>
                     </div>
                   </div>
                 </CardContent>
@@ -287,7 +287,7 @@ export default function ExperienceDetails() {
                     <Calendar className="w-5 h-5 text-orange-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">Activation</p>
-                      <p className="text-2xl font-bold">{experience.activation}%</p>
+                      <p className="text-2xl font-bold">{experience.activation || 0}%</p>
                     </div>
                   </div>
                 </CardContent>
@@ -307,7 +307,7 @@ export default function ExperienceDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {experience.campaigns.map((campaign, index) => (
+                  {(experience.campaigns || []).map((campaign, index) => (
                     <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="grid grid-cols-5 gap-4 flex-1">
                         <div>
@@ -330,7 +330,7 @@ export default function ExperienceDetails() {
                           <p className="font-medium">{campaign.users7d.toLocaleString()}</p>
                         </div>
                       </div>
-                      {experience.autoRollout.enabled && (
+                      {experience.autoRollout?.enabled && (
                         <Badge variant="secondary" className="ml-4">Auto-rollout</Badge>
                       )}
                     </div>
@@ -346,7 +346,7 @@ export default function ExperienceDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {experience.objects.map((object, index) => (
+                  {(experience.objects || []).map((object, index) => (
                     <div 
                       key={index}
                       className="flex items-center justify-between p-3 border rounded cursor-pointer hover:bg-muted/50"
@@ -376,10 +376,10 @@ export default function ExperienceDetails() {
                     <p className="font-medium">{experience.endDate ? new Date(experience.endDate).toLocaleString() : "None"}</p>
                   </div>
                 </div>
-                {experience.autoRollout.enabled && (
+                {experience.autoRollout?.enabled && (
                   <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-sm">
-                      <strong>Auto-rollout rule:</strong> Convert to 100% if D1 uplift ≥ {experience.autoRollout.upliftThreshold}% after {experience.autoRollout.minUsers.toLocaleString()} users.
+                      <strong>Auto-rollout rule:</strong> Convert to 100% if D1 uplift ≥ {experience.autoRollout?.upliftThreshold || 0}% after {experience.autoRollout?.minUsers?.toLocaleString() || '0'} users.
                     </p>
                   </div>
                 )}
@@ -404,10 +404,10 @@ export default function ExperienceDetails() {
             </div>
 
             <Accordion type="single" collapsible className="space-y-4">
-              {experience.variants.map((objectVariant, index) => (
+              {(experience.variants || []).map((objectVariant, index) => (
                 <AccordionItem key={index} value={`object-${index}`}>
                   <AccordionTrigger className="text-lg font-semibold">
-                    {objectVariant.objectName} – {objectVariant.variants.length} variant{objectVariant.variants.length > 1 ? 's' : ''}
+                    {objectVariant?.objectName || 'Unnamed Object'} – {(objectVariant?.variants || []).length} variant{(objectVariant?.variants || []).length > 1 ? 's' : ''}
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="overflow-x-auto">
@@ -415,21 +415,21 @@ export default function ExperienceDetails() {
                         <thead>
                           <tr className="border-b">
                             <th className="text-left p-3 font-medium">Parameter</th>
-                            {objectVariant.variants.map((variant, vIndex) => (
+                            {(objectVariant?.variants || []).map((variant, vIndex) => (
                               <th key={vIndex} className="text-left p-3 font-medium">
-                                {variant.name}
+                                {variant?.name || 'Unnamed Variant'}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.keys(objectVariant.variants[0]?.parameters || {}).map((param) => (
+                          {Object.keys((objectVariant?.variants || [])[0]?.parameters || {}).map((param) => (
                             <tr key={param} className="border-b">
                               <td className="p-3 font-mono text-sm">{param}</td>
-                              {objectVariant.variants.map((variant, vIndex) => (
+                              {(objectVariant?.variants || []).map((variant, vIndex) => (
                                 <td key={vIndex} className="p-3">
                                   <code className="bg-muted px-2 py-1 rounded text-sm">
-                                    {JSON.stringify(variant.parameters[param])}
+                                    {JSON.stringify(variant?.parameters?.[param] || 'undefined')}
                                   </code>
                                 </td>
                               ))}
@@ -510,26 +510,26 @@ export default function ExperienceDetails() {
             <Card>
               <CardContent className="p-6">
                 <div className="space-y-6">
-                  {experience.history.map((event, index) => (
+                  {(experience.history || []).map((event, index) => (
                     <div key={index} className="flex items-start space-x-4">
                       <div className="flex-shrink-0">
                         <div className={`w-3 h-3 rounded-full mt-2 ${
-                          event.type === 'created' ? 'bg-gray-400' :
-                          event.type === 'launched' ? 'bg-green-500' :
-                          event.type === 'split_changed' ? 'bg-blue-500' :
-                          event.type === 'rolled_out' ? 'bg-purple-500' :
-                          event.type === 'paused' ? 'bg-yellow-500' :
+                          event?.type === 'created' ? 'bg-gray-400' :
+                          event?.type === 'launched' ? 'bg-green-500' :
+                          event?.type === 'split_changed' ? 'bg-blue-500' :
+                          event?.type === 'rolled_out' ? 'bg-purple-500' :
+                          event?.type === 'paused' ? 'bg-yellow-500' :
                           'bg-gray-400'
                         }`}></div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium">{event.event}</p>
+                          <p className="font-medium">{event?.event || 'Unknown event'}</p>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(event.date).toLocaleString()}
+                            {event?.date ? new Date(event.date).toLocaleString() : 'Unknown date'}
                           </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">by {event.by}</p>
+                        <p className="text-sm text-muted-foreground">by {event?.by || 'Unknown'}</p>
                       </div>
                     </div>
                   ))}
