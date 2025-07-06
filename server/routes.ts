@@ -594,6 +594,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             campaignActiveExperiences = allExperiments.filter(exp => 
               exp.status === "active" && exp.name.toLowerCase().includes("tiktok")
             ).length;
+          } else if (campaign.utmSource === "google") {
+            // Google campaign gets "Google UAC Welcome Bonus"
+            campaignActiveExperiences = allExperiments.filter(exp => 
+              exp.status === "active" && (exp.name.toLowerCase().includes("google") || exp.name.toLowerCase().includes("uac"))
+            ).length;
           } else {
             // Other campaigns get remaining experiences
             campaignActiveExperiences = 0;
