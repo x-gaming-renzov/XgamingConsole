@@ -253,7 +253,6 @@ export default function Campaigns() {
                   <TableHead>D0 Retention</TableHead>
                   <TableHead>Revenue</TableHead>
                   <TableHead>Flag Bundle</TableHead>
-                  <TableHead>Allocation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -285,10 +284,9 @@ export default function Campaigns() {
                       <TableCell>${campaign.revenue.toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {campaign.flagBundle}
+                          {campaign.flagBundle || "rewards_v2.1"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{campaign.allocation}%</TableCell>
                     </TableRow>
                   );
                 })}
