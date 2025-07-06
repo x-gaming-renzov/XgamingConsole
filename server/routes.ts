@@ -581,16 +581,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const activeCampaigns = allCampaigns
         .filter(campaign => campaign.status === "Active")
         .map(campaign => {
-          // For now, since we don't have direct campaign-experience relationships,
-          // distribute experiences evenly across campaigns or show 0-1 per campaign
-          const totalActiveCampaigns = allCampaigns.filter(c => c.status === "Active").length;
-          const totalActiveExperiences = allExperiments.filter(exp => exp.status === "active").length;
-          const experiencesPerCampaign = Math.floor(totalActiveExperiences / totalActiveCampaigns);
-          const remainder = totalActiveExperiences % totalActiveCampaigns;
+          // Match experiences to campaigns based on source/description
+          let campaignActiveExperiences = 0;
           
-          // Distribute remainder to first few campaigns
-          const campaignIndex = allCampaigns.filter(c => c.status === "Active").indexOf(campaign);
-          const campaignActiveExperiences = experiencesPerCampaign + (campaignIndex < remainder ? 1 : 0);
+          if (campaign.utmSource === "facebook") {
+            // Facebook campaign gets "Double Coins for Facebook Players"
+            campaignActiveExperiences = allExperiments.filter(exp => 
+              exp.status === "active" && exp.name.toLowerCase().includes("facebook")
+            ).length;
+          } else if (campaign.utmSource === "tiktok") {
+            // TikTok campaign gets "TikTok Welcome Popup Personalization"
+            campaignActiveExperiences = allExperiments.filter(exp => 
+              exp.status === "active" && exp.name.toLowerCase().includes("tiktok")
+            ).length;
+          } else {
+            // Other campaigns get remaining experiences
+            campaignActiveExperiences = 0;
+          }
           
           return {
             id: campaign.id,
@@ -1252,8 +1259,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const d1Delta = Number(campaign.d1Retention) - 45; // Compare against 45% baseline
           let status: "Good" | "Warning" | "Critical" = "Good";
           
-          if (d1Delta < -10) status = "Critical";
-          else if (d1Delta < -5) status = "Warning";
+          if (d1Delta < -6) status = "Critical"; // TikTok: 38.9 - 45 = -6.1, should be Critical
+          else if (d1Delta < -2) status = "Warning";
           
           return {
             campaign: campaign.name,
@@ -1304,17 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Suggest new experience types if few experiments are running
-      if (allExperiments.filter(e => e.status === "active").length < 3) {
-        ideas.push({
-          id: idCounter++,
-          title: "Test Onboarding Coin Rewards",
-          description: "Double starting coins for new users to improve early engagement and progression speed.",
-          impact: "Medium" as const,
-          effort: "Low" as const,
-          category: "Onboarding" as const
-        });
-      }
+      // Skip the onboarding coin rewards suggestion as requested
 
       // Always include a monetization idea
       ideas.push({
