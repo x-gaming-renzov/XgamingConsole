@@ -14,7 +14,7 @@ interface DashboardMetrics {
   activeExperiences: number;
   avgD0Retention: number;
   avgD1Retention: number;
-  activationRate: number;
+  sessionLength: number;
   campaignsNeedAttention: boolean;
   activeCampaigns: Array<{
     id: number;
@@ -167,16 +167,16 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Activation Rate</p>
-                <p className="text-2xl font-bold text-foreground">{metrics?.activationRate || 0}%</p>
-                <p className="text-xs text-muted-foreground">% who reach Level 2</p>
+                <p className="text-sm font-medium text-muted-foreground">Session Length</p>
+                <p className="text-2xl font-bold text-foreground">{metrics?.sessionLength || 0} min</p>
+                <p className="text-xs text-muted-foreground">per user</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-primary" />
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              <span className="text-primary">+1.8%</span> from last week
+              <span className="text-primary">+0.3 min</span> from last week
             </p>
           </CardContent>
         </Card>

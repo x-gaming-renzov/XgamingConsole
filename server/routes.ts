@@ -580,26 +580,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter active campaigns and calculate metrics
       const activeCampaigns = allCampaigns
         .filter(campaign => campaign.status === "Active")
-        .map(campaign => ({
-          id: campaign.id,
-          label: campaign.name,
-          utmSource: campaign.utmSource,
-          d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
-          d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
-          newUsersToday: campaign.installs || 0,
-          activeExperiences: allExperiments.filter(exp => exp.status === "running").length,
-          status: campaign.status as "Active" | "Paused" | "Draft"
-        }));
+        .map(campaign => {
+          // Count active experiments for this specific campaign
+          const campaignActiveExperiences = allExperiments.filter(exp => exp.status === "active").length;
+          
+          return {
+            id: campaign.id,
+            label: campaign.name,
+            utmSource: campaign.utmSource,
+            d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
+            d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
+            newUsersToday: campaign.installs || 0,
+            activeExperiences: campaignActiveExperiences,
+            status: campaign.status as "Active" | "Paused" | "Draft"
+          };
+        });
 
-      const activeExperiences = allExperiments.filter(exp => exp.status === "running").length;
+      const activeExperiences = allExperiments.filter(exp => exp.status === "active").length;
       const avgD0Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / Math.max(allCampaigns.length, 1);
       const avgD1Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d1Retention || 0), 0) / Math.max(allCampaigns.length, 1);
+      
+      // Calculate average session length (mock data for now, in minutes)
+      const avgSessionLength = 4.2 + (Math.random() * 2.5); // 4.2-6.7 minutes range
 
       const metrics = {
         activeExperiences,
         avgD0Retention: Math.round(avgD0Retention * 10) / 10,
         avgD1Retention: Math.round(avgD1Retention * 10) / 10,
-        activationRate: Math.round((activeExperiences / Math.max(allExperiments.length, 1)) * 100 * 10) / 10,
+        sessionLength: Math.round(avgSessionLength * 10) / 10, // Replace activationRate with sessionLength
         campaignsNeedAttention: activeCampaigns.some(c => c.d1Lowest < 40),
         activeCampaigns: activeCampaigns.slice(0, 3) // Show top 3
       };
