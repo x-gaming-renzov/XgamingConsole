@@ -85,7 +85,6 @@
 - Has Many `OrganizationMember` entries (for organization-level roles)
 - Has Many `ProjectMember` entries (for project-level roles)
     
-
 ---
 
 ### **4. OrganizationMember (Join Table for Org-Level Roles)**
@@ -99,7 +98,6 @@
 - `role` (Enum: `Owner`, `Admin`, `Member`)
 - `created_at` (Timestamp)
     
-
 ---
 
 ### **5. ProjectMember (Join Table for Project-Level Roles)**
@@ -216,8 +214,9 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `created_by_member_id` (Foreign Key, links to `Member`)
 - `updated_at` (Timestamp)
 - `metrics` (JSONB) (Participants, D1 Retention, Activation as [{metric: "participants", value: 100, type: "number"}, {metric: "d1_retention", value: 35, type: "percentage"}, {metric: "activation", value: 10, type: "percentage"}])  - _Calculated from performance data._
-- `segment_ids` (Array of Strings: Of Experiecne segments)
-- `object_ids` (Array of Strings: Of Experiecne objects)
+- `experience_segment_ids` (Array of Strings: Of Experiecne segments)
+- `experience_object_ids` (Array of Strings: Of Experiecne objects) //Variants are the different configurations of the objects used in the experience. Like control, treatment, etc. have some value for each field for an object.
+- `num_variants` (Integer: Number of variants of the objects used in the experience)
     
 
 **Relationships:**
@@ -225,7 +224,7 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - Belongs To `Project`
 - Belongs To `Campaign` (optional)
 - Has Many `ExperienceSegments`
-- Has Many `ExperienceObjectConfigs`
+- Has Many `ExperienceVariants`
 - Has Many `ExperienceHistoryEntries`
 
 ---
@@ -249,53 +248,20 @@ When a segment is created/edited/deleted, any api call to the engine required?
     
 ---
 
-### **11. ExperienceVariant**
+### **11. ExperienceObjects**
 
-**Purpose:** Represents a specific "variation" or "treatment" within an `Experience`. Each `Experience` can have multiple `ExperienceVariant` entries, including a "Control" and one or more "Treatment" groups.
+**Purpose:** Represents the objects used in an experience. It contains all the variants of the objects used in the experience. Number of variants equal to num_variants in the experience.
 
 **Attributes:**
 
-- `experience_variant_id` (Primary Key, UUID)
+- `experience_object_id` (Primary Key, UUID)
 - `experience_id` (Foreign Key, links to `Experience`)
-- `name` (String, e.g., "Control", "Treatment", "New Variant")
-- `type` (Enum: `Control`, `Treatment`)
-- `split_percentage_within_experience` (Integer: How traffic is split _among the variants_ within the experience)
-- `users` (Integer)
-- `d1_retention` (Float)
-- `uplift` (Float)
-- `p_value` (Float)
-- `created_at` (Timestamp)
-- `updated_at` (Timestamp) 
-
-    
+- `object_id` (Foreign Key, links to `Object`)
+- `variants` (JSONB) (Array of fields, their default values, and their types, e.g. [{"variant_name": "control", "variant_type": "control", "variant_data": {"field_1": "default_value_1", "field_2"s:"default_value_2"}}])
 
 **Relationships:**
 
 - Belongs To `Experience`
-- Has Many `ExperienceVariantObjectConfigs`
-    
-
----
-
-### **12. ExperienceVariantObjectConfig**
-
-**Purpose:** Links an `ExperienceVariant` to the specific `Objects` it overrides and the values it sets for those objects. This is where the feature flag payload for a variant is stored.
-
-**Attributes:**
-
-- `experience_variant_id` (Foreign Key) //an object can have multiple variants. Need to fix this.
-- `object_id` (Foreign Key)
-- `configured_value` (JSONB/Text: The specific value for the object for _this variant_ in _this experience_.)
-- `created_at` (Timestamp)
-    
-
-**Relationships:**
-
-- Belongs To `ExperienceVariant`
-- Belongs To `Object`
-    
-
----
 
 ### **13. ExperienceHistoryEntry**
 
@@ -310,19 +276,17 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `event_timestamp` (Timestamp)
 - `performed_by_member_id` (Foreign Key, links to `Member`, optional, can be "System")
 - `details` (JSONB, optional: e.g., old and new split percentages)
-    
 
 **Relationships:**
 
 - Belongs To `Experience`
 - Associated with `Member` who performed the action.
     
-
 ---
 
-### **14. Object (Feature Flags)**
+### **14. Object (Feature Flag)**
 
-**Purpose:** Represents a configurable feature flag, game parameter, or UI element.
+**Purpose:** Represents a configurable feature flag, game parameter, or UI element. An object is a feature flag.
 
 **Attributes:**
 
@@ -332,43 +296,14 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `key` (String, Unique within project, used in SDK)
 - `type` String
 - `description` (Text, optional)
-- `variants` (JSONB) (Array of Objects | ) 
+- `data` [{"field_1": "value_1", "field_2": "value_2", ...}] //values are default values for the object
 - `created_at` (Timestamp)
 - `updated_at` (Timestamp)
 
 **Relationships:**
 
 - Belongs To `Project`
-- Has Many `ObjectHistoryEntries`   
-- Has Many `ObjectVariants`
-- Can be used by Many `ExperienceVariantObjectConfigs`
-
-**Gaps**
-Object creation is dependent on a manifest. This is vague.
-
----
-
-### **15. ObjectVariant**
-
-**Purpose:** Defines the _base_ different configurations or states an Object can take, independent of any experience. These are the pre-defined options from which experiences can select or derive.
-
-**Attributes:**
-
-- `object_variant_id` (Primary Key, UUID)
-- `object_id` (Foreign Key, links to `Object`)
-- `name` (String)
-- `type` String
-- `value` (JSONB | This holds the default value for the object)
-- `created_at` (Timestamp)
-- `updated_at` (Timestamp)
-    
-
-**Relationships:**
-
-- Belongs To `Object`
-- Can be referenced by `ExperienceVariantObjectConfigs`
-    
----
+- Has Many `ObjectHistoryEntries`
 
 ### **16. ObjectHistoryEntry**
 
@@ -379,8 +314,8 @@ Object creation is dependent on a manifest. This is vague.
 - `history_id` (Primary Key, UUID)
 - `object_id` (Foreign Key, links to `Object`)
 - `change_description` (Text)
-- `old_object` (JSONB)
-- `new_object` (JSONB)
+- `old_data` (JSONB)
+- `new_data` (JSONB)
 - `changed_by_member_id` (Foreign Key, links to `Member`, optional)
 - `change_timestamp` (Timestamp)
 
