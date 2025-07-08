@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Zap, BarChart3, CheckCircle, Target, TrendingUp } from "lucide-react";
 import AuthModal from "@/components/auth-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import heroimage from "@/assets/heroimage.png";
 
 export default function Landing() {
   const [authModal, setAuthModal] = useState<{ open: boolean; mode: 'login' | 'signup' }>({
@@ -64,7 +65,7 @@ export default function Landing() {
           {/* Hero Image */}
           <div className="relative max-w-5xl mx-auto">
             <img 
-              src="https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=700" 
+              src={heroimage}
               alt="Gaming analytics dashboard interface" 
               className="rounded-xl shadow-2xl w-full h-auto border border-border" 
             />
