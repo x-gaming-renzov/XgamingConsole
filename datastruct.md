@@ -129,7 +129,6 @@
 - `last_calculated_at` (Timestamp)
 - `created_at` (Timestamp)
 - `updated_at` (Timestamp)
-- `used_in_experiences` (Array of Strings/IDs: To quickly show where it's used) //TODO : decide if I should create a many to many relationship/junction table here (experiences <-> segments)
 - `outcomes` (JSONB/ JSON array)  //what is this though? I added this for the past outcomes section
 - `chartdata` (JSONB)
 
@@ -162,8 +161,7 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `total_users` (Integer)
 - `campaign_data` (JSONB) (Est Revenue, Avg D0 Retention, Objects Bound Count as [{metric: "est_revenue", value: 100, type: "currency", unit: "USD"}, {metric: "avg_d0_retention", value: 35, type: "percentage"}, {metric: "objects_bound_count", value: 3, type: "number"}])
 - `user_count` (JSONB) (Users affected each day as [{date: "2025-01-01", count: 100},...])
-- `flag_bundle` (String, e.g., "facebook_v2.1") - //How even will we get this?
-- `experience_ids` (Array of Foreign Keys, links to `Experience`)
+- `flag_bundle` (String, e.g., "facebook_v2.1") - //How even will we get this? -> set for removal
 - `created_at` (Timestamp)
 - `updated_at` (Timestamp)
 
@@ -214,9 +212,8 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `created_by_member_id` (Foreign Key, links to `Member`)
 - `updated_at` (Timestamp)
 - `metrics` (JSONB) (Participants, D1 Retention, Activation as [{metric: "participants", value: 100, type: "number"}, {metric: "d1_retention", value: 35, type: "percentage"}, {metric: "activation", value: 10, type: "percentage"}])  - _Calculated from performance data._
-- `experience_segment_ids` (Array of Strings: Of Experiecne segments)
-- `experience_object_ids` (Array of Strings: Of Experiecne objects) //Variants are the different configurations of the objects used in the experience. Like control, treatment, etc. have some value for each field for an object.
-- `num_variants` (Integer: Number of variants of the objects used in the experience)
+- `num_variants` (Integer: Number of variants of the experience) (total varaint entries for the experience = num_variants * num_objects)
+- `split_percentage_within_experience` (JSONB | Array of Objects | e.g. [{variant_name: "control", variant_type: "control", percentage: 50}, {variant_name: "treatment_1", variant_type: "treatment", percentage: 30}, ...])
     
 
 **Relationships:**
@@ -245,23 +242,28 @@ When a segment is created/edited/deleted, any api call to the engine required?
 
 - Belongs To `Experience`
 - Associated with `Segment`
-    
----
 
-### **11. ExperienceObjects**
+### **12. ExperienceVariant**
 
-**Purpose:** Represents the objects used in an experience. It contains all the variants of the objects used in the experience. Number of variants equal to num_variants in the experience.
+**Purpose:** Defines a specific variation of an `Object` within an `Experience`, including its configuration, traffic allocation, and performance data.
 
 **Attributes:**
 
-- `experience_object_id` (Primary Key, UUID)
-- `experience_id` (Foreign Key, links to `Experience`)
-- `object_id` (Foreign Key, links to `Object`)
-- `variants` (JSONB) (Array of fields, their default values, and their types, e.g. [{"variant_name": "control", "variant_type": "control", "variant_data": {"field_1": "default_value_1", "field_2"s:"default_value_2"}}])
+- `variant_id` (Primary Key, UUID)
+- `experience_object_id` (Foreign Key, links to `ExperienceObject`)
+- `name` (String, e.g., "Control", "Treatment")
+- `overrides` (JSONB: The specific values for this variant that override the object's defaults)
+- `traffic_split_percentage` (Integer: Percentage of traffic allocated to this variant)
+- `data` (JSONB: Performance metrics for the variant, e.g., `{ "conversions": 100, "ctr": 0.05 }`)
+- `users` (JSONB: Array of daily user counts, e.g., `[{ "date": "YYYY-MM-DD", "users": 120 }, ...]`)
+- `created_at` (Timestamp)
+- `updated_at` (Timestamp)
 
 **Relationships:**
 
-- Belongs To `Experience`
+- Belongs To `ExperienceObject`
+
+---
 
 ### **13. ExperienceHistoryEntry**
 
@@ -296,7 +298,7 @@ When a segment is created/edited/deleted, any api call to the engine required?
 - `key` (String, Unique within project, used in SDK)
 - `type` String
 - `description` (Text, optional)
-- `data` [{"field_1": "value_1", "field_2": "value_2", ...}] //values are default values for the object
+- `data` [{"field_1": "value_1", "field_2": "value_2", ...}]
 - `created_at` (Timestamp)
 - `updated_at` (Timestamp)
 
