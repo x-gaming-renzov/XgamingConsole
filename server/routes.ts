@@ -476,11 +476,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid action or experience IDs" });
       }
 
-      const validActions = ["pause", "resume", "archive"];
+      const validActions = ["pause", "resume", "archive", "delete"];
       if (!validActions.includes(action)) {
         return res.status(400).json({ message: "Invalid action" });
       }
 
+      // Handle delete action separately
+      if (action === "delete") {
+        const deletedExperiences = [];
+        
+        for (const id of experienceIds) {
+          // Verify user has access to experiment
+          const experiment = await storage.getExperiment(Number(id));
+          if (experiment && experiment.userId === req.user.userId) {
+            const deleted = await storage.deleteExperiment(Number(id));
+            if (deleted) {
+              deletedExperiences.push(id);
+            }
+          }
+        }
+
+        return res.json({ 
+          success: true, 
+          deleted: deletedExperiences.length,
+          action,
+          experienceIds: deletedExperiences
+        });
+      }
+
+      // Handle status update actions
       const statusMap = {
         pause: "paused",
         resume: "active", 

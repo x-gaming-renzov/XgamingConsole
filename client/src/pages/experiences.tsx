@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Target, TrendingUp, Settings, Copy, Pause, Play, Archive } from "lucide-react";
+import { Search, Plus, Target, TrendingUp, Settings, Copy, Pause, Play, Archive, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
@@ -59,10 +59,35 @@ export default function Experiences() {
     }
   });
 
+  // Delete mutation for bulk delete
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (experienceIds: number[]) => {
+      const response = await apiRequest("POST", "/api/experiences/bulk-action", {
+        action: "delete",
+        experienceIds
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
+      setSelectedExperiences([]); // Clear selection after action
+    },
+    onError: (error) => {
+      console.error("Bulk delete failed:", error);
+    }
+  });
+
   // Bulk action handlers
   const handleBulkAction = (action: string) => {
     if (selectedExperiences.length === 0) return;
     bulkActionMutation.mutate({ action, experienceIds: selectedExperiences });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedExperiences.length === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedExperiences.length} experience${selectedExperiences.length > 1 ? 's' : ''}? This action cannot be undone.`)) {
+      bulkDeleteMutation.mutate(selectedExperiences);
+    }
   };
 
   const filteredExperiences = experiences?.filter(exp => {
@@ -165,7 +190,7 @@ export default function Experiences() {
                   variant="outline" 
                   size="sm"
                   onClick={() => handleBulkAction("pause")}
-                  disabled={bulkActionMutation.isPending}
+                  disabled={bulkActionMutation.isPending || bulkDeleteMutation.isPending}
                 >
                   <Pause className="w-4 h-4 mr-2" />
                   Pause
@@ -174,7 +199,7 @@ export default function Experiences() {
                   variant="outline" 
                   size="sm"
                   onClick={() => handleBulkAction("resume")}
-                  disabled={bulkActionMutation.isPending}
+                  disabled={bulkActionMutation.isPending || bulkDeleteMutation.isPending}
                 >
                   <Play className="w-4 h-4 mr-2" />
                   Resume
@@ -183,10 +208,19 @@ export default function Experiences() {
                   variant="outline" 
                   size="sm"
                   onClick={() => handleBulkAction("archive")}
-                  disabled={bulkActionMutation.isPending}
+                  disabled={bulkActionMutation.isPending || bulkDeleteMutation.isPending}
                 >
                   <Archive className="w-4 h-4 mr-2" />
                   Archive
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={bulkActionMutation.isPending || bulkDeleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
                 </Button>
               </div>
             </div>
