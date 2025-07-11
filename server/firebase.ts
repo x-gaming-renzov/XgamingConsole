@@ -14,7 +14,15 @@ export async function fetchRemoteConfigTemplate() {
   try {
     const template = await remoteConfig.getTemplate();
     console.log('Firebase Remote Config ETag:', template.etag);
+    console.log('Firebase Remote Config Full Template:', JSON.stringify(template, null, 2));
+    console.log('Firebase Remote Config Parameters Keys:', Object.keys(template.parameters || {}));
     console.log('Firebase Remote Config Parameters:', JSON.stringify(template.parameters, null, 2));
+    
+    // Check if there are any conditions
+    if (template.conditions) {
+      console.log('Firebase Remote Config Conditions:', JSON.stringify(template.conditions, null, 2));
+    }
+    
     return template;
   } catch (error) {
     console.error('Error fetching Remote Config template:', error);

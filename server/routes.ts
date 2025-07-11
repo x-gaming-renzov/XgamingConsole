@@ -29,6 +29,16 @@ function authenticateToken(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Test Firebase Remote Config endpoint (for debugging)
+  app.get("/api/test-firebase", async (req, res) => {
+    try {
+      const remoteConfigValues = await getVariantValuesFromRemoteConfig();
+      res.json({ success: true, values: remoteConfigValues });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
