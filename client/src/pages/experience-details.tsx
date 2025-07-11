@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +81,10 @@ export default function ExperienceDetails() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [variantChanges, setVariantChanges] = useState<Record<string, Record<string, number>>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: experience, isLoading } = useQuery<ExperienceDetails>({
     queryKey: [`/api/experiences/${experienceId}`],
@@ -99,6 +103,29 @@ export default function ExperienceDetails() {
     }
   });
 
+  const updateRemoteConfigMutation = useMutation({
+    mutationFn: async (parameters: { minerals_needed: Record<string, number>; moves_available: Record<string, number> }) => {
+      const response = await apiRequest("PUT", `/api/experiences/${experienceId}/remote-config`, parameters);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
+      setVariantChanges({});
+      setHasUnsavedChanges(false);
+      toast({
+        title: "Parameters updated",
+        description: "Firebase Remote Config has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update Remote Config parameters.",
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleNameEdit = () => {
     if (experience) {
       setEditedName(experience.name);
@@ -112,6 +139,68 @@ export default function ExperienceDetails() {
     } else {
       setIsEditingName(false);
     }
+  };
+
+  const handleVariantParameterChange = (variantName: string, parameterName: string, value: string) => {
+    const numericValue = parseFloat(value);
+    if (isNaN(numericValue)) return;
+    
+    setVariantChanges(prev => ({
+      ...prev,
+      [variantName]: {
+        ...prev[variantName],
+        [parameterName]: numericValue
+      }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const getCurrentParameterValue = (variantName: string, parameterName: string, originalValue: any) => {
+    return variantChanges[variantName]?.[parameterName] ?? originalValue;
+  };
+
+  const handleSaveVariantChanges = () => {
+    if (!experience || Object.keys(variantChanges).length === 0) return;
+    
+    // Only experiment ID 24 supports Remote Config updates
+    if (parseInt(experienceId!) !== 24) {
+      toast({
+        title: "Not supported",
+        description: "Remote Config updates are only supported for Game Mechanics Platform Test.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Convert variant changes to the expected format
+    const minerals_needed: Record<string, number> = {};
+    const moves_available: Record<string, number> = {};
+    
+    // First, populate with current values from experience
+    experience.variants.forEach(objectVariant => {
+      objectVariant.variants.forEach(variant => {
+        if (variant.name !== 'Control' && variant.name !== 'default') {
+          const platform = variant.name.toLowerCase();
+          minerals_needed[platform] = variant.parameters.minerals_needed || 0;
+          moves_available[platform] = variant.parameters.moves_available || 0;
+        }
+      });
+    });
+    
+    // Then apply changes
+    Object.entries(variantChanges).forEach(([variantName, changes]) => {
+      if (variantName !== 'Control' && variantName !== 'default') {
+        const platform = variantName.toLowerCase();
+        if (changes.minerals_needed !== undefined) {
+          minerals_needed[platform] = changes.minerals_needed;
+        }
+        if (changes.moves_available !== undefined) {
+          moves_available[platform] = changes.moves_available;
+        }
+      }
+    });
+    
+    updateRemoteConfigMutation.mutate({ minerals_needed, moves_available });
   };
 
   const getStatusColor = (status: string) => {
@@ -414,7 +503,14 @@ export default function ExperienceDetails() {
 
           <TabsContent value="variants" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Variants Configuration</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold">Variants Configuration</h2>
+                {hasUnsavedChanges && (
+                  <Badge variant="outline" className="text-orange-600 border-orange-300">
+                    Unsaved Changes
+                  </Badge>
+                )}
+              </div>
               {experience.status === "paused" && (
                 <div className="flex space-x-2">
                   <Button variant="outline" size="sm">
@@ -425,7 +521,13 @@ export default function ExperienceDetails() {
                     <Copy className="w-4 h-4 mr-2" />
                     Duplicate Variant
                   </Button>
-                  <Button size="sm">Save Changes</Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handleSaveVariantChanges}
+                    disabled={!hasUnsavedChanges || updateRemoteConfigMutation.isPending}
+                  >
+                    {updateRemoteConfigMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               )}
             </div>
@@ -460,27 +562,37 @@ export default function ExperienceDetails() {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-3">
-                              {Object.entries(variant?.parameters || {}).map(([param, value]) => (
-                                <div key={param} className="space-y-1">
-                                  <label className="text-sm font-medium text-muted-foreground">
-                                    {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </label>
-                                  {experience.status === "paused" ? (
-                                    <Input
-                                      value={String(value)}
-                                      onChange={(e) => {
-                                        // Handle parameter updates when paused
-                                        console.log(`Updating ${param} to ${e.target.value}`);
-                                      }}
-                                      className="font-mono text-sm"
-                                    />
-                                  ) : (
-                                    <div className="bg-muted px-3 py-2 rounded border font-mono text-sm">
-                                      {String(value)}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
+                              {Object.entries(variant?.parameters || {}).map(([param, value]) => {
+                                const isControl = variant?.name === 'Control' || variant?.name === 'default';
+                                const currentValue = getCurrentParameterValue(variant?.name || '', param, value);
+                                
+                                return (
+                                  <div key={param} className="space-y-1">
+                                    <label className="text-sm font-medium text-muted-foreground">
+                                      {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                      {isControl && <span className="text-xs ml-1">(Control - not editable)</span>}
+                                    </label>
+                                    {experience.status === "paused" && !isControl && parseInt(experienceId!) === 24 ? (
+                                      <Input
+                                        type="number"
+                                        value={String(currentValue)}
+                                        onChange={(e) => {
+                                          handleVariantParameterChange(variant?.name || '', param, e.target.value);
+                                        }}
+                                        className="font-mono text-sm"
+                                        min="0"
+                                        step="1"
+                                      />
+                                    ) : (
+                                      <div className={`px-3 py-2 rounded border font-mono text-sm ${
+                                        isControl ? 'bg-muted border-muted' : 'bg-muted'
+                                      }`}>
+                                        {String(currentValue)}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                               {Object.keys(variant?.parameters || {}).length === 0 && (
                                 <div className="text-sm text-muted-foreground italic">
                                   No parameters configured

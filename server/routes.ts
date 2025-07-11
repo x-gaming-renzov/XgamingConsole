@@ -5,7 +5,7 @@ import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSe
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
-import { getVariantValuesFromRemoteConfig } from "./firebase";
+import { getVariantValuesFromRemoteConfig, updateRemoteConfigParameters } from "./firebase";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -542,6 +542,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(detailedExperience);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
+    }
+  });
+
+  // Update Remote Config parameters for experience variants
+  app.put("/api/experiences/:id/remote-config", authenticateToken, async (req, res) => {
+    try {
+      const experienceId = parseInt(req.params.id);
+      const { minerals_needed, moves_available } = req.body;
+      
+      // Validate that this is experiment ID 24 (Game Mechanics Platform Test)
+      if (experienceId !== 24) {
+        return res.status(400).json({ message: "Remote Config updates only supported for Game Mechanics Platform Test" });
+      }
+      
+      // Validate the input structure
+      if (!minerals_needed || !moves_available) {
+        return res.status(400).json({ message: "Both minerals_needed and moves_available are required" });
+      }
+      
+      const requiredPlatforms = ['android', 'macos', 'ios', 'web'];
+      for (const platform of requiredPlatforms) {
+        if (minerals_needed[platform] === undefined || moves_available[platform] === undefined) {
+          return res.status(400).json({ message: `Missing values for platform: ${platform}` });
+        }
+        
+        // Validate values are numbers
+        if (typeof minerals_needed[platform] !== 'number' || typeof moves_available[platform] !== 'number') {
+          return res.status(400).json({ message: `Values must be numbers for platform: ${platform}` });
+        }
+      }
+      
+      // Verify user has access to this experiment
+      const experiment = await storage.getExperiment(experienceId);
+      if (!experiment) {
+        return res.status(404).json({ message: "Experience not found" });
+      }
+      
+      // Update Firebase Remote Config
+      const result = await updateRemoteConfigParameters(minerals_needed, moves_available);
+      
+      res.json({
+        message: "Remote Config parameters updated successfully",
+        etag: result.etag,
+        updated_values: {
+          minerals_needed: result.minerals_needed,
+          moves_available: result.moves_available
+        }
+      });
+    } catch (error) {
+      console.error('Error updating Remote Config parameters:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to update parameters" });
     }
   });
 

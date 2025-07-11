@@ -67,4 +67,60 @@ export async function getVariantValuesFromRemoteConfig() {
   }
 }
 
+export async function updateRemoteConfigParameters(
+  mineralsNeeded: { android: number; macos: number; ios: number; web: number },
+  movesAvailable: { android: number; macos: number; ios: number; web: number }
+) {
+  try {
+    // 1. Get current template
+    const template = await remoteConfig.getTemplate();
+    
+    // Ensure the test parameter group exists
+    if (!template.parameterGroups) {
+      template.parameterGroups = {};
+    }
+    if (!template.parameterGroups.test) {
+      template.parameterGroups.test = { parameters: {} };
+    }
+    
+    // 2. Update minerals_needed parameter
+    template.parameterGroups.test.parameters.minerals_needed = {
+      conditionalValues: {
+        android: {
+          value: JSON.stringify(mineralsNeeded)
+        }
+      },
+      defaultValue: {
+        value: JSON.stringify(mineralsNeeded)
+      }
+    };
+    
+    // 3. Update moves_available parameter
+    template.parameterGroups.test.parameters.moves_available = {
+      conditionalValues: {
+        android: {
+          value: JSON.stringify(movesAvailable)
+        }
+      },
+      defaultValue: {
+        value: JSON.stringify(movesAvailable)
+      }
+    };
+    
+    // 4. Publish updated template
+    const updated = await remoteConfig.publishTemplate(template);
+    console.log('Firebase Remote Config updated successfully, new ETag:', updated.etag);
+    
+    return {
+      success: true,
+      etag: updated.etag,
+      minerals_needed: mineralsNeeded,
+      moves_available: movesAvailable
+    };
+  } catch (error) {
+    console.error('Error updating Remote Config parameters:', error);
+    throw error;
+  }
+}
+
 export { remoteConfig };
