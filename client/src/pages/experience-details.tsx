@@ -114,13 +114,13 @@ export default function ExperienceDetails() {
       setHasUnsavedChanges(false);
       toast({
         title: "Parameters updated",
-        description: "Firebase Remote Config has been updated successfully.",
+        description: "Variant parameters have been saved successfully.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update Remote Config parameters.",
+        description: error.message || "Failed to save variant parameters.",
         variant: "destructive",
       });
     }
