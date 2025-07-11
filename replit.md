@@ -169,6 +169,14 @@ Changelog:
   - Fixed individual object details endpoint to ensure flags are correctly formatted
   - Objects page now displays all flag details correctly instead of showing empty arrays
   - Improved OpenAI integration to use actual database objects and segments for accurate suggestions
+- July 11, 2025. Completed Firebase Remote Config integration for dynamic variant values:
+  - Successfully integrated Firebase Admin SDK to fetch Remote Config parameters
+  - Fixed parameter group structure issue - parameters are stored in "test" parameter group, not root
+  - Firebase Remote Config now dynamically provides values for all platform variants (android, macos, ios, web)
+  - Non-control variants fetch minerals_needed and moves_available values from Firebase conditional logic
+  - Control variant continues to use local hardcoded values (23, 23) as baseline
+  - Cleaned up debug logging for production use
+  - Updated experiment ID 24 configuration: 100% experience / 0% control, 3 users 7D, 0% uplift
 
 ## User Preferences
 
