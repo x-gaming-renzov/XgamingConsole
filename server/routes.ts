@@ -29,19 +29,7 @@ function authenticateToken(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Test Firebase Remote Config endpoint (for debugging)
-  app.get("/api/test-firebase", async (req, res) => {
-    console.log("=== FIREBASE TEST ENDPOINT HIT ===");
-    try {
-      console.log("Starting Firebase Remote Config test...");
-      const remoteConfigValues = await getVariantValuesFromRemoteConfig();
-      console.log("Firebase test completed with result:", remoteConfigValues);
-      res.json({ success: true, values: remoteConfigValues });
-    } catch (error) {
-      console.error("Firebase test failed with error:", error);
-      res.status(500).json({ success: false, error: error.message, stack: error.stack });
-    }
-  });
+
 
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
