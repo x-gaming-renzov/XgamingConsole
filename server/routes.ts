@@ -509,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: experiment.status,
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
-        objects: ["Tutorial Object"],
+        objects: experiment.id === 24 ? ["Game Mechanics"] : ["Tutorial Object"],
         uplift: experiment.id === 24 ? (experiment.results?.uplift || 0) : (experiment.results?.uplift || Math.floor(Math.random() * 15) + 3),
         participants: experiment.id === 24 ? (experiment.results?.participants || 0) : (experiment.results?.participants || Math.floor(Math.random() * 8000) + 2000),
         d1Retention: experiment.id === 24 ? (experiment.results?.d1_retention || 0) : (experiment.results?.d1_retention || Math.floor(Math.random() * 25) + 40),
