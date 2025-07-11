@@ -9,47 +9,6 @@ import { getVariantValuesFromRemoteConfig, updateRemoteConfigParameters } from "
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Helper functions to provide consistent default values for experiments
-function getDefaultUplift(experimentId: number): number {
-  switch (experimentId) {
-    case 11: return 8; // Double Coins for Facebook Players
-    case 12: return 5; // TikTok Welcome Popup Personalization  
-    case 13: return 12; // Google UAC Welcome Bonus
-    case 24: return 0; // Game Mechanics Platform Test - no uplift yet
-    default: return 6;
-  }
-}
-
-function getDefaultParticipants(experimentId: number): number {
-  switch (experimentId) {
-    case 11: return 3245; // Double Coins for Facebook Players
-    case 12: return 2871; // TikTok Welcome Popup Personalization
-    case 13: return 4102; // Google UAC Welcome Bonus
-    case 24: return 0; // Game Mechanics Platform Test - no participants yet
-    default: return 2500;
-  }
-}
-
-function getDefaultRetention(experimentId: number): number {
-  switch (experimentId) {
-    case 11: return 82; // Double Coins for Facebook Players
-    case 12: return 78; // TikTok Welcome Popup Personalization
-    case 13: return 85; // Google UAC Welcome Bonus
-    case 24: return 0; // Game Mechanics Platform Test - no data yet
-    default: return 80;
-  }
-}
-
-function getDefaultActivation(experimentId: number): number {
-  switch (experimentId) {
-    case 11: return 74; // Double Coins for Facebook Players
-    case 12: return 69; // TikTok Welcome Popup Personalization
-    case 13: return 88; // Google UAC Welcome Bonus
-    case 24: return 0; // Game Mechanics Platform Test - no data yet
-    default: return 75;
-  }
-}
-
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
@@ -542,10 +501,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
         objects: ["Tutorial Object"],
-        uplift: experiment.results?.uplift || getDefaultUplift(experiment.id),
-        participants: experiment.results?.participants || getDefaultParticipants(experiment.id),
-        d1Retention: experiment.results?.d1_retention || getDefaultRetention(experiment.id),
-        activation: experiment.results?.activation || getDefaultActivation(experiment.id),
+        uplift: experiment.results?.uplift || 0,
+        participants: experiment.results?.participants || 0,
+        d1Retention: experiment.results?.d1_retention || 0,
+        activation: experiment.results?.activation || 0,
         startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
         endDate: null,
         autoRollout: {
