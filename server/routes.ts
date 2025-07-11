@@ -524,10 +524,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaigns: [
           {
             name: campaign?.name || "Default Campaign",
-            segment: experiment.targetAudience || "All Players",
-            experiencePercent: 50,
-            controlPercent: 50,
-            users7d: 4871
+            segment: experiment.id === 24 ? "all_users" : (experiment.targetAudience || "All Players"),
+            experiencePercent: experiment.id === 24 ? 100 : 50,
+            controlPercent: experiment.id === 24 ? 0 : 50,
+            users7d: experiment.id === 24 ? 3 : 4871
           }
         ],
         variants: processedVariants,
