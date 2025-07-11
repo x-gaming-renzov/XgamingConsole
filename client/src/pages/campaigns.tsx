@@ -22,7 +22,6 @@ interface Campaign {
   d0Retention: number;
   d1Retention: number;
   revenue: number;
-  flagBundle: string;
   allocation: number;
   status: "Active" | "Paused" | "Draft";
 }
@@ -58,7 +57,6 @@ export default function Campaigns() {
         name: campaignData.label || `${campaignData.utmSource} Campaign`,
         utmSource: campaignData.utmSource,
         utmCampaign: campaignData.label || campaignData.utmSource,
-        flagBundle: "Default Bundle",
         status: "Draft",
         launchDate: campaignData.launchDate
       };
@@ -252,7 +250,6 @@ export default function Campaigns() {
                   <TableHead>Installs</TableHead>
                   <TableHead>D0 Retention</TableHead>
                   <TableHead>Revenue</TableHead>
-                  <TableHead>Flag Bundle</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -282,11 +279,6 @@ export default function Campaigns() {
                         </div>
                       </TableCell>
                       <TableCell>${campaign.revenue.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {campaign.flagBundle || "rewards_v2.1"}
-                        </Badge>
-                      </TableCell>
                     </TableRow>
                   );
                 })}

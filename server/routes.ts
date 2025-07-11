@@ -807,12 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allCampaigns = [];
       for (const project of projects) {
         const campaigns = await storage.getCampaignsByProjectId(project.id);
-        // Add default flag bundle if not present
-        const campaignsWithFlags = campaigns.map(campaign => ({
-          ...campaign,
-          flagBundle: campaign.flagBundle || `${campaign.utmSource}_v2.1`
-        }));
-        allCampaigns.push(...campaignsWithFlags);
+        allCampaigns.push(...campaigns);
       }
 
       res.json(allCampaigns);

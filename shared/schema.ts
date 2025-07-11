@@ -77,7 +77,6 @@ export const campaigns = pgTable("campaigns", {
   d0Retention: decimal("d0_retention", { precision: 5, scale: 2 }).default("0.00"),
   d1Retention: decimal("d1_retention", { precision: 5, scale: 2 }).default("0.00"),
   revenue: decimal("revenue", { precision: 10, scale: 2 }).default("0.00"),
-  flagBundle: text("flag_bundle"),
   allocation: integer("allocation").default(0),
   status: text("status").default("Draft"), // 'Active', 'Paused', 'Draft'
   launchDate: timestamp("launch_date").defaultNow(),
@@ -146,7 +145,6 @@ export const insertCampaignSchema = createInsertSchema(campaigns).pick({
   d0Retention: true,
   d1Retention: true,
   revenue: true,
-  flagBundle: true,
   allocation: true,
   status: true,
 });
