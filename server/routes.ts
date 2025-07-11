@@ -249,23 +249,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Transform experiments to experience format
-      const experiences = allExperiments.map(exp => ({
-        id: exp.id,
-        name: exp.name,
-        campaign: exp.description || "Default Campaign", // Use description or fallback
-        object: `${exp.targetAudience || "All Players"}`, // Use target audience info
-        uplift: Math.floor(Math.random() * 20 - 5), // Mock uplift for now
-        status: exp.status === "active" ? "Active" : 
-               exp.status === "completed" ? "Completed" : 
-               exp.status === "paused" ? "Paused" : "Draft",
-        createdAt: new Date(exp.createdAt || Date.now()).toLocaleDateString(),
-        metrics: {
-          d0Retention: Math.floor(Math.random() * 20 + 40), // Mock metrics
-          d1Retention: Math.floor(Math.random() * 15 + 30),
-          activationRate: Math.floor(Math.random() * 25 + 50),
-          participants: Math.floor(Math.random() * 5000 + 1000)
+      const experiences = allExperiments.map(exp => {
+        // Parse results to get actual uplift value
+        let uplift = 0;
+        let metrics = {
+          d0Retention: 0,
+          d1Retention: 0,
+          activationRate: 0,
+          participants: 0
+        };
+        
+        if (exp.results) {
+          try {
+            const results = typeof exp.results === 'string' ? JSON.parse(exp.results) : exp.results;
+            uplift = results.uplift || 0;
+            metrics = {
+              d0Retention: results.d1_retention || 0,
+              d1Retention: results.d1_retention || 0,
+              activationRate: results.activation || 0,
+              participants: results.participants || 0
+            };
+          } catch (e) {
+            console.log('Failed to parse experiment results:', e);
+          }
         }
-      }));
+        
+        return {
+          id: exp.id,
+          name: exp.name,
+          campaign: exp.description || "Default Campaign",
+          object: `${exp.targetAudience || "All Players"}`,
+          uplift: uplift,
+          status: exp.status === "active" ? "Active" : 
+                 exp.status === "completed" ? "Completed" : 
+                 exp.status === "paused" ? "Paused" : "Draft",
+          createdAt: new Date(exp.createdAt || Date.now()).toLocaleDateString(),
+          metrics: metrics
+        };
+      });
 
       res.json(experiences);
     } catch (error) {
