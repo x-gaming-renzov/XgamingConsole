@@ -184,6 +184,12 @@ Changelog:
   - Control variants remain read-only as requested (not stored in Firebase)
   - Added real-time editing with unsaved changes tracking and visual indicators
   - Save Changes button updates Firebase Remote Config and refreshes variant values
+  - Updated toast messages to be user-friendly without technical implementation details
+- July 11, 2025. Fixed metric display issues and removed unnecessary table columns:
+  - Removed Uplift and Object columns from experiences table (/experiences page) for cleaner interface
+  - Fixed zeroed metric values issue that was affecting non-Firebase experiments
+  - Added consistent default values for different experiments (only experiment 24 shows 0% as intended)
+  - Ensured Firebase Remote Config integration only affects experiment ID 24, not other experiences
 
 ## User Preferences
 
