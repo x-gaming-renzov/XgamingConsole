@@ -351,9 +351,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? JSON.parse(experiment.variants) 
               : experiment.variants;
             
-            // Get the object defaults for Control variant
+            // Handle direct variant format (platform-based)
+            if (variants.default || variants.android || variants.ios || variants.macos || variants.web) {
+              // Convert platform variants to expected object format
+              const variantEntries = Object.entries(variants).map(([platform, values]) => ({
+                name: platform === 'default' ? 'Control' : platform,
+                parameters: values
+              }));
+              
+              return [{
+                objectName: "Game Mechanics",
+                variants: variantEntries
+              }];
+            }
+            
+            // Handle legacy object-based format
             const getObjectDefaults = async (objectId: string) => {
               try {
+                if (isNaN(parseInt(objectId))) {
+                  return {};
+                }
                 const objectData = await storage.getObject(parseInt(objectId));
                 if (objectData && objectData.flags) {
                   const flags = typeof objectData.flags === 'string' ? JSON.parse(objectData.flags) : objectData.flags;
@@ -371,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return {};
             };
 
-            // Convert to the expected format
+            // Convert to the expected format for object-based variants
             const formattedVariants = await Promise.all(
               Object.entries(variants).map(async ([objectId, data]: [string, any]) => {
                 const variantList = data.variants || [];
@@ -405,10 +422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Fallback to default structure
         return [{
-          objectName: "Tutorial Object",
+          objectName: "Game Mechanics",
           variants: [
-            { name: "Control", parameters: {} },
-            { name: "Variant A", parameters: {} }
+            { name: "Control", parameters: { minerals_needed: 23, moves_available: 23 } }
           ]
         }];
       };
@@ -423,10 +439,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
         objects: ["Tutorial Object"],
-        uplift: 4.2, // Mock data for now
-        participants: 9742,
-        d1Retention: 40,
-        activation: 65,
+        uplift: experiment.results?.uplift || 0,
+        participants: experiment.results?.participants || 0,
+        d1Retention: experiment.results?.d1_retention || 0,
+        activation: experiment.results?.activation || 0,
         startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
         endDate: null,
         autoRollout: {
