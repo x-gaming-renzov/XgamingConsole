@@ -250,8 +250,6 @@ export default function Experiences() {
                   </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Object</TableHead>
-                  <TableHead>Uplift</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
@@ -275,18 +273,6 @@ export default function Experiences() {
                     <TableCell>
                       <Link href={`/experiences/${experience.id}`} className="block w-full">
                         <span className="text-muted-foreground">{experience.campaign}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/experiences/${experience.id}`} className="block w-full">
-                        <span className="text-muted-foreground">{experience.object}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/experiences/${experience.id}`} className="block w-full">
-                        <span className={`font-medium ${experience.uplift > 0 ? 'text-green-600' : experience.uplift < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                          {experience.uplift > 0 ? '+' : ''}{experience.uplift}%
-                        </span>
                       </Link>
                     </TableCell>
                     <TableCell>
