@@ -6,3 +6,4 @@ vite.config.ts.*
 *.tar.gz
 issues.md
 attached_assets/*
+smartobjdemo.json
