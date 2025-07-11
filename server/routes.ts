@@ -19,15 +19,15 @@ function getConsistentValue(experimentId: number, metric: string, min: number, m
 
 // Generate consistent metrics data for charts
 function generateConsistentMetrics(experimentId: number) {
-  const baseControl = getConsistentValue(experimentId, 'd1_retention', 40, 65);
-  const uplift = getConsistentValue(experimentId, 'uplift', 3, 18);
-  const baseVariant = Math.min(baseControl + uplift, 65);
+  const baseControl = getConsistentValue(experimentId, 'd1_retention', 30, 48);
+  const uplift = getConsistentValue(experimentId, 'uplift', 3, 12);
+  const baseVariant = Math.min(baseControl + uplift, 49);
   
   return [
-    { date: "2025-07-08", control: Math.max(35, baseControl - 2), variantA: Math.max(37, baseVariant - 2) },
-    { date: "2025-07-09", control: Math.max(35, baseControl - 1), variantA: Math.max(37, baseVariant - 1) },
+    { date: "2025-07-08", control: Math.max(25, baseControl - 2), variantA: Math.max(27, baseVariant - 2) },
+    { date: "2025-07-09", control: Math.max(25, baseControl - 1), variantA: Math.max(27, baseVariant - 1) },
     { date: "2025-07-10", control: baseControl, variantA: baseVariant },
-    { date: "2025-07-11", control: Math.max(35, baseControl + 1), variantA: Math.max(37, baseVariant + 1) },
+    { date: "2025-07-11", control: Math.max(25, baseControl + 1), variantA: Math.max(27, baseVariant + 1) },
     { date: "2025-07-12", control: baseControl, variantA: baseVariant }
   ];
 }
@@ -533,9 +533,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
         objects: experiment.id === 24 ? ["Game Mechanics"] : ["Tutorial Object"],
-        uplift: experiment.id === 24 ? (experiment.results?.uplift || 0) : (experiment.results?.uplift || getConsistentValue(experiment.id, 'uplift', 3, 18)),
+        uplift: experiment.id === 24 ? (experiment.results?.uplift || 0) : (experiment.results?.uplift || getConsistentValue(experiment.id, 'uplift', 3, 12)),
         participants: experiment.id === 24 ? (experiment.results?.participants || 0) : (experiment.results?.participants || getConsistentValue(experiment.id, 'participants', 2000, 8000)),
-        d1Retention: experiment.id === 24 ? (experiment.results?.d1_retention || 0) : (experiment.results?.d1_retention || getConsistentValue(experiment.id, 'd1_retention', 40, 65)),
+        d1Retention: experiment.id === 24 ? (experiment.results?.d1_retention || 0) : (experiment.results?.d1_retention || getConsistentValue(experiment.id, 'd1_retention', 30, 48)),
         activation: experiment.id === 24 ? (experiment.results?.activation || 0) : (experiment.results?.activation || getConsistentValue(experiment.id, 'activation', 65, 95)),
         startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
         endDate: null,
