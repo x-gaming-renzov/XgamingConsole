@@ -719,17 +719,17 @@ export default function ExperienceDetails() {
                         <>
                           <tr className="border-b">
                             <td className="p-3 font-medium">Control</td>
-                            <td className="p-3">4,871</td>
-                            <td className="p-3">38.2%</td>
+                            <td className="p-3">{Math.floor((experience.participants || 0) / 2).toLocaleString()}</td>
+                            <td className="p-3">{experience.d1Retention ? Math.max(35, experience.d1Retention - (experience.uplift || 0)) : 0}%</td>
                             <td className="p-3">-</td>
                             <td className="p-3">-</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-3 font-medium">Variant A</td>
-                            <td className="p-3">4,871</td>
-                            <td className="p-3">42.4%</td>
-                            <td className="p-3 text-green-600 font-medium">+4.2%</td>
-                            <td className="p-3">0.032</td>
+                            <td className="p-3">{Math.floor((experience.participants || 0) / 2).toLocaleString()}</td>
+                            <td className="p-3">{experience.d1Retention || 0}%</td>
+                            <td className="p-3 text-green-600 font-medium">+{experience.uplift || 0}%</td>
+                            <td className="p-3">{experience.uplift && experience.uplift > 10 ? '0.001' : '0.032'}</td>
                           </tr>
                         </>
                       )}

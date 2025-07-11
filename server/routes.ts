@@ -9,6 +9,29 @@ import { getVariantValuesFromRemoteConfig, updateRemoteConfigParameters } from "
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+// Helper function to generate consistent values based on experiment ID
+function getConsistentValue(experimentId: number, metric: string, min: number, max: number): number {
+  // Use experiment ID and metric name as seed for consistent generation
+  const seed = experimentId * 1000 + metric.charCodeAt(0);
+  const normalized = (seed % (max - min + 1)) + min;
+  return Math.floor(normalized);
+}
+
+// Generate consistent metrics data for charts
+function generateConsistentMetrics(experimentId: number) {
+  const baseControl = getConsistentValue(experimentId, 'd1_retention', 40, 65);
+  const uplift = getConsistentValue(experimentId, 'uplift', 3, 18);
+  const baseVariant = Math.min(baseControl + uplift, 65);
+  
+  return [
+    { date: "2025-07-08", control: Math.max(35, baseControl - 2), variantA: Math.max(37, baseVariant - 2) },
+    { date: "2025-07-09", control: Math.max(35, baseControl - 1), variantA: Math.max(37, baseVariant - 1) },
+    { date: "2025-07-10", control: baseControl, variantA: baseVariant },
+    { date: "2025-07-11", control: Math.max(35, baseControl + 1), variantA: Math.max(37, baseVariant + 1) },
+    { date: "2025-07-12", control: baseControl, variantA: baseVariant }
+  ];
+}
+
 // Middleware to verify JWT token
 function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
@@ -510,10 +533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: experiment.description || "",
         campaign: campaign?.name || "Default Campaign",
         objects: experiment.id === 24 ? ["Game Mechanics"] : ["Tutorial Object"],
-        uplift: experiment.id === 24 ? (experiment.results?.uplift || 0) : (experiment.results?.uplift || Math.floor(Math.random() * 15) + 3),
-        participants: experiment.id === 24 ? (experiment.results?.participants || 0) : (experiment.results?.participants || Math.floor(Math.random() * 8000) + 2000),
-        d1Retention: experiment.id === 24 ? (experiment.results?.d1_retention || 0) : (experiment.results?.d1_retention || Math.floor(Math.random() * 25) + 40),
-        activation: experiment.id === 24 ? (experiment.results?.activation || 0) : (experiment.results?.activation || Math.floor(Math.random() * 30) + 65),
+        uplift: experiment.id === 24 ? (experiment.results?.uplift || 0) : (experiment.results?.uplift || getConsistentValue(experiment.id, 'uplift', 3, 18)),
+        participants: experiment.id === 24 ? (experiment.results?.participants || 0) : (experiment.results?.participants || getConsistentValue(experiment.id, 'participants', 2000, 8000)),
+        d1Retention: experiment.id === 24 ? (experiment.results?.d1_retention || 0) : (experiment.results?.d1_retention || getConsistentValue(experiment.id, 'd1_retention', 40, 65)),
+        activation: experiment.id === 24 ? (experiment.results?.activation || 0) : (experiment.results?.activation || getConsistentValue(experiment.id, 'activation', 65, 95)),
         startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
         endDate: null,
         autoRollout: {
@@ -531,13 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         ],
         variants: processedVariants,
-        metrics: [
-          { date: "2025-07-08", control: 38, variantA: 42 },
-          { date: "2025-07-09", control: 39, variantA: 43 },
-          { date: "2025-07-10", control: 37, variantA: 41 },
-          { date: "2025-07-11", control: 40, variantA: 44 },
-          { date: "2025-07-12", control: 38, variantA: 42 }
-        ],
+        metrics: experiment.id === 24 ? [] : generateConsistentMetrics(experiment.id),
         history: [
           {
             date: experiment.createdAt?.toISOString() || new Date().toISOString(),
