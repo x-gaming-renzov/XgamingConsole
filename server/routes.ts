@@ -5,6 +5,7 @@ import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSe
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
+import { getVariantValuesFromRemoteConfig } from "./firebase";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -353,7 +354,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Handle direct variant format (platform-based)
             if (variants.default || variants.android || variants.ios || variants.macos || variants.web) {
-              // Convert platform variants to expected object format
+              // For experiment ID 24 (Game Mechanics Platform Test), fetch from Firebase Remote Config
+              if (experiment.id === 24) {
+                try {
+                  const remoteConfigValues = await getVariantValuesFromRemoteConfig();
+                  
+                  if (remoteConfigValues) {
+                    // Use Remote Config values for non-control variants
+                    const variantEntries = Object.entries(variants).map(([platform, values]) => {
+                      if (platform === 'default') {
+                        // Keep control variant as is
+                        return {
+                          name: 'Control',
+                          parameters: values
+                        };
+                      } else {
+                        // Use Remote Config values for treatment variants
+                        const platformValues = {
+                          minerals_needed: remoteConfigValues.minerals_needed[platform] || values.minerals_needed,
+                          moves_available: remoteConfigValues.moves_available[platform] || values.moves_available
+                        };
+                        console.log(`Firebase Remote Config values for ${platform}:`, platformValues);
+                        return {
+                          name: platform,
+                          parameters: platformValues
+                        };
+                      }
+                    });
+                    
+                    return [{
+                      objectName: "Game Mechanics",
+                      variants: variantEntries
+                    }];
+                  }
+                } catch (error) {
+                  console.error('Error fetching from Firebase Remote Config, using fallback values:', error);
+                }
+              }
+              
+              // Fallback: Convert platform variants to expected object format
               const variantEntries = Object.entries(variants).map(([platform, values]) => ({
                 name: platform === 'default' ? 'Control' : platform,
                 parameters: values
