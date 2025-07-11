@@ -177,6 +177,13 @@ Changelog:
   - Control variant continues to use local hardcoded values (23, 23) as baseline
   - Cleaned up debug logging for production use
   - Updated experiment ID 24 configuration: 100% experience / 0% control, 3 users 7D, 0% uplift
+- July 11, 2025. Implemented Firebase Remote Config parameter editing for experiment ID 24:
+  - Added updateRemoteConfigParameters function to modify Firebase parameters via Admin SDK
+  - Created /api/experiences/:id/remote-config PUT endpoint for parameter updates
+  - Enhanced variant configuration UI with direct editing for non-control variants
+  - Control variants remain read-only as requested (not stored in Firebase)
+  - Added real-time editing with unsaved changes tracking and visual indicators
+  - Save Changes button updates Firebase Remote Config and refreshes variant values
 
 ## User Preferences
 

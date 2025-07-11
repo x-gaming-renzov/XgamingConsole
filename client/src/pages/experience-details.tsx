@@ -511,23 +511,29 @@ export default function ExperienceDetails() {
                   </Badge>
                 )}
               </div>
-              {experience.status === "paused" && (
+              {(experience.status === "paused" || parseInt(experienceId!) === 24) && (
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Variant
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Copy className="w-4 h-4 mr-2" />
-                    Duplicate Variant
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleSaveVariantChanges}
-                    disabled={!hasUnsavedChanges || updateRemoteConfigMutation.isPending}
-                  >
-                    {updateRemoteConfigMutation.isPending ? "Saving..." : "Save Changes"}
-                  </Button>
+                  {experience.status === "paused" && (
+                    <>
+                      <Button variant="outline" size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Variant
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Copy className="w-4 h-4 mr-2" />
+                        Duplicate Variant
+                      </Button>
+                    </>
+                  )}
+                  {parseInt(experienceId!) === 24 && (
+                    <Button 
+                      size="sm" 
+                      onClick={handleSaveVariantChanges}
+                      disabled={!hasUnsavedChanges || updateRemoteConfigMutation.isPending}
+                    >
+                      {updateRemoteConfigMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -551,13 +557,8 @@ export default function ExperienceDetails() {
                       {(objectVariant?.variants || []).map((variant, variantIndex) => (
                         <Card key={variantIndex} className="border-2">
                           <CardHeader>
-                            <CardTitle className="text-lg flex items-center justify-between">
+                            <CardTitle className="text-lg">
                               <span>{variant?.name || 'Unnamed Variant'}</span>
-                              {experience.status === "paused" && (
-                                <Button variant="ghost" size="sm">
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              )}
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
@@ -572,7 +573,7 @@ export default function ExperienceDetails() {
                                       {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                       {isControl && <span className="text-xs ml-1">(Control - not editable)</span>}
                                     </label>
-                                    {experience.status === "paused" && !isControl && parseInt(experienceId!) === 24 ? (
+                                    {!isControl && parseInt(experienceId!) === 24 ? (
                                       <Input
                                         type="number"
                                         value={String(currentValue)}
