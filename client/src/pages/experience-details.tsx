@@ -143,17 +143,19 @@ export default function ExperienceDetails() {
   };
 
   const handleVariantParameterChange = (variantName: string, parameterName: string, value: string) => {
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue)) return;
-    
-    setVariantChanges(prev => ({
-      ...prev,
-      [variantName]: {
-        ...prev[variantName],
-        [parameterName]: numericValue
-      }
-    }));
-    setHasUnsavedChanges(true);
+    // Allow empty string or valid numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      const numericValue = value === '' ? 0 : parseInt(value, 10);
+      
+      setVariantChanges(prev => ({
+        ...prev,
+        [variantName]: {
+          ...prev[variantName],
+          [parameterName]: numericValue
+        }
+      }));
+      setHasUnsavedChanges(true);
+    }
   };
 
   const getCurrentParameterValue = (variantName: string, parameterName: string, originalValue: any) => {
@@ -576,14 +578,14 @@ export default function ExperienceDetails() {
                                     </label>
                                     {!isControl && parseInt(experienceId!) === 24 ? (
                                       <Input
-                                        type="number"
-                                        value={String(currentValue)}
+                                        type="text"
+                                        value={currentValue.toString()}
                                         onChange={(e) => {
                                           handleVariantParameterChange(variant?.name || '', param, e.target.value);
                                         }}
                                         className="font-mono text-sm"
-                                        min="0"
-                                        step="1"
+                                        placeholder="Enter number"
+                                        inputMode="numeric"
                                       />
                                     ) : (
                                       <div className={`px-3 py-2 rounded border font-mono text-sm ${
