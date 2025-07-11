@@ -30,6 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ExperienceDetails {
   id: number;
@@ -631,15 +632,51 @@ export default function ExperienceDetails() {
               </Button>
             </div>
 
-            {/* Metrics Chart Placeholder */}
+            {/* D1 Retention Graph */}
             <Card>
               <CardHeader>
                 <CardTitle>D1 Retention Trend (14 days)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-center justify-center bg-muted/20 rounded border-2 border-dashed">
-                  <p className="text-muted-foreground">Performance chart will be implemented here</p>
-                </div>
+                {parseInt(experienceId!) === 24 ? (
+                  <div className="h-64 flex items-center justify-center bg-muted/20 rounded border">
+                    <p className="text-muted-foreground">Too few users to generate a graph</p>
+                  </div>
+                ) : (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={experience.metrics || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        />
+                        <YAxis 
+                          domain={[30, 50]}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip 
+                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                          formatter={(value, name) => [`${value}%`, name === 'control' ? 'Control' : 'Variant A']}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="control" 
+                          stroke="#6b7280" 
+                          strokeWidth={2}
+                          name="control"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="variantA" 
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          name="variantA"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -661,20 +698,41 @@ export default function ExperienceDetails() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b">
-                        <td className="p-3 font-medium">Control</td>
-                        <td className="p-3">4,871</td>
-                        <td className="p-3">38.2%</td>
-                        <td className="p-3">-</td>
-                        <td className="p-3">-</td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-3 font-medium">Variant A</td>
-                        <td className="p-3">4,871</td>
-                        <td className="p-3">42.4%</td>
-                        <td className="p-3 text-green-600 font-medium">+4.2%</td>
-                        <td className="p-3">0.032</td>
-                      </tr>
+                      {parseInt(experienceId!) === 24 ? (
+                        <>
+                          <tr className="border-b">
+                            <td className="p-3 font-medium">Control</td>
+                            <td className="p-3">0</td>
+                            <td className="p-3">-</td>
+                            <td className="p-3">-</td>
+                            <td className="p-3">-</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="p-3 font-medium">Variants</td>
+                            <td className="p-3">3</td>
+                            <td className="p-3">-</td>
+                            <td className="p-3">-</td>
+                            <td className="p-3">-</td>
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr className="border-b">
+                            <td className="p-3 font-medium">Control</td>
+                            <td className="p-3">4,871</td>
+                            <td className="p-3">38.2%</td>
+                            <td className="p-3">-</td>
+                            <td className="p-3">-</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="p-3 font-medium">Variant A</td>
+                            <td className="p-3">4,871</td>
+                            <td className="p-3">42.4%</td>
+                            <td className="p-3 text-green-600 font-medium">+4.2%</td>
+                            <td className="p-3">0.032</td>
+                          </tr>
+                        </>
+                      )}
                     </tbody>
                   </table>
                 </div>
