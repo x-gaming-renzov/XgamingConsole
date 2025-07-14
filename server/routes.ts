@@ -5,7 +5,10 @@ import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSe
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
+import fetch from 'node-fetch';
+import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant } from "./types";
 
+const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://localhost:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Middleware to verify JWT token
@@ -24,6 +27,24 @@ function authenticateToken(req: any, res: any, next: any) {
     req.user = user;
     next();
   });
+}
+
+// Helper function to call Nova backend
+async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
+  const response = await fetch(`${NOVA_BACKEND_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Nova backend error: ${response.status} - ${errorText}`);
+  }
+
+  return response.json() as T;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -892,114 +913,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object routes
   app.get("/api/objects", authenticateToken, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+      const organisationId =  "org123";
+      const appId = "app123";
 
-      const allObjects = [];
-      for (const project of projects) {
-        const objects = await storage.getObjectsByProjectId(project.id);
-        // Ensure flags are properly parsed as JSON
-        const parsedObjects = objects.map(obj => ({
-          ...obj,
-          flags: typeof obj.flags === 'string' ? JSON.parse(obj.flags) : obj.flags
-        }));
-        allObjects.push(...parsedObjects);
-      }
+      // Call Nova backend to get feature flags
+      const novaResponse = await callNovaBackend<GetFeatureFlagsResponse>(
+        `/api/v1/feature-flags/?organisation_id=${organisationId}&app_id=${appId}`
+      );
 
-      res.json(allObjects);
+      // Transform Nova feature flags to objects format for dashboard
+      const objects = novaResponse.map((flag: any) => {
+        const flags = Object.entries(flag.keys_config).map(
+          ([keyName, keyConfig]) => ({ ...keyConfig, key: keyName })
+        );
+
+        return {
+          id: flag.pid,
+          name: flag.name,
+          description: flag.description || "",
+          type: "",
+          flags,
+          createdAt: new Date(flag.created_at).toLocaleDateString(),
+          isActive: flag.is_active,
+        };
+      });
+
+      res.json(objects);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch objects" });
     }
   });
 
-  app.post("/api/objects", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
+  // app.post("/api/objects", authenticateToken, async (req, res) => {
+  //   try {
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
-      if (projects.length === 0) {
-        return res.status(400).json({ message: "No project found for user" });
-      }
+  //     if (projects.length === 0) {
+  //       return res.status(400).json({ message: "No project found for user" });
+  //     }
 
-      const projectId = projects[0].id; // Use first project for now
-      const objectData = req.body;
+  //     const projectId = projects[0].id; // Use first project for now
+  //     const objectData = req.body;
 
-      const object = await storage.createObject({
-        ...objectData,
-        projectId,
-        userId: req.user.userId
-      });
+  //     const object = await storage.createObject({
+  //       ...objectData,
+  //       projectId,
+  //       userId: req.user.userId
+  //     });
 
-      res.json(object);
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create object" });
-    }
-  });
+  //     res.json(object);
+  //   } catch (error) {
+  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create object" });
+  //   }
+  // });
 
   // Get single object details
   app.get("/api/objects/:id", authenticateToken, async (req, res) => {
     try {
-      const objectId = parseInt(req.params.id);
-      const object = await storage.getObject(objectId);
-      
-      if (!object) {
-        return res.status(404).json({ message: "Object not found" });
-      }
+      const objectId = req.params.id;
 
-      // Ensure flags are properly parsed as JSON
-      const parsedObject = {
-        ...object,
-        flags: typeof object.flags === 'string' ? JSON.parse(object.flags) : object.flags
-      };
+      // Call Nova backend to get feature flag details
+      const novaFlag = await callNovaBackend<GetFeatureFlagDetailsResponse>(
+        `/api/v1/feature-flags/${objectId}/`
+      );
 
-      // Mock variants data - in production would come from actual object configuration
-      const mockVariants = [
-        {
-          id: "control",
-          name: "Control",
-          isDefault: true,
-          allocation: 50,
-          parameters: {
-            starting_coins: 100,
-            enemy_speed: 1.5,
-            show_tutorial: true
-          }
-        },
-        {
-          id: "variant_a",
-          name: "Variant A",
+      const flags = Object.entries(novaFlag.keys_config).map(
+        ([keyName, keyConfig]) => ({ ...keyConfig, key: keyName })
+      );
+
+      const variants = novaFlag.variants.map((variant) => {
+        return {
+          id: variant.pid,
+          name: variant.name,
+          payload: variant.config,
           isDefault: false,
-          allocation: 30,
-          parameters: {
-            starting_coins: 150,
-            enemy_speed: 1.2,
-            show_tutorial: true
-          }
-        },
-        {
-          id: "variant_b",
-          name: "Variant B",
-          isDefault: false,
-          allocation: 20,
-          parameters: {
-            starting_coins: 200,
-            enemy_speed: 1.0,
-            show_tutorial: false
-          }
-        }
-      ];
+        };
+      })
 
       const objectDetails = {
-        ...parsedObject,
-        variants: mockVariants,
-        stats: {
-          variants: mockVariants.length,
-          usedByExperiences: 2,
-          players7d: 48102,
-          lastModified: "1 hour ago"
-        }
+        id: novaFlag.pid,
+        name: novaFlag.name,
+        description: novaFlag.description,
+        type: "",
+        flags,
+        createdAt: novaFlag.created_at,
+        isActive: novaFlag.is_active,
+        variants,
+        defaultVariant: novaFlag.default_variant,
+        stats: {},
       };
 
       res.json(objectDetails);
@@ -1081,8 +1082,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
     try {
       const { objectId } = req.params;
-      const variants = await storage.getVariantsByObjectId(parseInt(objectId));
-      res.json(variants);
+
+      // Get variants from Nova backend
+      const variants = await callNovaBackend<FlagVariant[]>(`/api/v1/feature-flags/${objectId}/variants/`);
+
+      const variantsResponse = variants.map((variant) => {
+        return {
+          id: variant.pid,
+          objectId,
+          name: variant.name,
+          payload: variant.config,
+        }
+      })
+      
+      res.json(variantsResponse);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch variants" });
     }

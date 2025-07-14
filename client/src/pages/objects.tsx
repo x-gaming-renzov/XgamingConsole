@@ -11,7 +11,7 @@ import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface GameObject {
-  id: number;
+  id: string;
   name: string;
   type: "Level" | "Popup" | "Param";
   flags: Array<{
@@ -20,7 +20,7 @@ interface GameObject {
     defaultValue: any;
     description: string;
   }>;
-  lastUsed: string;
+  createdAt: string;
   description: string;
 }
 
@@ -117,7 +117,7 @@ export default function Objects() {
                   <TableHead>Object</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Variants</TableHead>
-                  <TableHead>Last Used</TableHead>
+                  <TableHead>Created At</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -146,7 +146,7 @@ export default function Objects() {
                       <span className="font-medium">{Array.isArray(object.flags) ? object.flags.length : 0}</span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-muted-foreground">{object.lastUsed || "Never"}</span>
+                      <span className="text-muted-foreground">{object.createdAt || "Never"}</span>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Link href={`/experiences/new?object=${object.id}`}>

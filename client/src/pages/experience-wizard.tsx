@@ -791,6 +791,7 @@ export default function ExperienceWizard() {
 
             {/* Step 2: Configure Variants */}
             {currentStep === 2 && (
+              // # TODO: Add option to select existing or create new variant here
               <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Configure Variants</CardTitle>

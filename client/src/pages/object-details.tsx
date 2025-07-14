@@ -29,7 +29,7 @@ import {
 import ConsoleLayout from "@/components/console-layout";
 
 interface ObjectDetails {
-  id: number;
+  id: string;
   name: string;
   type: "Level" | "Popup" | "Param";
   description: string;
@@ -38,27 +38,24 @@ interface ObjectDetails {
     type: "text" | "number" | "boolean";
     defaultValue: any;
     description: string;
-    min?: number;
-    max?: number;
   }>;
+  variants: Variant[];
   stats: {
     variants: number;
     usedByExperiences: number;
     players7d: number;
     lastModified: string;
   };
+  createdAt: string;
+  isActive: string;
+  defaultVariant: Record<string, any>;
 }
 
 interface Variant {
-  id: number;
-  objectId: number;
-  version: string;
+  id: string;
   name: string;
   payload: Record<string, any>;
-  description?: string;
   isDefault: boolean;
-  allocation: number;
-  createdAt: string;
 }
 
 interface Experience {
@@ -85,7 +82,7 @@ export default function ObjectDetails() {
   const [description, setDescription] = useState("");
   const [showVariantValues, setShowVariantValues] = useState(false);
   const [experienceFilter, setExperienceFilter] = useState<"all" | "active" | "completed" | "draft">("all");
-  const [expandedVariants, setExpandedVariants] = useState<Record<number, boolean>>({});
+  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
     queryKey: [`/api/objects/${objectId}`],
@@ -102,10 +99,15 @@ export default function ObjectDetails() {
     enabled: !!objectId
   });
 
-  const { data: variants = [] } = useQuery<Variant[]>({
-    queryKey: [`/api/objects/${objectId}/variants`],
-    enabled: !!objectId
-  });
+  const variants: Variant[] = [
+    ...(objectDetails?.variants || []),
+    {
+      id: "default",
+      name: "default",
+      isDefault: true,
+      payload: objectDetails?.defaultVariant || {},
+    },
+  ];
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -137,7 +139,7 @@ export default function ObjectDetails() {
     navigator.clipboard.writeText(text);
   };
 
-  const toggleVariantExpansion = (variantId: number) => {
+  const toggleVariantExpansion = (variantId: string) => {
     setExpandedVariants(prev => ({
       ...prev,
       [variantId]: !prev[variantId]
@@ -397,7 +399,7 @@ export default function ObjectDetails() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        {/* <div className="flex items-center space-x-4">
                           <div className="text-sm text-muted-foreground">
                             {variant.allocation}% allocation
                           </div>
@@ -406,18 +408,18 @@ export default function ObjectDetails() {
                               {Object.keys(variant.payload).length} parameters
                             </div>
                           )}
-                        </div>
+                        </div> */}
                       </div>
                       
                       {isExpanded && (
                         <div className="border-t bg-muted/20">
-                          {variant.description && (
+                          {/* {variant.description && (
                             <div className="px-4 py-3 border-b bg-background">
                               <p className="text-sm text-muted-foreground">
                                 {variant.description}
                               </p>
                             </div>
-                          )}
+                          )} */}
                           
                           <div className="p-4">
                             {hasParameters ? (
