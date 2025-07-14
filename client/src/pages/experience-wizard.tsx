@@ -38,6 +38,7 @@ import {
   Search
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { FlagVariant } from "server/types";
 
 const experienceSchema = z.object({
   name: z.string().min(1, "Experience name is required"),
@@ -107,6 +108,8 @@ export default function ExperienceWizard() {
   const [campaignId, setCampaignId] = useState<string>("");
   const [experienceName, setExperienceName] = useState("");
   const [experienceDescription, setExperienceDescription] = useState("");
+  const [variantSelectionMode, setVariantSelectionMode] = useState<{[objectId: string]: "existing" | "new"}>({});
+  const [availableVariants, setAvailableVariants] = useState<{[objectId: string]: FlagVariant[]}>({});
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [autoRollout, setAutoRollout] = useState({
@@ -370,6 +373,56 @@ export default function ExperienceWizard() {
     }
   };
 
+  const createVariant = useMutation({
+    mutationFn: async ({ objectId, variantData }: { objectId: string, variantData: any }) => {
+      const response = await apiRequest("POST", `/api/objects/${objectId}/variants`, variantData);
+      return await response.json();
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate variants cache for this object
+      queryClient.invalidateQueries({ queryKey: ["/api/objects/variants", variables.objectId] });
+      console.log("Variant created successfully:", data);
+    },
+    onError: (error) => {
+      console.error("Failed to create variant:", error);
+    }
+  });
+
+  useEffect(() => {
+    const fetchVariantsForObjects = async () => {
+      const variantsPromises = selectedObjects.map(async (objectId) => {
+        console.log("fetch objectId", objectId)
+        if (availableVariants[objectId])
+          return { objectId, variants: availableVariants[objectId] };
+
+        try {
+          const response = await apiRequest("GET", `/api/objects/${objectId}/variants`);
+          const variants = await response.json();
+          return { objectId, variants };
+        } catch (error) {
+          console.error(
+            `Failed to fetch variants for object ${objectId}:`,
+            error
+          );
+          return { objectId, variants: [] };
+        }
+      });
+
+      const variantsResults = await Promise.all(variantsPromises);
+      const variantsMap: {[objectId: string]: FlagVariant[]} = {};
+      
+      variantsResults.forEach(({ objectId, variants }) => {
+        variantsMap[objectId] = variants;
+      });
+      
+      setAvailableVariants(variantsMap);
+    };
+
+    if (selectedObjects.length > 0) {
+      fetchVariantsForObjects();
+    }
+  }, [selectedObjects]);
+
   const handleObjectSelect = (objectId: string, checked: boolean) => {
     if (checked && !selectedObjects.includes(objectId)) {
       // Add object
@@ -535,7 +588,14 @@ export default function ExperienceWizard() {
       case 2:
         return selectedObjects.every(objId => {
           const variants = objectVariants[objId];
-          return variants && variants.variants.length > 0;
+          const mode = variantSelectionMode[objId] || "new";
+
+          if (mode === "existing") {
+            return variants && variants.variants.length > 0;
+          } else {
+            return variants && variants.variants.length > 0 && 
+                  variants.variants.every(v => v.name.trim().length > 0);
+          }
         });
       case 3:
         return campaignType === "new" || campaignId;
@@ -573,23 +633,49 @@ export default function ExperienceWizard() {
     createExperience.mutate(draftData);
   };
 
-  const onSubmit = () => {
-    const data = {
-      name: experienceName,
-      description: experienceDescription,
-      selectedObjects,
-      objectVariants,
-      trafficSplit,
-      campaignType,
-      campaignId,
-      newCampaign,
-      startDate,
-      endDate,
-      autoRollout,
-      status: "active" as const
-    };
-    console.log("Creating experience:", data);
-    createExperience.mutate(data);
+  const onSubmit = async () => {
+    try {
+      // Create any new variants that need to be created
+      for (const objectId of selectedObjects) {
+        const mode = variantSelectionMode[objectId] || "new";
+        const variants = objectVariants[objectId];
+        
+        if (mode === "new" && variants?.variants) {
+          for (const variant of variants.variants) {
+            try {
+              await createVariant.mutateAsync({
+                objectId,
+                variantData: {
+                  name: variant.name,
+                  config: variant.values
+                }
+              });
+            } catch (error) {
+              console.error(`Failed to create variant ${variant.name} for object ${objectId}:`, error);
+            }
+          }
+        }
+      }
+
+      const data = {
+        name: experienceName,
+        description: experienceDescription,
+        selectedObjects,
+        objectVariants,
+        trafficSplit,
+        campaignType,
+        campaignId,
+        newCampaign,
+        startDate,
+        endDate,
+        autoRollout,
+        status: "active" as const
+      };
+      console.log("Creating experience:", data);
+      createExperience.mutate(data);
+    } catch (error) {
+      console.error("Failed to create variants or experience:", error);
+    }
   };
 
   return (
@@ -791,17 +877,18 @@ export default function ExperienceWizard() {
 
             {/* Step 2: Configure Variants */}
             {currentStep === 2 && (
-              // # TODO: Add option to select existing or create new variant here
               <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Configure Variants</CardTitle>
-                  <p className="text-sm text-muted-foreground">Customize parameters for each selected object</p>
+                  <p className="text-sm text-muted-foreground">Choose existing variants or create new ones for each selected object</p>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     {selectedObjects.map((objectId, index) => {
                       const object = objects.find(o => o.id === objectId);
                       const variants = objectVariants[objectId];
+                      const mode = variantSelectionMode[objectId] || "new";
+                      const existingVariants = availableVariants[objectId] || [];
                       
                       return (
                         <AccordionItem key={objectId} value={objectId}>
@@ -813,58 +900,223 @@ export default function ExperienceWizard() {
                               <div className="text-left">
                                 <div className="font-medium">{object?.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  Ready to customize
+                                  {mode === "existing" ? "Using existing variants" : "Creating new variants"}
                                 </div>
                               </div>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
                             <div className="space-y-4 pt-4">
-                              {variants?.variants.map((variant, variantIndex) => (
-                                <div key={variantIndex} className="border rounded-lg p-4 bg-accent/20">
-                                  <div className="mb-4">
-                                    <h4 className="font-medium">{variant.name}</h4>
-                                    <p className="text-xs text-muted-foreground">Customize the parameters below for this experience</p>
+                              {/* Variant Selection Mode */}
+                              <div className="mb-6">
+                                <Label className="text-sm font-medium mb-3 block">Variant Options</Label>
+                                <RadioGroup
+                                  value={mode}
+                                  onValueChange={(value: "existing" | "new") => {
+                                    setVariantSelectionMode(prev => ({ ...prev, [objectId]: value }));
+                                    
+                                    if (value === "existing" && existingVariants.length > 0) {
+                                      // Auto-select first two existing variants
+                                      const selectedExisting = existingVariants.slice(0, 2).map(v => ({
+                                        name: v.name,
+                                        values: v.config
+                                      }));
+                                      setObjectVariants(prev => ({
+                                        ...prev,
+                                        [objectId]: { variants: selectedExisting }
+                                      }));
+                                    } else if (value === "new") {
+                                      // Reset to new variants
+                                      const object = objects.find(o => o.id === objectId);
+                                      if (object) {
+                                        const defaultValues: Record<string, any> = {};
+                                        object.flags.forEach(flag => {
+                                          defaultValues[flag.key] = flag.defaultValue;
+                                        });
+                                        
+                                        setObjectVariants(prev => ({
+                                          ...prev,
+                                          [objectId]: {
+                                            variants: [{ name: "New Variant", values: defaultValues }]
+                                          }
+                                        }));
+                                      }
+                                    }
+                                  }}
+                                  className="flex space-x-6"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="existing" id={`existing-${objectId}`} />
+                                    <Label htmlFor={`existing-${objectId}`} className="cursor-pointer">
+                                      Use existing variants ({existingVariants.length} available)
+                                    </Label>
                                   </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {object?.flags.map((flag) => (
-                                      <div key={flag.key}>
-                                        <Label className="text-xs font-medium">{flag.key}</Label>
-                                        <p className="text-xs text-muted-foreground mb-2">{flag.description}</p>
-                                        {flag.type === "text" && (
-                                          <Input
-                                            value={variant.values[flag.key] || flag.defaultValue}
-                                            onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, e.target.value)}
-                                            className="h-8"
-                                          />
-                                        )}
-                                        {flag.type === "number" && (
-                                          <Input
-                                            type="number"
-                                            value={variant.values[flag.key] || flag.defaultValue}
-                                            onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, parseFloat(e.target.value) || 0)}
-                                            className="h-8"
-                                          />
-                                        )}
-                                        {flag.type === "boolean" && (
-                                          <Select
-                                            value={(variant.values[flag.key] ?? flag.defaultValue).toString()}
-                                            onValueChange={(value) => updateVariantValue(objectId, variantIndex, flag.key, value === "true")}
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="new" id={`new-${objectId}`} />
+                                    <Label htmlFor={`new-${objectId}`} className="cursor-pointer">
+                                      Create new variants
+                                    </Label>
+                                  </div>
+                                </RadioGroup>
+                              </div>
+
+                              {/* Existing Variants Selection */}
+                              {mode === "existing" && (
+                                <div className="space-y-4">
+                                  <Label className="text-sm font-medium">Select Variants to Use</Label>
+                                  {existingVariants.length === 0 ? (
+                                    <Alert>
+                                      <AlertTriangle className="h-4 w-4" />
+                                      <AlertDescription>
+                                        No existing variants found for this object. Switch to "Create new variants" to configure custom variants.
+                                      </AlertDescription>
+                                    </Alert>
+                                  ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      {existingVariants.map((variant) => {
+                                        const isSelected = variants?.variants.some(v => v.name === variant.name);
+                                        return (
+                                          <div
+                                            key={variant.pid}
+                                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                              isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                                            }`}
+                                            onClick={() => {
+                                              const currentVariants = variants?.variants || [];
+                                              let newVariants;
+                                              
+                                              if (isSelected) {
+                                                // Remove variant
+                                                newVariants = currentVariants.filter(v => v.name !== variant.name);
+                                              } else {
+                                                // Add variant
+                                                newVariants = [...currentVariants, {
+                                                  name: variant.name,
+                                                  values: variant.config
+                                                }];
+                                              }
+                                              
+                                              setObjectVariants(prev => ({
+                                                ...prev,
+                                                [objectId]: { variants: newVariants }
+                                              }));
+                                            }}
                                           >
-                                            <SelectTrigger className="h-8">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="true">True</SelectItem>
-                                              <SelectItem value="false">False</SelectItem>
-                                            </SelectContent>
-                                          </Select>
+                                            <div className="flex items-center justify-between">
+                                              <div>
+                                                <div className="font-medium text-sm">{variant.name}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  {Object.keys(variant.config).length} parameters
+                                                </div>
+                                              </div>
+                                              <Checkbox
+                                                checked={isSelected}
+                                                onChange={() => {}} // Handled by div onClick
+                                              />
+                                            </div>
+                                            <div className="mt-2 text-xs text-muted-foreground">
+                                              {Object.entries(variant.config).slice(0, 2).map(([key, value]) => (
+                                                <div key={key}>{key}: {String(value)}</div>
+                                              ))}
+                                              {Object.keys(variant.config).length > 2 && <div>...</div>}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* New Variants Creation */}
+                              {mode === "new" && (
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">Custom Variants</Label>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => addVariant(objectId)}
+                                    >
+                                      <Plus className="w-4 h-4 mr-2" />
+                                      Add Variant
+                                    </Button>
+                                  </div>
+                                  
+                                  {variants?.variants.map((variant, variantIndex) => (
+                                    <div key={variantIndex} className="border rounded-lg p-4 bg-accent/20">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                          <Input
+                                            value={variant.name}
+                                            onChange={(e) => {
+                                              const newVariants = [...variants.variants];
+                                              newVariants[variantIndex] = {
+                                                ...newVariants[variantIndex],
+                                                name: e.target.value
+                                              };
+                                              setObjectVariants(prev => ({
+                                                ...prev,
+                                                [objectId]: { variants: newVariants }
+                                              }));
+                                            }}
+                                            className="font-medium w-48"
+                                            placeholder="Variant name"
+                                          />
+                                        </div>
+                                        {variants.variants.length > 1 && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => removeVariant(objectId, variantIndex)}
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </Button>
                                         )}
                                       </div>
-                                    ))}
-                                  </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {object?.flags.map((flag) => (
+                                          <div key={flag.key}>
+                                            <Label className="text-xs font-medium">{flag.key}</Label>
+                                            <p className="text-xs text-muted-foreground mb-2">{flag.description}</p>
+                                            {flag.type === "text" && (
+                                              <Input
+                                                value={variant.values[flag.key] || flag.defaultValue}
+                                                onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, e.target.value)}
+                                                className="h-8"
+                                              />
+                                            )}
+                                            {flag.type === "number" && (
+                                              <Input
+                                                type="number"
+                                                value={variant.values[flag.key] || flag.defaultValue}
+                                                onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, parseFloat(e.target.value) || 0)}
+                                                className="h-8"
+                                              />
+                                            )}
+                                            {flag.type === "boolean" && (
+                                              <Select
+                                                value={(variant.values[flag.key] ?? flag.defaultValue).toString()}
+                                                onValueChange={(value) => updateVariantValue(objectId, variantIndex, flag.key, value === "true")}
+                                              >
+                                                <SelectTrigger className="h-8">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="true">True</SelectItem>
+                                                  <SelectItem value="false">False</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </AccordionContent>
                         </AccordionItem>
@@ -1324,11 +1576,13 @@ export default function ExperienceWizard() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={!canProceed()}
+                      disabled={!canProceed() || createVariant.isPending || createExperience.isPending}
                       className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
                     >
                       <Zap className="w-4 h-4 mr-2" />
-                      Launch Experience
+                      {createVariant.isPending || createExperience.isPending
+                        ? "Launching..."
+                        : "Launch Experience"}
                     </Button>
                   </>
                 ) : currentStep === 2 ? (

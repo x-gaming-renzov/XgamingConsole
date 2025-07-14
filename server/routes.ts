@@ -1105,42 +1105,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { objectId } = req.params;
       const variantData = req.body;
-      const variant = await storage.createVariant({
-        ...variantData,
-        objectId: parseInt(objectId),
-      });
+
+      const variant = await callNovaBackend<GetFeatureFlagDetailsResponse>(
+        `/api/v1/feature-flags/${objectId}/variants/`,
+        { method: "POST", body: JSON.stringify(variantData) }
+      );
+
       res.status(201).json(variant);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create variant" });
     }
   });
 
-  app.patch("/api/variants/:id", authenticateToken, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-      const variant = await storage.updateVariant(parseInt(id), updates);
-      if (!variant) {
-        return res.status(404).json({ message: "Variant not found" });
-      }
-      res.json(variant);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to update variant" });
-    }
-  });
+  // app.patch("/api/variants/:id", authenticateToken, async (req: any, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const updates = req.body;
+  //     const variant = await storage.updateVariant(parseInt(id), updates);
+  //     if (!variant) {
+  //       return res.status(404).json({ message: "Variant not found" });
+  //     }
+  //     res.json(variant);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to update variant" });
+  //   }
+  // });
 
-  app.delete("/api/variants/:id", authenticateToken, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteVariant(parseInt(id));
-      if (!deleted) {
-        return res.status(404).json({ message: "Variant not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to delete variant" });
-    }
-  });
+  // app.delete("/api/variants/:id", authenticateToken, async (req: any, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const deleted = await storage.deleteVariant(parseInt(id));
+  //     if (!deleted) {
+  //       return res.status(404).json({ message: "Variant not found" });
+  //     }
+  //     res.status(204).send();
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to delete variant" });
+  //   }
+  // });
 
   app.get("/api/manifest/info", authenticateToken, async (req, res) => {
     try {
