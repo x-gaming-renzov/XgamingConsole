@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
-import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant } from "./types";
+import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
 const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://localhost:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -686,19 +686,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Segments routes
   app.get("/api/segments", authenticateToken, async (req, res) => {
     try {
-      const { projectId } = req.query;
-      
-      if (!projectId) {
-        return res.status(400).json({ message: "Project ID is required" });
-      }
+      const organisationId =  "org123";
+      const appId = "app123";
 
-      // Verify user has access to project
-      const project = await storage.getProject(Number(projectId));
-      if (!project || project.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+      // Call Nova backend to get feature flags
+      const novaResponse = await callNovaBackend<SegmentListResponseItem[]>(
+        `/api/v1/segments/?organisation_id=${organisationId}&app_id=${appId}`
+      );
 
-      const segments = await storage.getSegmentsByProjectId(Number(projectId));
+      // Transform Nova segments to segments format for dashboard
+      const segments = novaResponse.map((segment: any) => {
+        return {
+          id: segment.pid,
+          name: segment.name,
+          description: segment.description || "",
+          rules: segment.rule_config?.rules || [],
+          createdAt: new Date(segment.created_at).toLocaleDateString(),
+          modifiedAt: new Date(segment.modified_at).toLocaleDateString(),
+          experienceCount: segment.experience_count,
+        };
+      });
+
       res.json(segments);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segments" });
@@ -707,21 +715,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/segments", authenticateToken, async (req, res) => {
     try {
-      const segmentData = insertSegmentSchema.parse(req.body);
-      const { projectId } = req.body;
+      const organisationId =  "org123";
+      const appId = "app123";
 
-      // Verify user has access to project
-      const project = await storage.getProject(projectId);
-      if (!project || project.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const segment = await storage.createSegment({
-        ...segmentData,
-        projectId,
-        userId: req.user.userId,
+      // Call Nova backend to create segement
+      const segmentData = {
+        organisation_id: organisationId,
+        app_id: appId,
+        name: req.body.name,
+        description: req.body.description,
+        rule_config: { rules: req.body.rules },
+      };
+      await callNovaBackend<GetFeatureFlagsResponse>("/api/v1/segments/", {
+        method: "POST",
+        body: JSON.stringify(segmentData),
       });
-      res.json(segment);
+
+      res.json({ success: true });
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create segment" });
     }
@@ -739,6 +749,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ users_daily: estimate });
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to estimate segment size" });
+    }
+  });
+
+  app.get("/api/segments/:id", authenticateToken, async (req, res) => {
+    try {
+      const id = req.params.id;
+
+      // Call Nova backend to get feature flags
+      const novaResponse = await callNovaBackend<SegmentDetailsResponse>(
+        `/api/v1/segments/${id}/`
+      );
+
+      const experiences = novaResponse.experience_segments.map((experience) => {
+        return {
+          id: experience.pid,
+          name: experience.name,
+          status: experience.status,
+          splitPercent: experience.target_percentage,
+        }
+      })
+
+      const segmentDetails = {
+        id: novaResponse.pid,
+        name: novaResponse.name,
+        description: novaResponse.description,
+        rules: novaResponse.rule_config?.rules || [],
+        createdAt: new Date(novaResponse.created_at).toLocaleDateString(),
+        modifiedAt: new Date(novaResponse.modified_at).toLocaleDateString(),
+        experienceCount: novaResponse.experience_count,
+        activeExperiences: novaResponse.active_experiences,
+        experiences,
+      }
+
+      res.json(segmentDetails);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segments" });
     }
   });
 

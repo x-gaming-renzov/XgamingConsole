@@ -32,24 +32,29 @@ import {
   BarChart3,
   Wrench
 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Segment {
   id: string;
   name: string;
-  rulesSummary: string;
-  avgDailyUsers: number;
-  usedIn: string[];
-  isAdvanced: boolean;
+  description: string;
   rules: SegmentRule[];
-  metrics?: {
-    d1Retention: number;
-    d7Retention: number;
-    activation: number;
-    activeExperiences: number;
-    growthPercent: number;
-  };
-  experiences?: Experience[];
-  pastOutcomes?: PastOutcome[];
+  createdAt: string;
+  experienceCount: number;
+}
+
+interface SegmentDetails {
+  id: string;
+  name: string;
+  description: string;
+  rules: SegmentRule[];
+  createdAt: string;
+  modifiedAt: string;
+  experienceCount: number;
+  activeExperiences: number;
+  experiences: Experience[];
 }
 
 interface Experience {
@@ -57,7 +62,6 @@ interface Experience {
   name: string;
   status: 'active' | 'completed' | 'draft';
   splitPercent: number;
-  uplift: number;
 }
 
 interface PastOutcome {
@@ -139,88 +143,30 @@ const OPERATORS = {
 };
 
 export default function Segments() {
+  const queryClient = useQueryClient();
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
-  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
-  const [segments, setSegments] = useState<Segment[]>([
-    {
-      id: "1",
-      name: "High-Tier iOS",
-      rulesSummary: "tier = pro AND device_os = iOS",
-      avgDailyUsers: 3250,
-      usedIn: ["Enhanced Onboarding", "VIP Tutorial"],
-      isAdvanced: false,
-      rules: [
-        { attribute: "tier", operator: "=", value: "pro", group: "and" },
-        { attribute: "device_os", operator: "=", value: "iOS", group: "and" }
-      ],
-      metrics: {
-        d1Retention: 68,
-        d7Retention: 42,
-        activation: 85,
-        activeExperiences: 2,
-        growthPercent: 1.8
-      },
-      experiences: [
-        { id: "exp1", name: "Enhanced Onboarding", status: "active", splitPercent: 70, uplift: 12.3 },
-        { id: "exp2", name: "VIP Tutorial", status: "active", splitPercent: 50, uplift: 8.7 }
-      ],
-      pastOutcomes: [
-        { id: "past1", name: "Premium Welcome Flow", uplift: 18.2, completedDate: "2025-06-15" },
-        { id: "past2", name: "Elite Badge System", uplift: 14.5, completedDate: "2025-05-20" },
-        { id: "past3", name: "Exclusive Content", uplift: 9.1, completedDate: "2025-04-10" }
-      ]
+
+  const { data: segments, refetch } = useQuery<Segment[]>({
+    queryKey: ["/api/segments"],
+  });
+
+  const { 
+    data: selectedSegment, 
+    isLoading: isLoadingDetails,
+    error: detailsError 
+  } = useQuery<SegmentDetails>({
+    queryKey: ["/api/segments", selectedSegmentId],
+    queryFn: async () => {
+      if (!selectedSegmentId) return null;
+      const response = await apiRequest("GET", `/api/segments/${selectedSegmentId}`);
+      return await response.json();
     },
-    {
-      id: "2", 
-      name: "TikTok (utm_source)",
-      rulesSummary: "utm_source = tiktok",
-      avgDailyUsers: 1850,
-      usedIn: ["Social Media Onboarding"],
-      isAdvanced: false,
-      rules: [
-        { attribute: "utm_source", operator: "=", value: "tiktok", group: "and" }
-      ],
-      metrics: {
-        d1Retention: 42,
-        d7Retention: 28,
-        activation: 67,
-        activeExperiences: 1,
-        growthPercent: 3.2
-      },
-      experiences: [
-        { id: "exp3", name: "Social Media Onboarding", status: "active", splitPercent: 60, uplift: 5.4 }
-      ],
-      pastOutcomes: [
-        { id: "past4", name: "TikTok Creator Flow", uplift: 7.8, completedDate: "2025-06-01" },
-        { id: "past5", name: "Viral Features Test", uplift: 4.2, completedDate: "2025-05-15" }
-      ]
-    },
-    {
-      id: "3",
-      name: "Level-5 Retries ≥ 3",
-      rulesSummary: "level_number = 5 AND retry_count ≥ 3",
-      avgDailyUsers: 420,
-      usedIn: [],
-      isAdvanced: true,
-      rules: [
-        { attribute: "level_number", operator: "=", value: "5", group: "and" }
-      ],
-      metrics: {
-        d1Retention: 35,
-        d7Retention: 18,
-        activation: 45,
-        activeExperiences: 0,
-        growthPercent: -2.1
-      },
-      experiences: [],
-      pastOutcomes: [
-        { id: "past6", name: "Difficulty Helper", uplift: 8.9, completedDate: "2025-05-30" }
-      ]
-    }
-  ]);
+    enabled: !!selectedSegmentId && drawerOpen,
+  });
 
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderStep, setBuilderStep] = useState(1);
@@ -315,44 +261,53 @@ export default function Segments() {
     setBuilderData(prev => ({ ...prev, estimate }));
   };
 
+  const createSegment = useMutation({
+    mutationFn: async (segmentData: any) => {
+      const response = await apiRequest("POST", "/api/segments/", segmentData);
+      return await response.json();
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate segmentss cache for this object
+      queryClient.invalidateQueries({ queryKey: ["/api/segments/"] });
+      console.log("Segment created successfully:", data);
+    },
+    onError: (error) => {
+      console.error("Failed to create segment:", error);
+    }
+  });
+
   const saveSegment = () => {
-    const newSegment: Segment = {
-      id: Date.now().toString(),
+    const segmentData = {
       name: builderData.name,
-      rulesSummary: formatRulesDisplay(builderData.rules),
-      avgDailyUsers: builderData.estimate || 0,
-      usedIn: [],
-      isAdvanced: builderData.showAdvanced,
-      rules: builderData.rules
+      description: "",
+      rules: builderData.rules,
     };
-    
-    setSegments(prev => [...prev, newSegment]);
+    createSegment.mutate(segmentData)
     setShowBuilder(false);
     resetBuilder();
   };
 
   const deleteSegment = (id: string) => {
-    setSegments(prev => prev.filter(seg => seg.id !== id));
+    // setSegments(prev => prev.filter(seg => seg.id !== id));
   };
 
   const openSegmentDetail = (segment: Segment) => {
-    setSelectedSegment(segment);
+    setSelectedSegmentId(segment.id);
     setEditedName(segment.name);
     setDrawerOpen(true);
   };
 
   const closeDrawer = () => {
     setDrawerOpen(false);
-    setSelectedSegment(null);
+    setSelectedSegmentId(null);
     setEditingName(false);
   };
 
   const handleNameEdit = () => {
     if (selectedSegment && editedName.trim()) {
-      setSegments(prev => prev.map(seg => 
-        seg.id === selectedSegment.id ? { ...seg, name: editedName.trim() } : seg
-      ));
-      setSelectedSegment(prev => prev ? { ...prev, name: editedName.trim() } : null);
+      // setSegments(prev => prev.map(seg => 
+      //   seg.id === selectedSegment.id ? { ...seg, name: editedName.trim() } : seg
+      // ));
       setEditingName(false);
     }
   };
@@ -387,7 +342,7 @@ export default function Segments() {
       </div>
 
       {/* Empty State */}
-      {segments.length === 0 && (
+      {!segments || segments.length === 0 && (
         <Card className="text-center py-12">
           <CardContent>
             <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -408,7 +363,7 @@ export default function Segments() {
       )}
 
       {/* Segments Table */}
-      {segments.length > 0 && (
+      {segments && segments.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>All Segments</CardTitle>
@@ -424,33 +379,17 @@ export default function Segments() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
                       <h3 className="font-medium">{segment.name}</h3>
-                      {segment.isAdvanced && (
-                        <div className="relative group">
-                          <Settings className="w-4 h-4 text-muted-foreground" />
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-32 p-1 bg-popover border border-border rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            Advanced segment
-                          </div>
-                        </div>
-                      )}
                     </div>
                     <p className="text-sm text-muted-foreground font-mono mt-1">
-                      {segment.rulesSummary}
+                      {segment.description}
                     </p>
                     <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-sm text-muted-foreground">
-                        <Users className="w-4 h-4 inline mr-1" />
-                        {segment.avgDailyUsers.toLocaleString()} avg daily users
-                      </span>
-                      {segment.usedIn.length > 0 && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-muted-foreground">Used in:</span>
-                          {segment.usedIn.map((exp, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {exp}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-muted-foreground">Used in:</span>
+                        <Badge variant="outline" className="text-xs">
+                          {segment.experienceCount} experiences
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -471,7 +410,7 @@ export default function Segments() {
                         e.stopPropagation();
                         deleteSegment(segment.id);
                       }}
-                      disabled={segment.usedIn.length > 0}
+                      disabled={segment.experienceCount > 0}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -769,255 +708,300 @@ export default function Segments() {
       {/* Segment Detail Drawer */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="right" className="w-[480px] overflow-y-auto">
-          {selectedSegment && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {editingName ? (
-                      <Input
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        onBlur={handleNameEdit}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleNameEdit();
-                          if (e.key === 'Escape') setEditingName(false);
-                        }}
-                        className="text-lg font-semibold"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="text-lg font-semibold">{selectedSegment.name}</span>
-                    )}
-                    {selectedSegment.isAdvanced && (
-                      <Wrench className="w-4 h-4 text-muted-foreground" title="Advanced segment" />
-                    )}
-                    {!editingName && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setEditingName(true)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </SheetTitle>
-                <div className="text-sm font-mono text-muted-foreground">
-                  {selectedSegment.rulesSummary}
+          {selectedSegmentId && (
+            isLoadingDetails ? (
+              <div className="space-y-6">
+                {/* Header skeleton */}
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
                 </div>
-                <div className="flex items-center space-x-4 text-sm">
-                  <span>📈 {selectedSegment.avgDailyUsers.toLocaleString()} avg daily users</span>
-                  {selectedSegment.metrics && (
-                    <span className={`${selectedSegment.metrics.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {selectedSegment.metrics.growthPercent >= 0 ? '+' : ''}{selectedSegment.metrics.growthPercent}% vs last wk
-                    </span>
-                  )}
-                </div>
-              </SheetHeader>
-
-              <div className="mt-6">
-                <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="edit-rules">Edit Rules</TabsTrigger>
-                  </TabsList>
+                
+                {/* Tabs skeleton */}
+                <div className="space-y-4">
+                  <Skeleton className="h-10 w-full" />
                   
-                  <TabsContent value="overview" className="space-y-6 mt-6">
-                    {/* Key Metrics */}
-                    {selectedSegment.metrics && (
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Key Metrics (last 7 days)</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                          <Card>
-                            <CardContent className="p-3">
-                              <div className="text-2xl font-bold">{selectedSegment.metrics.d1Retention}%</div>
-                              <div className="text-xs text-muted-foreground">Avg D1 Retention</div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-3">
-                              <div className="text-2xl font-bold">{selectedSegment.metrics.d7Retention}%</div>
-                              <div className="text-xs text-muted-foreground">Avg D7 Retention</div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-3">
-                              <div className="text-2xl font-bold">{selectedSegment.metrics.activation}%</div>
-                              <div className="text-xs text-muted-foreground">Avg Activation</div>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="p-3">
-                              <div className="text-2xl font-bold">{selectedSegment.metrics.activeExperiences}</div>
-                              <div className="text-xs text-muted-foreground">Active Experiences</div>
-                            </CardContent>
-                          </Card>
-                        </div>
+                  {/* Content skeleton */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="p-3 border rounded-lg">
+                        <Skeleton className="h-8 w-16 mb-1" />
+                        <Skeleton className="h-3 w-20" />
                       </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="p-3 border rounded-lg">
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              </div>
+            ) : detailsError ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
+                <p className="text-sm text-muted-foreground mb-4">Failed to load segment details</p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/segments", selectedSegmentId] })}
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            ) : selectedSegment && (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {editingName ? (
+                        <Input
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          onBlur={handleNameEdit}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleNameEdit();
+                            if (e.key === 'Escape') setEditingName(false);
+                          }}
+                          className="text-lg font-semibold"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="text-lg font-semibold">{selectedSegment.name}</span>
+                      )}
+                      {!editingName && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setEditingName(true)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </SheetTitle>
+                  <div className="text-sm font-mono text-muted-foreground">
+                    {selectedSegment.description}
+                  </div>
+                  {/* <div className="flex items-center space-x-4 text-sm">
+                    <span>📈 {selectedSegment.avgDailyUsers.toLocaleString()} avg daily users</span>
+                    {selectedSegment.metrics && (
+                      <span className={`${selectedSegment.metrics.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {selectedSegment.metrics.growthPercent >= 0 ? '+' : ''}{selectedSegment.metrics.growthPercent}% vs last wk
+                      </span>
                     )}
+                  </div> */}
+                </SheetHeader>
 
-                    {/* Active Experiences */}
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Experiences</h3>
-                      {selectedSegment.experiences && selectedSegment.experiences.length > 0 ? (
-                        <div className="space-y-2">
-                          {selectedSegment.experiences.map((exp) => (
-                            <Card key={exp.id} className="cursor-pointer hover:bg-muted/50">
+                <div className="mt-6">
+                  <Tabs defaultValue="edit-rules" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="overview">Overview</TabsTrigger>
+                      <TabsTrigger value="edit-rules">Edit Rules</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="overview" className="space-y-6 mt-6">
+                      {/* Key Metrics */}
+                      {/* {selectedSegment.metrics && (
+                        <div>
+                          <h3 className="text-sm font-medium text-muted-foreground mb-3">Key Metrics (last 7 days)</h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Card>
                               <CardContent className="p-3">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium text-sm">{exp.name}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {exp.splitPercent}% split • +{exp.uplift}% uplift
+                                <div className="text-2xl font-bold">{selectedSegment.metrics.d1Retention}%</div>
+                                <div className="text-xs text-muted-foreground">Avg D1 Retention</div>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardContent className="p-3">
+                                <div className="text-2xl font-bold">{selectedSegment.metrics.d7Retention}%</div>
+                                <div className="text-xs text-muted-foreground">Avg D7 Retention</div>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardContent className="p-3">
+                                <div className="text-2xl font-bold">{selectedSegment.metrics.activation}%</div>
+                                <div className="text-xs text-muted-foreground">Avg Activation</div>
+                              </CardContent>
+                            </Card>
+                            <Card>
+                              <CardContent className="p-3">
+                                <div className="text-2xl font-bold">{selectedSegment.metrics.activeExperiences}</div>
+                                <div className="text-xs text-muted-foreground">Active Experiences</div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
+                      )} */}
+
+                      {/* Active Experiences */}
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Experiences</h3>
+                        {selectedSegment.experiences && selectedSegment.experiences.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedSegment.experiences.map((exp) => (
+                              <Card key={exp.id} className="cursor-pointer hover:bg-muted/50">
+                                <CardContent className="p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-sm">{exp.name}</div>
+                                      {/* <div className="text-xs text-muted-foreground">
+                                        {exp.splitPercent}% split • +{exp.uplift}% uplift
+                                      </div> */}
                                     </div>
+                                    <Badge 
+                                      variant={exp.status === 'active' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
+                                    >
+                                      {exp.status}
+                                    </Badge>
                                   </div>
-                                  <Badge 
-                                    variant={exp.status === 'active' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
-                                  >
-                                    {exp.status}
-                                  </Badge>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No experiences use this segment yet.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Past Outcomes */}
+                      {/* {selectedSegment.pastOutcomes && selectedSegment.pastOutcomes.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-medium text-muted-foreground mb-3">Past Outcomes</h3>
+                          <div className="space-y-2">
+                            {selectedSegment.pastOutcomes
+                              .sort((a, b) => b.uplift - a.uplift)
+                              .map((outcome) => (
+                                <div key={outcome.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                                  <div className="text-sm">{outcome.name}</div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-green-600">+{outcome.uplift}%</span>
+                                    <span className="text-xs text-muted-foreground">{new Date(outcome.completedDate).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )} */}
+
+                      {/* Segment Size Trend
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Segment Size Trend</h3>
+                        <Card>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-center h-16 text-muted-foreground">
+                              <BarChart3 className="w-8 h-8 mr-2" />
+                              <span className="text-sm">28-day trend chart</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div> */}
+
+                      {/* Create Experience CTA */}
+                      <div className="pt-4">
+                        <Button className="w-full" onClick={() => {
+                          setShowQuickPrompt(true);
+                          closeDrawer();
+                        }}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Experience
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="edit-rules" className="space-y-6 mt-6">
+                      {/* Live Estimate */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-medium text-muted-foreground">Live Estimate</h3>
+                          <Button variant="outline" size="sm" onClick={estimateSegmentSize}>
+                            <Activity className="w-4 h-4 mr-2" />
+                            Refresh
+                          </Button>
+                        </div>
+                        {/* <Card>
+                          <CardContent className="p-3">
+                            <div className="text-2xl font-bold">{selectedSegment.avgDailyUsers.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">estimated daily users</div>
+                          </CardContent>
+                        </Card> */}
+                      </div>
+
+                      {/* Rule Builder */}
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Rules</h3>
+                        <div className="text-sm text-muted-foreground mb-4">
+                          Modify the rules that define this segment. Changes will affect all future traffic.
+                        </div>
+                        
+                        {/* Simplified rule display for now */}
+                        <div className="space-y-3">
+                          {selectedSegment.rules.map((rule, index) => (
+                            <Card key={index}>
+                              <CardContent className="p-3">
+                                <div className="flex items-center space-x-2 text-sm">
+                                  {index > 0 && (
+                                    <Badge variant="outline" className="uppercase">
+                                      {rule.group}
+                                    </Badge>
+                                  )}
+                                  <span className="font-mono">{rule.attribute}</span>
+                                  <span>{rule.operator}</span>
+                                  <span className="font-medium">{rule.value}</span>
                                 </div>
                               </CardContent>
                             </Card>
                           ))}
                         </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">No experiences use this segment yet.</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Past Outcomes */}
-                    {selectedSegment.pastOutcomes && selectedSegment.pastOutcomes.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Past Outcomes</h3>
-                        <div className="space-y-2">
-                          {selectedSegment.pastOutcomes
-                            .sort((a, b) => b.uplift - a.uplift)
-                            .map((outcome) => (
-                              <div key={outcome.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                                <div className="text-sm">{outcome.name}</div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-sm font-medium text-green-600">+{outcome.uplift}%</span>
-                                  <span className="text-xs text-muted-foreground">{new Date(outcome.completedDate).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
                       </div>
-                    )}
 
-                    {/* Segment Size Trend */}
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Segment Size Trend</h3>
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-center h-16 text-muted-foreground">
-                            <BarChart3 className="w-8 h-8 mr-2" />
-                            <span className="text-sm">28-day trend chart</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Create Experience CTA */}
-                    <div className="pt-4">
-                      <Button className="w-full" onClick={() => {
-                        setShowQuickPrompt(true);
-                        closeDrawer();
-                      }}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Experience
-                      </Button>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="edit-rules" className="space-y-6 mt-6">
-                    {/* Live Estimate */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-medium text-muted-foreground">Live Estimate</h3>
-                        <Button variant="outline" size="sm" onClick={estimateSegmentSize}>
-                          <Activity className="w-4 h-4 mr-2" />
-                          Refresh
+                      {/* Save Changes */}
+                      <div className="flex space-x-2">
+                        <Button className="flex-1">
+                          Save Changes
+                        </Button>
+                        <Button variant="outline">
+                          Reset
                         </Button>
                       </div>
-                      <Card>
-                        <CardContent className="p-3">
-                          <div className="text-2xl font-bold">{selectedSegment.avgDailyUsers.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">estimated daily users</div>
-                        </CardContent>
-                      </Card>
-                    </div>
 
-                    {/* Rule Builder */}
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Rules</h3>
-                      <div className="text-sm text-muted-foreground mb-4">
-                        Modify the rules that define this segment. Changes will affect all future traffic.
+                      {/* Danger Zone */}
+                      <div className="pt-6 border-t border-border">
+                        <div className="text-sm font-medium text-red-600 mb-2">Danger Zone</div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          disabled={selectedSegment.experienceCount > 0}
+                          onClick={() => {
+                            if (window.confirm('This segment is not used in any active experience. Delete permanently?')) {
+                              deleteSegment(selectedSegment.id);
+                              closeDrawer();
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Segment
+                        </Button>
+                        {selectedSegment.experienceCount > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Cannot delete: used in {selectedSegment.experienceCount} active experience(s)
+                          </p>
+                        )}
                       </div>
-                      
-                      {/* Simplified rule display for now */}
-                      <div className="space-y-3">
-                        {selectedSegment.rules.map((rule, index) => (
-                          <Card key={index}>
-                            <CardContent className="p-3">
-                              <div className="flex items-center space-x-2 text-sm">
-                                {index > 0 && (
-                                  <Badge variant="outline" className="uppercase">
-                                    {rule.group}
-                                  </Badge>
-                                )}
-                                <span className="font-mono">{rule.attribute}</span>
-                                <span>{rule.operator}</span>
-                                <span className="font-medium">{rule.value}</span>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Save Changes */}
-                    <div className="flex space-x-2">
-                      <Button className="flex-1">
-                        Save Changes
-                      </Button>
-                      <Button variant="outline">
-                        Reset
-                      </Button>
-                    </div>
-
-                    {/* Danger Zone */}
-                    <div className="pt-6 border-t border-border">
-                      <div className="text-sm font-medium text-red-600 mb-2">Danger Zone</div>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        disabled={selectedSegment.usedIn.length > 0}
-                        onClick={() => {
-                          if (window.confirm('This segment is not used in any active experience. Delete permanently?')) {
-                            deleteSegment(selectedSegment.id);
-                            closeDrawer();
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Segment
-                      </Button>
-                      {selectedSegment.usedIn.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Cannot delete: used in {selectedSegment.usedIn.length} active experience(s)
-                        </p>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </>
+            )
           )}
         </SheetContent>
       </Sheet>
