@@ -31,42 +31,32 @@ import {
 import { Input } from "@/components/ui/input";
 
 interface ExperienceDetails {
-  id: number;
+  id: string;
   name: string;
   status: string;
   description: string;
-  campaign: string;
-  objects: string[];
-  uplift: number;
-  participants: number;
-  d1Retention: number;
-  activation: number;
+  priority: number;
+  organisation_id: string;
+  app_id: string;
   startDate: string;
   endDate?: string;
-  autoRollout: {
-    enabled: boolean;
-    upliftThreshold: number;
-    minUsers: number;
-  };
-  campaigns: Array<{
+  segments: Array<{
+    pid: string;
     name: string;
-    segment: string;
-    experiencePercent: number;
-    controlPercent: number;
-    users7d: number;
+    description: string;
+    target_percentage: number;
+    rule_config: any;
+    created_at: string;
   }>;
-  variants: Array<{
-    objectName: string;
-    variants: Array<{
-      name: string;
-      parameters: Record<string, any>;
-    }>;
+  feature_variants: Array<{
+    pid: string;
+    name: string;
+    config: Record<string, any>;
+    created_at: string;
   }>;
-  metrics: Array<{
-    date: string;
-    control: number;
-    variantA: number;
-  }>;
+  segment_count: number;
+  feature_variant_count: number;
+  user_experience_count: number;
   history: Array<{
     date: string;
     event: string;
@@ -274,9 +264,9 @@ export default function ExperienceDetails() {
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-5 h-5 text-green-500" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Uplift</p>
-                      <p className="text-2xl font-bold text-green-500">+{experience.uplift || 0}%</p>
-                      <p className="text-xs text-muted-foreground">rolling 7d</p>
+                      <p className="text-sm text-muted-foreground">Priority</p>
+                      <p className="text-2xl font-bold text-green-500">#{experience.priority}</p>
+                      <p className="text-xs text-muted-foreground">experience order</p>
                     </div>
                   </div>
                 </CardContent>
@@ -287,8 +277,8 @@ export default function ExperienceDetails() {
                   <div className="flex items-center space-x-2">
                     <Users className="w-5 h-5 text-blue-500" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Participants</p>
-                      <p className="text-2xl font-bold">{experience.participants?.toLocaleString() || '0'}</p>
+                      <p className="text-sm text-muted-foreground">User Experiences</p>
+                      <p className="text-2xl font-bold">{experience.user_experience_count?.toLocaleString() || '0'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -299,8 +289,8 @@ export default function ExperienceDetails() {
                   <div className="flex items-center space-x-2">
                     <Target className="w-5 h-5 text-purple-500" />
                     <div>
-                      <p className="text-sm text-muted-foreground">D1 Retention</p>
-                      <p className="text-2xl font-bold">{experience.d1Retention || 0}%</p>
+                      <p className="text-sm text-muted-foreground">Segments</p>
+                      <p className="text-2xl font-bold">{experience.segment_count || 0}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -311,19 +301,19 @@ export default function ExperienceDetails() {
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-5 h-5 text-orange-500" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Activation</p>
-                      <p className="text-2xl font-bold">{experience.activation || 0}%</p>
+                      <p className="text-sm text-muted-foreground">Variants</p>
+                      <p className="text-2xl font-bold">{experience.feature_variant_count || 0}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Campaign & Target Panel */}
+            {/* Segments Panel */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Campaign & Target Distribution</CardTitle>
+                  <CardTitle>Segments & Target Distribution</CardTitle>
                   <Button variant="outline" size="sm">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit Split
@@ -332,82 +322,82 @@ export default function ExperienceDetails() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(experience.campaigns || []).map((campaign, index) => (
+                  {(experience.segments || []).map((segment, index) => (
                     <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="grid grid-cols-5 gap-4 flex-1">
+                      <div className="grid grid-cols-4 gap-4 flex-1">
                         <div>
-                          <p className="font-medium">{campaign.name}</p>
+                          <p className="font-medium">{segment.name}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Segment</p>
-                          <p className="font-medium">{campaign.segment}</p>
+                          <p className="text-sm text-muted-foreground">Description</p>
+                          <p className="font-medium">{segment.description || 'No description'}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Experience %</p>
-                          <p className="font-medium">{campaign.experiencePercent}%</p>
+                          <p className="text-sm text-muted-foreground">Target %</p>
+                          <p className="font-medium">{segment.target_percentage}%</p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Control %</p>
-                          <p className="font-medium">{campaign.controlPercent}%</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Users 7d</p>
-                          <p className="font-medium">{campaign.users7d.toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground">Created</p>
+                          <p className="font-medium">{new Date(segment.created_at).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      {experience.autoRollout?.enabled && (
-                        <Badge variant="secondary" className="ml-4">Auto-rollout</Badge>
-                      )}
                     </div>
                   ))}
+                  {(experience.segments || []).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No segments configured for this experience</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Object List Panel */}
+            {/* Feature Variants Panel */}
             <Card>
               <CardHeader>
-                <CardTitle>Objects Used</CardTitle>
+                <CardTitle>Feature Variants</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {(experience.objects || []).map((object, index) => (
+                  {(experience.feature_variants || []).map((variant, index) => (
                     <div 
                       key={index}
                       className="flex items-center justify-between p-3 border rounded cursor-pointer hover:bg-muted/50"
                       onClick={() => setActiveTab("variants")}
                     >
-                      <span className="font-medium">{object}</span>
+                      <span className="font-medium">{variant.name}</span>
                       <ChevronLeft className="w-4 h-4 rotate-180" />
                     </div>
                   ))}
+                  {(experience.feature_variants || []).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No feature variants configured</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Schedule & Auto-roll */}
+            {/* Schedule & Status */}
             <Card>
               <CardHeader>
-                <CardTitle>Schedule & Auto-rollout</CardTitle>
+                <CardTitle>Schedule & Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Starts</p>
+                    <p className="text-sm text-muted-foreground">Started</p>
                     <p className="font-medium">{new Date(experience.startDate).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Ends</p>
-                    <p className="font-medium">{experience.endDate ? new Date(experience.endDate).toLocaleString() : "None"}</p>
+                    <p className="text-sm text-muted-foreground">Priority</p>
+                    <p className="font-medium">#{experience.priority}</p>
                   </div>
                 </div>
-                {experience.autoRollout?.enabled && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-sm">
-                      <strong>Auto-rollout rule:</strong> Convert to 100% if D1 uplift ≥ {experience.autoRollout?.upliftThreshold || 0}% after {experience.autoRollout?.minUsers?.toLocaleString() || '0'} users.
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">Description</p>
+                  <p className="font-medium">{experience.description || 'No description'}</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -430,73 +420,57 @@ export default function ExperienceDetails() {
               )}
             </div>
 
-            <Accordion type="single" collapsible className="space-y-4">
-              {(experience.variants || []).map((objectVariant, objectIndex) => (
-                <AccordionItem key={objectIndex} value={`object-${objectIndex}`}>
-                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
-                    <div className="flex items-center justify-between w-full mr-4">
-                      <span>{objectVariant?.objectName || 'Unnamed Object'} – {(objectVariant?.variants || []).length} variant{(objectVariant?.variants || []).length > 1 ? 's' : ''}</span>
+            <div className="space-y-4">
+              {(experience.feature_variants || []).map((variant, index) => (
+                <Card key={index} className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span>{variant.name}</span>
                       {experience.status === "paused" && (
-                        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
-                          <Settings className="w-4 h-4 mr-2" />
-                          Configure
+                        <Button variant="ghost" size="sm">
+                          <Edit2 className="w-4 h-4" />
                         </Button>
                       )}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid gap-4 md:grid-cols-2 pt-4">
-                      {(objectVariant?.variants || []).map((variant, variantIndex) => (
-                        <Card key={variantIndex} className="border-2">
-                          <CardHeader>
-                            <CardTitle className="text-lg flex items-center justify-between">
-                              <span>{variant?.name || 'Unnamed Variant'}</span>
-                              {experience.status === "paused" && (
-                                <Button variant="ghost" size="sm">
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              {Object.entries(variant?.parameters || {}).map(([param, value]) => (
-                                <div key={param} className="space-y-1">
-                                  <label className="text-sm font-medium text-muted-foreground">
-                                    {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </label>
-                                  {experience.status === "paused" ? (
-                                    <Input
-                                      value={String(value)}
-                                      onChange={(e) => {
-                                        // Handle parameter updates when paused
-                                        console.log(`Updating ${param} to ${e.target.value}`);
-                                      }}
-                                      className="font-mono text-sm"
-                                    />
-                                  ) : (
-                                    <div className="bg-muted px-3 py-2 rounded border font-mono text-sm">
-                                      {String(value)}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                              {Object.keys(variant?.parameters || {}).length === 0 && (
-                                <div className="text-sm text-muted-foreground italic">
-                                  No parameters configured
-                                </div>
-                              )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(variant.config || {}).map(([param, value]) => (
+                        <div key={param} className="space-y-1">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            {param.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </label>
+                          {experience.status === "paused" ? (
+                            <Input
+                              value={String(value)}
+                              onChange={(e) => {
+                                // Handle parameter updates when paused
+                                console.log(`Updating ${param} to ${e.target.value}`);
+                              }}
+                              className="font-mono text-sm"
+                            />
+                          ) : (
+                            <div className="bg-muted px-3 py-2 rounded border font-mono text-sm">
+                              {JSON.stringify(value, null, 2)}
                             </div>
-                          </CardContent>
-                        </Card>
+                          )}
+                        </div>
                       ))}
+                      {Object.keys(variant.config || {}).length === 0 && (
+                        <div className="text-sm text-muted-foreground italic">
+                          No configuration parameters
+                        </div>
+                      )}
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      Created: {new Date(variant.created_at).toLocaleString()}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
-            </Accordion>
+            </div>
 
-            {(experience.variants || []).length === 0 && (
+            {(experience.feature_variants || []).length === 0 && (
               <Card>
                 <CardContent className="p-12 text-center">
                   <div className="text-muted-foreground">

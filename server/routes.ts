@@ -250,39 +250,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Experience routes (alternative view of experiments)
+  // Experience routes (Nova Manager integration)
   app.get("/api/experiences", authenticateToken, async (req, res) => {
     try {
-      // Get all projects for the user
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+      const organisationId = "org123";
+      const appId = "app123";
 
-      const allExperiments: any[] = [];
-      for (const project of projects) {
-        const experiments = await storage.getExperimentsByProjectId(project.id);
-        allExperiments.push(...experiments);
-      }
+      // Call Nova Manager to get experiences
+      const novaExperiences = await callNovaBackend<any[]>(
+        `/api/v1/experiences/?organisation_id=${organisationId}&app_id=${appId}`
+      );
 
-      // Transform experiments to experience format
-      const experiences = allExperiments.map(exp => ({
-        id: exp.id,
+      // Transform Nova Manager experiences to frontend format
+      const experiences = novaExperiences.map(exp => ({
+        id: exp.pid,
         name: exp.name,
-        campaign: exp.description || "Default Campaign", // Use description or fallback
-        object: `${exp.targetAudience || "All Players"}`, // Use target audience info
-        uplift: Math.floor(Math.random() * 20 - 5), // Mock uplift for now
-        status: exp.status === "active" ? "Active" : 
-               exp.status === "completed" ? "Completed" : 
-               exp.status === "paused" ? "Paused" : "Draft",
-        createdAt: new Date(exp.createdAt || Date.now()).toLocaleDateString(),
-        metrics: {
-          d0Retention: Math.floor(Math.random() * 20 + 40), // Mock metrics
-          d1Retention: Math.floor(Math.random() * 15 + 30),
-          activationRate: Math.floor(Math.random() * 25 + 50),
-          participants: Math.floor(Math.random() * 5000 + 1000)
-        }
+        // campaign: exp.description || "Default Campaign", // Comment out campaign
+        // object: `${exp.targetAudience || "All Players"}`, // Comment out object
+        // uplift: Math.floor(Math.random() * 20 - 5), // Comment out uplift
+        description: exp.description || "",
+        priority: exp.priority || 1,
+        status: exp.status.charAt(0).toUpperCase() + exp.status.slice(1), // Capitalize status
+        createdAt: new Date(exp.created_at).toLocaleDateString(),
+        organisation_id: exp.organisation_id,
+        app_id: exp.app_id,
+        segment_count: exp.segment_count || 0,
+        feature_variant_count: exp.feature_variant_count || 0,
+        // metrics: {
+        //   d0Retention: Math.floor(Math.random() * 20 + 40), // Comment out metrics
+        //   d1Retention: Math.floor(Math.random() * 15 + 30),
+        //   activationRate: Math.floor(Math.random() * 25 + 50),
+        //   participants: Math.floor(Math.random() * 5000 + 1000)
+        // }
       }));
 
       res.json(experiences);
@@ -291,53 +290,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to transform object variants from camelCase to snake_case
+  function transformObjectVariants(objectVariants: any): any {
+    const transformed: any = {};
+    
+    for (const [objectId, variantData] of Object.entries(objectVariants)) {
+      if (variantData && typeof variantData === 'object' && 'name' in variantData && 'values' in variantData) {
+        transformed[objectId] = {
+          name: variantData.name,
+          values: variantData.values
+        };
+      }
+    }
+    
+    return transformed;
+  }
+
+  // Helper function to transform selected segments from camelCase to snake_case
+  function transformSelectedSegments(selectedSegments: any[]): any[] {
+    return selectedSegments.map(segment => ({
+      segment_id: segment.id,
+      name: segment.name,
+      target_percentage: segment.split || 50,
+      estimated_users: segment.estimatedUsers || 0
+    }));
+  }
+
   app.post("/api/experiences", authenticateToken, async (req, res) => {
     try {
       const experienceData = req.body;
-      
-      // Get user's first project (assuming single project for now)
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      if (projects.length === 0) {
-        return res.status(400).json({ message: "No project found for user" });
-      }
+      const organisationId = "org123";
+      const appId = "app123";
 
-      const projectId = projects[0].id;
-
-      // Transform experience data to experiment format
-      const experimentData = {
+      // Transform frontend data to Nova Manager format
+      const novaExperienceData = {
         name: experienceData.name,
         description: experienceData.description || "",
-        type: "onboarding" as const,
-        status: (experienceData.status || "draft") as "draft" | "active" | "paused" | "completed",
-        targetAudience: experienceData.targetAudience || "all_players",
-        trafficSplit: experienceData.trafficSplit || 50,
-        variants: JSON.stringify(experienceData.objectVariants || {}),
-        metrics: JSON.stringify({}),
-        startDate: experienceData.startDate ? new Date(experienceData.startDate) : null,
-        endDate: experienceData.endDate ? new Date(experienceData.endDate) : null
+        priority: experienceData.priority || null, // Let backend handle priority assignment
+        status: (experienceData.status || "draft").toLowerCase(),
+        organisation_id: organisationId,
+        app_id: appId,
+        selected_objects: experienceData.selectedObjects || [],
+        object_variants: transformObjectVariants(experienceData.objectVariants || {}),
+        selected_segments: transformSelectedSegments(experienceData.selectedSegments || []),
+        traffic_split: experienceData.trafficSplit || 50,
+        campaign_type: experienceData.campaignType || "existing",
+        campaign_id: experienceData.campaignId || null,
+        new_campaign: experienceData.newCampaign || null,
+        start_date: experienceData.startDate || null,
+        end_date: experienceData.endDate || null,
+        auto_rollout: experienceData.autoRollout || null,
       };
 
-      const experiment = await storage.createExperiment({
-        ...experimentData,
-        projectId,
-        userId: req.user.userId,
-      });
-
-      // Return in experience format
-      const experience = {
-        id: experiment.id,
-        name: experiment.name,
-        campaign: experiment.description || "Default Campaign",
-        object: experiment.targetAudience || "All Players",
-        uplift: 0,
-        status: experiment.status === "active" ? "Active" : experiment.status === "draft" ? "Draft" : experiment.status,
-        createdAt: new Date().toLocaleDateString(),
-        metrics: {
-          d0Retention: 0,
-          d1Retention: 0,
-          activationRate: 0,
-          participants: 0
+      // Call Nova Manager to create experience
+      const novaExperience = await callNovaBackend<any>(
+        `/api/v1/experiences/comprehensive`,
+        {
+          method: "POST",
+          body: JSON.stringify(novaExperienceData),
         }
+      );
+
+      // Return in frontend format
+      const experience = {
+        id: novaExperience.pid,
+        name: novaExperience.name,
+        description: novaExperience.description || "",
+        priority: novaExperience.priority,
+        status: novaExperience.status.charAt(0).toUpperCase() + novaExperience.status.slice(1),
+        createdAt: new Date(novaExperience.created_at).toLocaleDateString(),
+        organisation_id: novaExperience.organisation_id,
+        app_id: novaExperience.app_id,
       };
 
       res.json(experience);
@@ -349,133 +372,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get single experience with detailed information
   app.get("/api/experiences/:id", authenticateToken, async (req, res) => {
     try {
-      const experienceId = parseInt(req.params.id);
-      const experiment = await storage.getExperiment(experienceId);
+      const experienceId = req.params.id;
       
-      if (!experiment) {
-        return res.status(404).json({ message: "Experience not found" });
-      }
+      // Call Nova Manager to get experience details
+      const novaExperience = await callNovaBackend<any>(
+        `/api/v1/experiences/${experienceId}/`
+      );
 
-      // Get associated project
-      const project = await storage.getProject(experiment.projectId);
-      
-      // Get all campaigns for this project to find associated campaign
-      const campaigns = await storage.getCampaignsByProjectId(experiment.projectId);
-      const campaign = campaigns.length > 0 ? campaigns[0] : null;
-
-      // Process variants with object defaults
-      const processVariants = async () => {
-        try {
-          // Parse the variants from the experiment if available
-          if (experiment.variants) {
-            const variants = typeof experiment.variants === 'string' 
-              ? JSON.parse(experiment.variants) 
-              : experiment.variants;
-            
-            // Get the object defaults for Control variant
-            const getObjectDefaults = async (objectId: string) => {
-              try {
-                const objectData = await storage.getObject(parseInt(objectId));
-                if (objectData && objectData.flags) {
-                  const flags = typeof objectData.flags === 'string' ? JSON.parse(objectData.flags) : objectData.flags;
-                  const defaults: any = {};
-                  flags.forEach((flag: any) => {
-                    if (flag.key && flag.defaultValue !== undefined) {
-                      defaults[flag.key] = flag.defaultValue;
-                    }
-                  });
-                  return defaults;
-                }
-              } catch (e) {
-                console.error('Error getting object defaults:', e);
-              }
-              return {};
-            };
-
-            // Convert to the expected format
-            const formattedVariants = await Promise.all(
-              Object.entries(variants).map(async ([objectId, data]: [string, any]) => {
-                const variantList = data.variants || [];
-                const objectDefaults = await getObjectDefaults(objectId);
-                
-                const formattedVariantList = [
-                  // Control variant with object defaults
-                  { name: "Control", parameters: objectDefaults }
-                ];
-                
-                // Add the actual variants
-                variantList.forEach((variant: any, index: number) => {
-                  formattedVariantList.push({
-                    name: variant.name || `Variant ${String.fromCharCode(65 + index)}`,
-                    parameters: variant.values || {}
-                  });
-                });
-                
-                return {
-                  objectName: `Object ${objectId}`,
-                  variants: formattedVariantList
-                };
-              })
-            );
-            
-            return formattedVariants;
-          }
-        } catch (e) {
-          console.error('Error parsing variants:', e);
-        }
-        
-        // Fallback to default structure
-        return [{
-          objectName: "Tutorial Object",
-          variants: [
-            { name: "Control", parameters: {} },
-            { name: "Variant A", parameters: {} }
-          ]
-        }];
-      };
-
-      const processedVariants = await processVariants();
-
-      // Transform to detailed experience response
+      // Transform Nova Manager response to frontend format
       const detailedExperience = {
-        id: experiment.id,
-        name: experiment.name,
-        status: experiment.status,
-        description: experiment.description || "",
-        campaign: campaign?.name || "Default Campaign",
-        objects: ["Tutorial Object"],
-        uplift: 4.2, // Mock data for now
-        participants: 9742,
-        d1Retention: 40,
-        activation: 65,
-        startDate: experiment.createdAt?.toISOString() || new Date().toISOString(),
+        id: novaExperience.pid,
+        name: novaExperience.name,
+        status: novaExperience.status.charAt(0).toUpperCase() + novaExperience.status.slice(1),
+        description: novaExperience.description || "",
+        priority: novaExperience.priority,
+        // campaign: "Default Campaign", // Comment out campaign
+        // objects: ["Tutorial Object"], // Comment out objects
+        // uplift: 4.2, // Comment out uplift
+        // participants: 9742,
+        // d1Retention: 40,
+        // activation: 65,
+        startDate: novaExperience.created_at,
         endDate: null,
-        autoRollout: {
-          enabled: false,
-          upliftThreshold: 5,
-          minUsers: 5000
-        },
-        campaigns: [
-          {
-            name: campaign?.name || "Default Campaign",
-            segment: experiment.targetAudience || "All Players",
-            experiencePercent: 50,
-            controlPercent: 50,
-            users7d: 4871
-          }
-        ],
-        variants: processedVariants,
-        metrics: [
-          { date: "2025-07-08", control: 38, variantA: 42 },
-          { date: "2025-07-09", control: 39, variantA: 43 },
-          { date: "2025-07-10", control: 37, variantA: 41 },
-          { date: "2025-07-11", control: 40, variantA: 44 },
-          { date: "2025-07-12", control: 38, variantA: 42 }
-        ],
+        organisation_id: novaExperience.organisation_id,
+        app_id: novaExperience.app_id,
+        segments: novaExperience.segments || [],
+        feature_variants: novaExperience.feature_variants || [],
+        segment_count: novaExperience.segment_count || 0,
+        feature_variant_count: novaExperience.feature_variant_count || 0,
+        user_experience_count: novaExperience.user_experience_count || 0,
+        // autoRollout: {
+        //   enabled: false,
+        //   upliftThreshold: 5,
+        //   minUsers: 5000
+        // },
+        // campaigns: [
+        //   {
+        //     name: "Default Campaign",
+        //     segment: "All Players",
+        //     experiencePercent: 50,
+        //     controlPercent: 50,
+        //     users7d: 4871
+        //   }
+        // ],
+        // variants: [{
+        //   objectName: "Tutorial Object",
+        //   variants: [
+        //     { name: "Control", parameters: {} },
+        //     { name: "Variant A", parameters: {} }
+        //   ]
+        // }],
+        // metrics: [
+        //   { date: "2025-07-08", control: 38, variantA: 42 },
+        //   { date: "2025-07-09", control: 39, variantA: 43 },
+        //   { date: "2025-07-10", control: 37, variantA: 41 },
+        //   { date: "2025-07-11", control: 40, variantA: 44 },
+        //   { date: "2025-07-12", control: 38, variantA: 42 }
+        // ],
         history: [
           {
-            date: experiment.createdAt?.toISOString() || new Date().toISOString(),
-            event: `Experience created (${experiment.status})`,
+            date: novaExperience.created_at,
+            event: `Experience created (${novaExperience.status})`,
             by: "System",
             type: "created"
           }
@@ -507,13 +464,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deletedExperiences = [];
         
         for (const id of experienceIds) {
-          // Verify user has access to experiment
-          const experiment = await storage.getExperiment(Number(id));
-          if (experiment && experiment.userId === req.user.userId) {
-            const deleted = await storage.deleteExperiment(Number(id));
-            if (deleted) {
-              deletedExperiences.push(id);
-            }
+          try {
+            // Call Nova Manager to delete experience
+            await callNovaBackend<any>(
+              `/api/v1/experiences/${id}/`,
+              { method: "DELETE" }
+            );
+            deletedExperiences.push(id);
+          } catch (error) {
+            console.error(`Failed to delete experience ${id}:`, error);
           }
         }
 
@@ -536,13 +495,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedExperiences = [];
 
       for (const id of experienceIds) {
-        // Verify user has access to experiment
-        const experiment = await storage.getExperiment(Number(id));
-        if (experiment && experiment.userId === req.user.userId) {
-          const updated = await storage.updateExperiment(Number(id), { status: newStatus });
+        try {
+          // Call Nova Manager to update experience status
+          const updated = await callNovaBackend<any>(
+            `/api/v1/experiences/${id}/status`,
+            {
+              method: "PUT",
+              body: JSON.stringify({ status: newStatus }),
+            }
+          );
           if (updated) {
             updatedExperiences.push(updated);
           }
+        } catch (error) {
+          console.error(`Failed to update experience ${id}:`, error);
         }
       }
 

@@ -90,10 +90,8 @@ interface Campaign {
 
 interface ObjectVariants {
   [objectId: string]: {
-    variants: Array<{
-      name: string;
-      values: Record<string, any>;
-    }>;
+    name: string;
+    values: Record<string, any>;
   };
 }
 
@@ -170,13 +168,8 @@ export default function ExperienceWizard() {
         // Set target audience based on analysis
         if (analysis.targetAudience && analysis.targetAudience.segments) {
           setTargetAudience("segments");
-          const segments = analysis.targetAudience.segments.map((segmentName: string, index: number) => ({
-            id: `segment-${index}`,
-            name: segmentName,
-            split: 50, // Default split
-            estimatedUsers: 1000 // Default estimate
-          }));
-          setSelectedSegments(segments);
+          // Note: AI analysis segment prefill is disabled since we need actual segment PIDs
+          // The user will need to manually select segments from the available ones
         }
         
         // Store variant data for later use when objects are loaded
@@ -254,30 +247,18 @@ export default function ExperienceWizard() {
             const objName = obj?.name;
             const aiVariants = objName ? (aiObjectVariants as any)[objName] : null;
             
-            if (aiVariants && aiVariants.control && aiVariants.treatment) {
+            if (aiVariants && aiVariants.treatment) {
               // Use AI-suggested variant values
               variants[objId] = {
-                variants: [
-                  {
-                    name: "Control",
-                    values: aiVariants.control
-                  },
-                  {
-                    name: "Treatment", 
-                    values: aiVariants.treatment
-                  }
-                ]
+                name: "Treatment",
+                values: aiVariants.treatment
               };
             } else {
               // Fallback to default values based on object flags
-              const defaultValues: Record<string, any> = {};
-              const controlValues: Record<string, any> = {};
               const treatmentValues: Record<string, any> = {};
               
               if (obj?.flags) {
                 obj.flags.forEach(flag => {
-                  defaultValues[flag.key] = flag.defaultValue;
-                  controlValues[flag.key] = flag.defaultValue;
                   // For treatment, modify the value based on flag type
                   if (flag.type === 'boolean') {
                     treatmentValues[flag.key] = !flag.defaultValue;
@@ -289,21 +270,12 @@ export default function ExperienceWizard() {
                 });
               } else {
                 // Default fallback
-                controlValues.enabled = false;
                 treatmentValues.enabled = true;
               }
               
               variants[objId] = {
-                variants: [
-                  {
-                    name: "Control",
-                    values: controlValues
-                  },
-                  {
-                    name: "Treatment",
-                    values: treatmentValues
-                  }
-                ]
+                name: "Treatment",
+                values: treatmentValues
               };
             }
           });
@@ -347,14 +319,21 @@ export default function ExperienceWizard() {
     }
   });
 
-  // Mock segments data
-  const availableSegments = [
-    { id: "high_tier_ios", name: "High-Tier iOS", estimatedUsers: 5200, description: "tier = pro AND device_os = ios" },
-    { id: "tiktok_source", name: "TikTok (utm_source)", estimatedUsers: 6100, description: "utm_source = tiktok" },
-    { id: "new_players", name: "NewPlayers < 3 days install", estimatedUsers: 12400, description: "level_number = 1 AND retry_count < 3" },
-    { id: "android_spenders", name: "Android Spenders", estimatedUsers: 3800, description: "device_os = android AND purchase_history = true" },
-    { id: "casual_players", name: "Casual Players", estimatedUsers: 8900, description: "session_length < 30 AND games_per_week < 5" }
-  ];
+  // Fetch segments from backend
+  const { data: segmentsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/segments"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/segments?organisation_id=test-org&app_id=test-app");
+      return await response.json();
+    },
+  });
+
+  const availableSegments = segmentsData.map((segment: any) => ({
+    id: segment.id,
+    name: segment.name,
+    estimatedUsers: Math.floor(Math.random() * 10000) + 1000, // Mock estimated users for now
+    description: segment.description || "No description"
+  }));
 
   const steps = [
     { number: 1, title: "Select Objects", description: "Choose objects to personalize", icon: <Layers className="w-4 h-4" /> },
@@ -373,20 +352,7 @@ export default function ExperienceWizard() {
     }
   };
 
-  const createVariant = useMutation({
-    mutationFn: async ({ objectId, variantData }: { objectId: string, variantData: any }) => {
-      const response = await apiRequest("POST", `/api/objects/${objectId}/variants`, variantData);
-      return await response.json();
-    },
-    onSuccess: (data, variables) => {
-      // Invalidate variants cache for this object
-      queryClient.invalidateQueries({ queryKey: ["/api/objects/variants", variables.objectId] });
-      console.log("Variant created successfully:", data);
-    },
-    onError: (error) => {
-      console.error("Failed to create variant:", error);
-    }
-  });
+  // Removed createVariant mutation - variants are now created by backend
 
   useEffect(() => {
     const fetchVariantsForObjects = async () => {
@@ -438,9 +404,8 @@ export default function ExperienceWizard() {
         const newObjectVariants = {
           ...objectVariants,
           [objectId]: {
-            variants: [
-              { name: "New Variant", values: defaultValues }
-            ]
+            name: "New Variant",
+            values: defaultValues
           }
         };
         
@@ -458,59 +423,17 @@ export default function ExperienceWizard() {
     }
   };
 
-  const addVariant = (objectId: string) => {
-    const object = objects.find(o => o.id === objectId);
-    if (object && objectVariants[objectId]) {
-      const defaultValues: Record<string, any> = {};
-      object.flags.forEach(flag => {
-        defaultValues[flag.key] = flag.defaultValue;
-      });
-      
-      const existingVariants = objectVariants[objectId].variants;
-      const nextLetter = String.fromCharCode(65 + existingVariants.length - 1);
-      
+  const updateVariantValue = (objectId: string, flagKey: string, value: any) => {
+    if (objectVariants[objectId]) {
       const newObjectVariants = {
         ...objectVariants,
         [objectId]: {
-          variants: [
-            ...existingVariants,
-            { name: `Variant ${nextLetter}`, values: defaultValues }
-          ]
+          ...objectVariants[objectId],
+          values: {
+            ...objectVariants[objectId].values,
+            [flagKey]: value
+          }
         }
-      };
-      
-      setObjectVariants(newObjectVariants);
-    }
-  };
-
-  const removeVariant = (objectId: string, variantIndex: number) => {
-    if (objectVariants[objectId] && objectVariants[objectId].variants.length > 1) {
-      const newVariants = [...objectVariants[objectId].variants];
-      newVariants.splice(variantIndex, 1);
-      
-      const newObjectVariants = {
-        ...objectVariants,
-        [objectId]: { variants: newVariants }
-      };
-      
-      setObjectVariants(newObjectVariants);
-    }
-  };
-
-  const updateVariantValue = (objectId: string, variantIndex: number, flagKey: string, value: any) => {
-    if (objectVariants[objectId] && objectVariants[objectId].variants[variantIndex]) {
-      const newVariants = [...objectVariants[objectId].variants];
-      newVariants[variantIndex] = {
-        ...newVariants[variantIndex],
-        values: {
-          ...newVariants[variantIndex].values,
-          [flagKey]: value
-        }
-      };
-      
-      const newObjectVariants = {
-        ...objectVariants,
-        [objectId]: { variants: newVariants }
       };
       
       setObjectVariants(newObjectVariants);
@@ -518,11 +441,8 @@ export default function ExperienceWizard() {
   };
 
   const getTotalCombinations = () => {
-    let total = 1;
-    Object.values(objectVariants).forEach(objectVariant => {
-      total *= objectVariant.variants.length;
-    });
-    return total;
+    // Since we only have one variant per object now, total is always 1
+    return selectedObjects.length > 0 ? 1 : 0;
   };
 
   // Segment helper functions
@@ -535,6 +455,7 @@ export default function ExperienceWizard() {
     };
     setSelectedSegments([...selectedSegments, newSegment]);
   };
+  console.log("segments", segmentsData)
 
   const removeSegment = (segmentId: string) => {
     setSelectedSegments(selectedSegments.filter(s => s.id !== segmentId));
@@ -587,15 +508,8 @@ export default function ExperienceWizard() {
         return selectedObjects.length > 0;
       case 2:
         return selectedObjects.every(objId => {
-          const variants = objectVariants[objId];
-          const mode = variantSelectionMode[objId] || "new";
-
-          if (mode === "existing") {
-            return variants && variants.variants.length > 0;
-          } else {
-            return variants && variants.variants.length > 0 && 
-                  variants.variants.every(v => v.name.trim().length > 0);
-          }
+          const variant = objectVariants[objId];
+          return variant && variant.name.trim().length > 0;
         });
       case 3:
         return campaignType === "new" || campaignId;
@@ -635,28 +549,7 @@ export default function ExperienceWizard() {
 
   const onSubmit = async () => {
     try {
-      // Create any new variants that need to be created
-      for (const objectId of selectedObjects) {
-        const mode = variantSelectionMode[objectId] || "new";
-        const variants = objectVariants[objectId];
-        
-        if (mode === "new" && variants?.variants) {
-          for (const variant of variants.variants) {
-            try {
-              await createVariant.mutateAsync({
-                objectId,
-                variantData: {
-                  name: variant.name,
-                  config: variant.values
-                }
-              });
-            } catch (error) {
-              console.error(`Failed to create variant ${variant.name} for object ${objectId}:`, error);
-            }
-          }
-        }
-      }
-
+      // Send data to backend - variants will be created automatically
       const data = {
         name: experienceName,
         description: experienceDescription,
@@ -669,12 +562,13 @@ export default function ExperienceWizard() {
         startDate,
         endDate,
         autoRollout,
+        selectedSegments, // Add segments to the data
         status: "active" as const
       };
       console.log("Creating experience:", data);
       createExperience.mutate(data);
     } catch (error) {
-      console.error("Failed to create variants or experience:", error);
+      console.error("Failed to create experience:", error);
     }
   };
 
@@ -880,15 +774,13 @@ export default function ExperienceWizard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="font-heading">Configure Variants</CardTitle>
-                  <p className="text-sm text-muted-foreground">Choose existing variants or create new ones for each selected object</p>
+                  <p className="text-sm text-muted-foreground">Create a single variant for each selected object</p>
                 </CardHeader>
                 <CardContent>
                   <Accordion type="single" collapsible className="w-full">
                     {selectedObjects.map((objectId, index) => {
                       const object = objects.find(o => o.id === objectId);
-                      const variants = objectVariants[objectId];
-                      const mode = variantSelectionMode[objectId] || "new";
-                      const existingVariants = availableVariants[objectId] || [];
+                      const variant = objectVariants[objectId];
                       
                       return (
                         <AccordionItem key={objectId} value={objectId}>
@@ -900,223 +792,79 @@ export default function ExperienceWizard() {
                               <div className="text-left">
                                 <div className="font-medium">{object?.name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {mode === "existing" ? "Using existing variants" : "Creating new variants"}
+                                  Variant configuration
                                 </div>
                               </div>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent>
                             <div className="space-y-4 pt-4">
-                              {/* Variant Selection Mode */}
-                              <div className="mb-6">
-                                <Label className="text-sm font-medium mb-3 block">Variant Options</Label>
-                                <RadioGroup
-                                  value={mode}
-                                  onValueChange={(value: "existing" | "new") => {
-                                    setVariantSelectionMode(prev => ({ ...prev, [objectId]: value }));
-                                    
-                                    if (value === "existing" && existingVariants.length > 0) {
-                                      // Auto-select first two existing variants
-                                      const selectedExisting = existingVariants.slice(0, 2).map(v => ({
-                                        name: v.name,
-                                        values: v.config
-                                      }));
-                                      setObjectVariants(prev => ({
-                                        ...prev,
-                                        [objectId]: { variants: selectedExisting }
-                                      }));
-                                    } else if (value === "new") {
-                                      // Reset to new variants
-                                      const object = objects.find(o => o.id === objectId);
-                                      if (object) {
-                                        const defaultValues: Record<string, any> = {};
-                                        object.flags.forEach(flag => {
-                                          defaultValues[flag.key] = flag.defaultValue;
-                                        });
-                                        
-                                        setObjectVariants(prev => ({
-                                          ...prev,
-                                          [objectId]: {
-                                            variants: [{ name: "New Variant", values: defaultValues }]
-                                          }
-                                        }));
-                                      }
-                                    }
-                                  }}
-                                  className="flex space-x-6"
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="existing" id={`existing-${objectId}`} />
-                                    <Label htmlFor={`existing-${objectId}`} className="cursor-pointer">
-                                      Use existing variants ({existingVariants.length} available)
-                                    </Label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="new" id={`new-${objectId}`} />
-                                    <Label htmlFor={`new-${objectId}`} className="cursor-pointer">
-                                      Create new variants
-                                    </Label>
-                                  </div>
-                                </RadioGroup>
-                              </div>
-
-                              {/* Existing Variants Selection */}
-                              {mode === "existing" && (
-                                <div className="space-y-4">
-                                  <Label className="text-sm font-medium">Select Variants to Use</Label>
-                                  {existingVariants.length === 0 ? (
-                                    <Alert>
-                                      <AlertTriangle className="h-4 w-4" />
-                                      <AlertDescription>
-                                        No existing variants found for this object. Switch to "Create new variants" to configure custom variants.
-                                      </AlertDescription>
-                                    </Alert>
-                                  ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {existingVariants.map((variant) => {
-                                        const isSelected = variants?.variants.some(v => v.name === variant.name);
-                                        return (
-                                          <div
-                                            key={variant.pid}
-                                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                                              isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                                            }`}
-                                            onClick={() => {
-                                              const currentVariants = variants?.variants || [];
-                                              let newVariants;
-                                              
-                                              if (isSelected) {
-                                                // Remove variant
-                                                newVariants = currentVariants.filter(v => v.name !== variant.name);
-                                              } else {
-                                                // Add variant
-                                                newVariants = [...currentVariants, {
-                                                  name: variant.name,
-                                                  values: variant.config
-                                                }];
-                                              }
-                                              
-                                              setObjectVariants(prev => ({
-                                                ...prev,
-                                                [objectId]: { variants: newVariants }
-                                              }));
-                                            }}
-                                          >
-                                            <div className="flex items-center justify-between">
-                                              <div>
-                                                <div className="font-medium text-sm">{variant.name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                  {Object.keys(variant.config).length} parameters
-                                                </div>
-                                              </div>
-                                              <Checkbox
-                                                checked={isSelected}
-                                                onChange={() => {}} // Handled by div onClick
-                                              />
-                                            </div>
-                                            <div className="mt-2 text-xs text-muted-foreground">
-                                              {Object.entries(variant.config).slice(0, 2).map(([key, value]) => (
-                                                <div key={key}>{key}: {String(value)}</div>
-                                              ))}
-                                              {Object.keys(variant.config).length > 2 && <div>...</div>}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+                              {/* Variant Configuration */}
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-sm font-medium">Variant Configuration</Label>
                                 </div>
-                              )}
-
-                              {/* New Variants Creation */}
-                              {mode === "new" && (
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Custom Variants</Label>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => addVariant(objectId)}
-                                    >
-                                      <Plus className="w-4 h-4 mr-2" />
-                                      Add Variant
-                                    </Button>
-                                  </div>
-                                  
-                                  {variants?.variants.map((variant, variantIndex) => (
-                                    <div key={variantIndex} className="border rounded-lg p-4 bg-accent/20">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <div>
-                                          <Input
-                                            value={variant.name}
-                                            onChange={(e) => {
-                                              const newVariants = [...variants.variants];
-                                              newVariants[variantIndex] = {
-                                                ...newVariants[variantIndex],
+                                
+                                {variant && (
+                                  <div className="border rounded-lg p-4 bg-accent/20">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <div>
+                                        <Input
+                                          value={variant.name}
+                                          onChange={(e) => {
+                                            setObjectVariants(prev => ({
+                                              ...prev,
+                                              [objectId]: {
+                                                ...prev[objectId],
                                                 name: e.target.value
-                                              };
-                                              setObjectVariants(prev => ({
-                                                ...prev,
-                                                [objectId]: { variants: newVariants }
-                                              }));
-                                            }}
-                                            className="font-medium w-48"
-                                            placeholder="Variant name"
-                                          />
-                                        </div>
-                                        {variants.variants.length > 1 && (
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => removeVariant(objectId, variantIndex)}
-                                          >
-                                            <X className="w-4 h-4" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {object?.flags.map((flag) => (
-                                          <div key={flag.key}>
-                                            <Label className="text-xs font-medium">{flag.key}</Label>
-                                            <p className="text-xs text-muted-foreground mb-2">{flag.description}</p>
-                                            {flag.type === "text" && (
-                                              <Input
-                                                value={variant.values[flag.key] || flag.defaultValue}
-                                                onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, e.target.value)}
-                                                className="h-8"
-                                              />
-                                            )}
-                                            {flag.type === "number" && (
-                                              <Input
-                                                type="number"
-                                                value={variant.values[flag.key] || flag.defaultValue}
-                                                onChange={(e) => updateVariantValue(objectId, variantIndex, flag.key, parseFloat(e.target.value) || 0)}
-                                                className="h-8"
-                                              />
-                                            )}
-                                            {flag.type === "boolean" && (
-                                              <Select
-                                                value={(variant.values[flag.key] ?? flag.defaultValue).toString()}
-                                                onValueChange={(value) => updateVariantValue(objectId, variantIndex, flag.key, value === "true")}
-                                              >
-                                                <SelectTrigger className="h-8">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="true">True</SelectItem>
-                                                  <SelectItem value="false">False</SelectItem>
-                                                </SelectContent>
-                                              </Select>
-                                            )}
-                                          </div>
-                                        ))}
+                                              }
+                                            }));
+                                          }}
+                                          className="font-medium w-48"
+                                          placeholder="Variant name"
+                                        />
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {object?.flags.map((flag) => (
+                                        <div key={flag.key}>
+                                          <Label className="text-xs font-medium">{flag.key}</Label>
+                                          <p className="text-xs text-muted-foreground mb-2">{flag.description}</p>
+                                          {flag.type === "text" && (
+                                            <Input
+                                              value={variant.values[flag.key] || flag.defaultValue}
+                                              onChange={(e) => updateVariantValue(objectId, flag.key, e.target.value)}
+                                              className="h-8"
+                                            />
+                                          )}
+                                          {flag.type === "number" && (
+                                            <Input
+                                              type="number"
+                                              value={variant.values[flag.key] || flag.defaultValue}
+                                              onChange={(e) => updateVariantValue(objectId, flag.key, parseFloat(e.target.value) || 0)}
+                                              className="h-8"
+                                            />
+                                          )}
+                                          {flag.type === "boolean" && (
+                                            <Select
+                                              value={(variant.values[flag.key] ?? flag.defaultValue).toString()}
+                                              onValueChange={(value) => updateVariantValue(objectId, flag.key, value === "true")}
+                                            >
+                                              <SelectTrigger className="h-8">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="true">True</SelectItem>
+                                                <SelectItem value="false">False</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </AccordionContent>
                         </AccordionItem>
@@ -1488,11 +1236,11 @@ export default function ExperienceWizard() {
                       <div className="space-y-2">
                         {selectedObjects.map(objectId => {
                           const object = objects.find(o => o.id === objectId);
-                          const variants = objectVariants[objectId];
+                          const variant = objectVariants[objectId];
                           return (
                             <div key={objectId} className="flex items-center justify-between p-2 bg-accent/30 rounded">
                               <span className="text-sm">{object?.name}</span>
-                              <Badge variant="outline">{variants?.variants.length} variants</Badge>
+                              <Badge variant="outline">{variant ? "1 variant" : "No variant"}</Badge>
                             </div>
                           );
                         })}
@@ -1576,13 +1324,13 @@ export default function ExperienceWizard() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={!canProceed() || createVariant.isPending || createExperience.isPending}
+                      disabled={!canProceed() || createExperience.isPending}
                       className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all"
                     >
                       <Zap className="w-4 h-4 mr-2" />
-                      {createVariant.isPending || createExperience.isPending
-                        ? "Launching..."
-                        : "Launch Experience"}
+                                              {createExperience.isPending
+                          ? "Launching..."
+                          : "Launch Experience"}
                     </Button>
                   </>
                 ) : currentStep === 2 ? (

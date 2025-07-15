@@ -268,10 +268,11 @@ export default function Segments() {
     },
     onSuccess: (data, variables) => {
       // Invalidate segmentss cache for this object
-      queryClient.invalidateQueries({ queryKey: ["/api/segments/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/segments"] });
       console.log("Segment created successfully:", data);
     },
     onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/segments"] });
       console.error("Failed to create segment:", error);
     }
   });

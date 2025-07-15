@@ -15,25 +15,32 @@ import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface Experience {
-  id: number;
+  id: string;
   name: string;
-  campaign: string;
-  object: string;
-  uplift: number;
+  description: string;
+  priority: number;
   status: "Draft" | "Active" | "Rolling out" | "Completed" | "Paused";
   createdAt: string;
-  metrics: {
-    d0Retention: number;
-    d1Retention: number;
-    activationRate: number;
-    participants: number;
-  };
+  organisation_id: string;
+  app_id: string;
+  segment_count: number;
+  feature_variant_count: number;
+  // Comment out campaign and metrics for now
+  // campaign: string;
+  // object: string;
+  // uplift: number;
+  // metrics: {
+  //   d0Retention: number;
+  //   d1Retention: number;
+  //   activationRate: number;
+  //   participants: number;
+  // };
 }
 
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedExperiences, setSelectedExperiences] = useState<number[]>([]);
+  const [selectedExperiences, setSelectedExperiences] = useState<string[]>([]);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const queryClient = useQueryClient();
 
@@ -43,7 +50,7 @@ export default function Experiences() {
 
   // Bulk action mutation
   const bulkActionMutation = useMutation({
-    mutationFn: async ({ action, experienceIds }: { action: string; experienceIds: number[] }) => {
+    mutationFn: async ({ action, experienceIds }: { action: string; experienceIds: string[] }) => {
       const response = await apiRequest("POST", "/api/experiences/bulk-action", {
         action,
         experienceIds
@@ -61,7 +68,7 @@ export default function Experiences() {
 
   // Delete mutation for bulk delete
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (experienceIds: number[]) => {
+    mutationFn: async (experienceIds: string[]) => {
       const response = await apiRequest("POST", "/api/experiences/bulk-action", {
         action: "delete",
         experienceIds
@@ -92,8 +99,7 @@ export default function Experiences() {
 
   const filteredExperiences = experiences?.filter(exp => {
     const matchesSearch = exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         exp.campaign.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         exp.object.toLowerCase().includes(searchQuery.toLowerCase());
+                         exp.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || exp.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   }) || [];
@@ -123,7 +129,7 @@ export default function Experiences() {
     }
   };
 
-  const handleSelectExperience = (id: number, checked: boolean) => {
+  const handleSelectExperience = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedExperiences([...selectedExperiences, id]);
     } else {
@@ -249,9 +255,9 @@ export default function Experiences() {
                     />
                   </TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Object</TableHead>
-                  <TableHead>Uplift</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Segments</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
@@ -274,19 +280,17 @@ export default function Experiences() {
                     </TableCell>
                     <TableCell>
                       <Link href={`/experiences/${experience.id}`} className="block w-full">
-                        <span className="text-muted-foreground">{experience.campaign}</span>
+                        <span className="text-muted-foreground">{experience.description || "No description"}</span>
                       </Link>
                     </TableCell>
                     <TableCell>
                       <Link href={`/experiences/${experience.id}`} className="block w-full">
-                        <span className="text-muted-foreground">{experience.object}</span>
+                        <span className="text-muted-foreground">#{experience.priority}</span>
                       </Link>
                     </TableCell>
                     <TableCell>
                       <Link href={`/experiences/${experience.id}`} className="block w-full">
-                        <span className={`font-medium ${experience.uplift > 0 ? 'text-green-600' : experience.uplift < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-                          {experience.uplift > 0 ? '+' : ''}{experience.uplift}%
-                        </span>
+                        <span className="text-muted-foreground">{experience.segment_count} segments</span>
                       </Link>
                     </TableCell>
                     <TableCell>
