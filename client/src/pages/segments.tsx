@@ -40,7 +40,13 @@ interface Segment {
   id: string;
   name: string;
   description: string;
-  rules: SegmentRule[];
+  rule_config: {
+    conditions: Array<{
+      field: string;
+      operator: string;
+      value: string | string[] | number | boolean;
+    }>;
+  };
   createdAt: string;
   experienceCount: number;
 }
@@ -49,7 +55,13 @@ interface SegmentDetails {
   id: string;
   name: string;
   description: string;
-  rules: SegmentRule[];
+  rule_config: {
+    conditions: Array<{
+      field: string;
+      operator: string;
+      value: string | string[] | number | boolean;
+    }>;
+  };
   createdAt: string;
   modifiedAt: string;
   experienceCount: number;
@@ -72,9 +84,9 @@ interface PastOutcome {
 }
 
 interface SegmentRule {
-  attribute: string;
+  field: string;
   operator: string;
-  value: string | string[];
+  value: string | string[] | number | boolean;
   group: "and" | "or";
 }
 
@@ -118,27 +130,30 @@ const ADVANCED_ATTRIBUTES: AttributeDefinition[] = [
 
 const OPERATORS = {
   string: [
-    { value: "=", label: "equals" },
-    { value: "≠", label: "not equals" },
-    { value: "IN", label: "is one of" },
-    { value: "NOT IN", label: "is not one of" }
+    { value: "equals", label: "equals" },
+    { value: "not_equals", label: "not equals" },
+    { value: "in", label: "is one of" },
+    { value: "not_in", label: "is not one of" },
+    { value: "contains", label: "contains" },
+    { value: "starts_with", label: "starts with" },
+    { value: "ends_with", label: "ends with" }
   ],
   number: [
-    { value: "=", label: "equals" },
-    { value: "≠", label: "not equals" },
-    { value: "<", label: "less than" },
-    { value: ">", label: "greater than" },
-    { value: "≤", label: "less than or equal" },
-    { value: "≥", label: "greater than or equal" }
+    { value: "equals", label: "equals" },
+    { value: "not_equals", label: "not equals" },
+    { value: "less_than", label: "less than" },
+    { value: "greater_than", label: "greater than" },
+    { value: "less_than_or_equal", label: "less than or equal" },
+    { value: "greater_than_or_equal", label: "greater than or equal" }
   ],
   boolean: [
-    { value: "=", label: "is" }
+    { value: "equals", label: "is" }
   ],
   enum: [
-    { value: "=", label: "equals" },
-    { value: "≠", label: "not equals" },
-    { value: "IN", label: "is one of" },
-    { value: "NOT IN", label: "is not one of" }
+    { value: "equals", label: "equals" },
+    { value: "not_equals", label: "not equals" },
+    { value: "in", label: "is one of" },
+    { value: "not_in", label: "is not one of" }
   ]
 };
 
@@ -168,6 +183,8 @@ export default function Segments() {
     enabled: !!selectedSegmentId && drawerOpen,
   });
 
+  console.log(selectedSegment);
+
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderStep, setBuilderStep] = useState(1);
   const [builderData, setBuilderData] = useState({
@@ -191,7 +208,7 @@ export default function Segments() {
     setBuilderData(prev => ({
       ...prev,
       rules: [...prev.rules, {
-        attribute: "",
+        field: "",
         operator: "",
         value: "",
         group
@@ -230,28 +247,31 @@ export default function Segments() {
     return OPERATORS[attribute.type] || [];
   };
 
-  const formatRulesDisplay = (rules: SegmentRule[]) => {
-    if (rules.length === 0) return "";
-    
-    const groups: { and: SegmentRule[], or: SegmentRule[] } = { and: [], or: [] };
-    rules.forEach(rule => {
-      if (rule.attribute && rule.operator && rule.value) {
-        groups[rule.group].push(rule);
-      }
-    });
+  const transformBackendRulesToFrontend = (ruleConfig: any): SegmentRule[] => {
+    if (!ruleConfig || !ruleConfig.conditions || !Array.isArray(ruleConfig.conditions)) {
+      return [];
+    }
 
-    const formatRule = (rule: SegmentRule) => {
-      const attr = getAttributeByKey(rule.attribute);
-      const value = Array.isArray(rule.value) ? rule.value.join(", ") : rule.value;
-      return `${attr?.label || rule.attribute} ${rule.operator} ${value}`;
+    return ruleConfig.conditions.map((condition: any, index: number) => ({
+      field: condition.field || "",
+      operator: condition.operator || "",
+      value: condition.value || "",
+      group: index === 0 ? "and" : "and" // Default to 'and' for now, can be enhanced later
+    }));
+  };
+
+  const formatRulesDisplay = (ruleConfig: any) => {
+    if (!ruleConfig || !ruleConfig.conditions || !Array.isArray(ruleConfig.conditions)) {
+      return "";
+    }
+
+    const formatCondition = (condition: any) => {
+      const attr = getAttributeByKey(condition.field);
+      const value = Array.isArray(condition.value) ? condition.value.join(", ") : condition.value;
+      return `${attr?.label || condition.field} ${condition.operator} ${value}`;
     };
 
-    let display = groups.and.map(formatRule).join(" AND ");
-    if (groups.or.length > 0) {
-      display += (display ? " OR " : "") + groups.or.map(formatRule).join(" OR ");
-    }
-    
-    return display;
+    return ruleConfig.conditions.map(formatCondition).join(" AND ");
   };
 
   const estimateSegmentSize = async () => {
@@ -277,13 +297,29 @@ export default function Segments() {
     }
   });
 
+  const transformRulesToBackendFormat = (rules: SegmentRule[]) => {
+    // Transform frontend rules to backend format
+    const conditions = rules
+      .filter(rule => rule.field && rule.operator && rule.value)
+      .map(rule => ({
+        field: rule.field,
+        operator: rule.operator,
+        value: rule.value
+      }));
+
+    return { conditions };
+  };
+
   const saveSegment = () => {
+    const ruleConfig = transformRulesToBackendFormat(builderData.rules);
     const segmentData = {
       name: builderData.name,
       description: "",
-      rules: builderData.rules,
+      rule_config: ruleConfig,
+      organisation_id: "default-org", // TODO: Get from context
+      app_id: "default-app" // TODO: Get from context
     };
-    createSegment.mutate(segmentData)
+    createSegment.mutate(segmentData);
     setShowBuilder(false);
     resetBuilder();
   };
@@ -316,7 +352,7 @@ export default function Segments() {
   const canProceedStep = () => {
     switch (builderStep) {
       case 1: return builderData.name.trim().length > 0;
-      case 2: return builderData.rules.some(rule => rule.attribute && rule.operator && rule.value);
+      case 2: return builderData.rules.some(rule => rule.field && rule.operator && rule.value);
       case 3: return builderData.estimate !== null;
       default: return false;
     }
@@ -382,7 +418,7 @@ export default function Segments() {
                       <h3 className="font-medium">{segment.name}</h3>
                     </div>
                     <p className="text-sm text-muted-foreground font-mono mt-1">
-                      {segment.description}
+                      {formatRulesDisplay(segment.rule_config)}
                     </p>
                     <div className="flex items-center space-x-4 mt-2">
                       <div className="flex items-center space-x-2">
@@ -488,8 +524,8 @@ export default function Segments() {
                       )}
                       
                       <Select 
-                        value={rule.attribute} 
-                        onValueChange={(value) => updateRule(index, "attribute", value)}
+                        value={rule.field} 
+                        onValueChange={(value) => updateRule(index, "field", value)}
                       >
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Select attribute" />
@@ -519,13 +555,13 @@ export default function Segments() {
                       <Select 
                         value={rule.operator} 
                         onValueChange={(value) => updateRule(index, "operator", value)}
-                        disabled={!rule.attribute}
+                        disabled={!rule.field}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue placeholder="Operator" />
                         </SelectTrigger>
                         <SelectContent>
-                          {getOperatorsForAttribute(rule.attribute).map((op) => (
+                          {getOperatorsForAttribute(rule.field).map((op) => (
                             <SelectItem key={op.value} value={op.value}>
                               {op.label}
                             </SelectItem>
@@ -534,7 +570,7 @@ export default function Segments() {
                       </Select>
 
                       <div className="flex-1">
-                        {rule.attribute && getAttributeByKey(rule.attribute)?.type === "enum" ? (
+                        {rule.field && getAttributeByKey(rule.field)?.type === "enum" ? (
                           <Select 
                             value={Array.isArray(rule.value) ? rule.value[0] : rule.value as string} 
                             onValueChange={(value) => updateRule(index, "value", value)}
@@ -543,14 +579,14 @@ export default function Segments() {
                               <SelectValue placeholder="Select value" />
                             </SelectTrigger>
                             <SelectContent>
-                              {getAttributeByKey(rule.attribute)?.options?.map((option) => (
+                              {getAttributeByKey(rule.field)?.options?.map((option) => (
                                 <SelectItem key={option} value={option}>
                                   {option}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        ) : rule.attribute && getAttributeByKey(rule.attribute)?.type === "boolean" ? (
+                        ) : rule.field && getAttributeByKey(rule.field)?.type === "boolean" ? (
                           <Select 
                             value={rule.value as string} 
                             onValueChange={(value) => updateRule(index, "value", value)}
@@ -633,7 +669,7 @@ export default function Segments() {
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <h4 className="font-medium mb-2">{builderData.name}</h4>
                   <p className="text-sm text-muted-foreground font-mono">
-                    {formatRulesDisplay(builderData.rules)}
+                    {formatRulesDisplay(transformRulesToBackendFormat(builderData.rules))}
                   </p>
                 </div>
 
@@ -788,7 +824,7 @@ export default function Segments() {
                     </div>
                   </SheetTitle>
                   <div className="text-sm font-mono text-muted-foreground">
-                    {selectedSegment.description}
+                    {formatRulesDisplay(selectedSegment.rule_config)}
                   </div>
                   {/* <div className="flex items-center space-x-4 text-sm">
                     <span>📈 {selectedSegment.avgDailyUsers.toLocaleString()} avg daily users</span>
@@ -946,18 +982,18 @@ export default function Segments() {
                         
                         {/* Simplified rule display for now */}
                         <div className="space-y-3">
-                          {selectedSegment.rules.map((rule, index) => (
+                          {selectedSegment.rule_config?.conditions?.map((condition, index) => (
                             <Card key={index}>
                               <CardContent className="p-3">
                                 <div className="flex items-center space-x-2 text-sm">
                                   {index > 0 && (
                                     <Badge variant="outline" className="uppercase">
-                                      {rule.group}
+                                      AND
                                     </Badge>
                                   )}
-                                  <span className="font-mono">{rule.attribute}</span>
-                                  <span>{rule.operator}</span>
-                                  <span className="font-medium">{rule.value}</span>
+                                  <span className="font-mono">{condition.field}</span>
+                                  <span>{condition.operator}</span>
+                                  <span className="font-medium">{condition.value}</span>
                                 </div>
                               </CardContent>
                             </Card>

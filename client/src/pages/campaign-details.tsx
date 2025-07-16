@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,34 +9,30 @@ import {
   ChevronLeft, 
   Edit2, 
   MoreVertical, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
-  Package,
-  Play,
-  Pause,
-  Archive,
-  Copy,
-  BarChart3,
-  Target,
   Calendar,
-  Activity
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 
 interface CampaignDetail {
-  id: number;
+  id: string;
   name: string;
-  utmSource: string;
-  status: "Active" | "Scheduled" | "Ended" | "Paused";
-  startDate: string;
-  endDate?: string;
-  metrics: {
-    installs7d: number;
-    avgD0Retention: number;
-    avgD1Retention: number;
-    revenue7d: number;
+  description: string;
+  status: "Active" | "Scheduled" | "Ended" | "Paused" | "Draft";
+  ruleConfig: {
+    conditions: Array<{
+      field: string;
+      operator: string;
+      value: any;
+    }>;
+    operator: string;
   };
+  launchedAt: string;
+  organisationId: string;
+  appId: string;
+  createdAt: string;
+  modifiedAt: string;
+  experienceCount: number;
+  activeExperiences: number;
   experiences: {
     id: string;
     name: string;
@@ -46,74 +41,19 @@ interface CampaignDetail {
     uplift: number;
     status: "Active" | "Rolling out" | "Paused";
   }[];
-  segments: {
-    name: string;
-    trafficPercent: number;
-  }[];
-  boundObjects: {
-    id: string;
-    name: string;
-    type: string;
-  }[];
-  history: {
-    id: string;
-    date: string;
-    event: string;
-  }[];
+  // Legacy fields for backward compatibility
+  utmSource: string;
 }
 
 export default function CampaignDetails() {
   const { campaignId } = useParams<{ campaignId: string }>();
-  const [activeTab, setActiveTab] = useState("overview");
 
-  // Mock data for now - will be replaced with API call
-  const campaignData: CampaignDetail = {
-    id: parseInt(campaignId || "1"),
-    name: "Q1 Acquisition Push",
-    utmSource: "facebook",
-    status: "Active",
-    startDate: "2025-07-05T09:00:00Z",
-    endDate: undefined,
-    metrics: {
-      installs7d: 1247,
-      avgD0Retention: 58,
-      avgD1Retention: 40,
-      revenue7d: 2450
-    },
-    experiences: [
-      {
-        id: "exp1",
-        name: "Enhanced Onboarding",
-        segment: "All players",
-        splitPercent: 50,
-        uplift: 4.1,
-        status: "Active"
-      },
-      {
-        id: "exp2", 
-        name: "VIP Tutorial",
-        segment: "High-Tier iOS",
-        splitPercent: 70,
-        uplift: 6.0,
-        status: "Rolling out"
-      }
-    ],
-    segments: [
-      { name: "High-Tier iOS", trafficPercent: 42 },
-      { name: "TikTok Users", trafficPercent: 28 },
-      { name: "Returning Players", trafficPercent: 15 }
-    ],
-    boundObjects: [
-      { id: "obj1", name: "Tutorial Config", type: "Configuration" },
-      { id: "obj2", name: "Reward Amounts", type: "Economy" },
-      { id: "obj3", name: "UI Layout", type: "Interface" }
-    ],
-    history: [
-      { id: "h1", date: "2025-07-10T09:00:00Z", event: "Split changed: VIP Tutorial 25 → 50%" },
-      { id: "h2", date: "2025-07-05T09:00:00Z", event: "Campaign started (Scheduled)" },
-      { id: "h3", date: "2025-07-01T15:22:00Z", event: "Campaign created" }
-    ]
-  };
+  // Fetch campaign details from API
+  const { data: campaignData, isLoading, error } = useQuery<CampaignDetail>({
+    queryKey: [`/api/campaigns/${campaignId}`],
+    enabled: !!campaignId,
+  });
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -139,6 +79,58 @@ export default function CampaignDetails() {
       minute: "2-digit"
     });
   };
+
+  if (isLoading) {
+    return (
+      <ConsoleLayout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </ConsoleLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <ConsoleLayout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-foreground mb-2">Error Loading Campaign</h3>
+              <p className="text-muted-foreground mb-4">
+                {error instanceof Error ? error.message : "Failed to load campaign details"}
+              </p>
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      </ConsoleLayout>
+    );
+  }
+
+  if (!campaignData) {
+    return (
+      <ConsoleLayout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-foreground mb-2">Campaign Not Found</h3>
+              <p className="text-muted-foreground mb-4">
+                The campaign you're looking for doesn't exist or has been deleted.
+              </p>
+              <Button onClick={() => window.location.href = "/campaigns"}>
+                Back to Campaigns
+              </Button>
+            </div>
+          </div>
+        </div>
+      </ConsoleLayout>
+    );
+  }
 
   return (
     <ConsoleLayout>
@@ -166,9 +158,9 @@ export default function CampaignDetails() {
                   <span className="font-mono text-sm text-muted-foreground">{campaignData.utmSource}</span>
                   {getStatusBadge(campaignData.status)}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  User-acquisition stream • Live since {formatDate(campaignData.startDate)}
-                </p>
+                  <p className="text-sm text-muted-foreground">
+                    User-acquisition stream • Live since {formatDate(campaignData.launchedAt)}
+                  </p>
               </div>
             </div>
             
@@ -185,17 +177,18 @@ export default function CampaignDetails() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="rules">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            {/* <TabsTrigger value="overview">Overview</TabsTrigger> */}
+            <TabsTrigger value="rules">Rules</TabsTrigger>
             <TabsTrigger value="experiences">Experiences</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            {/* <TabsTrigger value="history">History</TabsTrigger> */}
           </TabsList>
 
           {/* Tab A - Overview */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* KPI Tiles */}
+          {/* <TabsContent value="overview" className="space-y-6">
+            KPI Tiles
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardContent className="p-6">
@@ -246,7 +239,7 @@ export default function CampaignDetails() {
               </Card>
             </div>
 
-            {/* Experience Allocation */}
+            Experience Allocation
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -279,7 +272,7 @@ export default function CampaignDetails() {
               </CardContent>
             </Card>
 
-            {/* Top Segments */}
+            Top Segments
             <Card>
               <CardHeader>
                 <CardTitle>Top Segments</CardTitle>
@@ -295,7 +288,7 @@ export default function CampaignDetails() {
               </CardContent>
             </Card>
 
-            {/* Bound Objects */}
+            Bound Objects
             <Card>
               <CardHeader>
                 <CardTitle>Bound Objects</CardTitle>
@@ -317,9 +310,48 @@ export default function CampaignDetails() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent> */}
+
+          {/* Tab B - Rules Configuration */}
+          <TabsContent value="rules" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Campaign Rules</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Rules determine which users are included in this campaign
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="border border-border rounded-lg p-4">
+                    <h4 className="font-medium mb-3">Conditions ({campaignData.ruleConfig.operator})</h4>
+                    <div className="space-y-2">
+                      {campaignData.ruleConfig.conditions.map((condition: any, index: number) => (
+                        <div key={index} className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                          <div className="flex-1">
+                            <span className="font-medium">{condition.field}</span>
+                            <span className="mx-2 text-muted-foreground">{condition.operator}</span>
+                            <span className="font-medium">{condition.value}</span>
+                          </div>
+                          <Badge variant="outline">{condition.operator}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="border border-border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Rule Summary</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Users will be included in this campaign if their{" "}
+                      <strong>utm_source</strong> equals <strong>"{campaignData.ruleConfig.conditions[0]?.value}"</strong>
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Tab B - Experiences */}
+          {/* Tab C - Experiences */}
           <TabsContent value="experiences" className="space-y-6">
             <Card>
               <CardHeader>
@@ -369,14 +401,12 @@ export default function CampaignDetails() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Start Date</p>
-                    <p className="text-lg font-medium">{formatDate(campaignData.startDate)}</p>
+                    <p className="text-sm text-muted-foreground">Launch Date</p>
+                    <p className="text-lg font-medium">{formatDate(campaignData.launchedAt)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">End Date</p>
-                    <p className="text-lg font-medium">
-                      {campaignData.endDate ? formatDate(campaignData.endDate) : "No end date set"}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <p className="text-lg font-medium">{campaignData.status}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 pt-4">
@@ -399,30 +429,20 @@ export default function CampaignDetails() {
                   <div className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Campaign Released</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(campaignData.startDate)}</p>
+                      <p className="text-sm font-medium">Campaign Launched</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(campaignData.launchedAt)}</p>
                     </div>
                     <Badge className="bg-green-100 text-green-800 border-green-200">Live</Badge>
                   </div>
                   
-                  {campaignData.endDate ? (
-                    <div className="flex items-center space-x-4 p-3 border border-border rounded-lg">
-                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Scheduled End</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(campaignData.endDate)}</p>
-                      </div>
-                      <Badge variant="outline">Planned</Badge>
+                  <div className="flex items-center space-x-4 p-3 border border-border rounded-lg">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Current Status</p>
+                      <p className="text-xs text-muted-foreground">{campaignData.status}</p>
                     </div>
-                  ) : (
-                    <div className="flex items-center space-x-4 p-3 border border-dashed border-border rounded-lg">
-                      <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-muted-foreground">No End Date Scheduled</p>
-                        <p className="text-xs text-muted-foreground">Campaign will run indefinitely</p>
-                      </div>
-                    </div>
-                  )}
+                    <Badge variant="outline">Active</Badge>
+                  </div>
                 </div>
                 
                 <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -442,7 +462,7 @@ export default function CampaignDetails() {
           </TabsContent>
 
           {/* Tab D - History */}
-          <TabsContent value="history" className="space-y-6">
+          {/* <TabsContent value="history" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Campaign History</CardTitle>
@@ -461,7 +481,7 @@ export default function CampaignDetails() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </ConsoleLayout>

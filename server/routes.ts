@@ -322,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organisationId = "org123";
       const appId = "app123";
 
-      // Transform frontend data to Nova Manager format
+      // Transform frontend data to Nova Manager format for create-new-experience API
       const novaExperienceData = {
         name: experienceData.name,
         description: experienceData.description || "",
@@ -330,21 +330,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: (experienceData.status || "draft").toLowerCase(),
         organisation_id: organisationId,
         app_id: appId,
-        selected_objects: experienceData.selectedObjects || [],
+        
         object_variants: transformObjectVariants(experienceData.objectVariants || {}),
+        
+        // Transform selected segments
         selected_segments: transformSelectedSegments(experienceData.selectedSegments || []),
-        traffic_split: experienceData.trafficSplit || 50,
-        campaign_type: experienceData.campaignType || "existing",
+        
+        // Campaign handling
         campaign_id: experienceData.campaignId || null,
-        new_campaign: experienceData.newCampaign || null,
-        start_date: experienceData.startDate || null,
-        end_date: experienceData.endDate || null,
-        auto_rollout: experienceData.autoRollout || null,
+        new_campaign: experienceData.newCampaign ? {
+          name: experienceData.newCampaign.name,
+          description: experienceData.newCampaign.description || `Campaign for ${experienceData.name}`,
+          rule_config: experienceData.newCampaign.rule_config || experienceData.newCampaign.ruleConfig || {
+            conditions: [
+              {
+                field: "utm_source",
+                operator: "equals",
+                value: experienceData.newCampaign.utmSource || experienceData.newCampaign.utm_source
+              }
+            ],
+            operator: "AND"
+          },
+          launched_at: experienceData.newCampaign.launched_at || experienceData.newCampaign.launchedAt || null
+        } : null,
+        
+        // Target percentage for this experience in the campaign
+        target_percentage: experienceData.target_percentage || experienceData.targetPercentage || 100,
       };
 
-      // Call Nova Manager to create experience
+      // Call Nova Manager create-new-experience API
       const novaExperience = await callNovaBackend<any>(
-        `/api/v1/experiences/comprehensive`,
+        `/api/v1/experiences/create-new-experience/`,
         {
           method: "POST",
           body: JSON.stringify(novaExperienceData),
@@ -365,6 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(experience);
     } catch (error) {
+      console.error("Failed to create experience:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experience" });
     }
   });
@@ -386,49 +403,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: novaExperience.status.charAt(0).toUpperCase() + novaExperience.status.slice(1),
         description: novaExperience.description || "",
         priority: novaExperience.priority,
-        // campaign: "Default Campaign", // Comment out campaign
-        // objects: ["Tutorial Object"], // Comment out objects
-        // uplift: 4.2, // Comment out uplift
-        // participants: 9742,
-        // d1Retention: 40,
-        // activation: 65,
-        startDate: novaExperience.created_at,
+        createdAt: novaExperience.created_at,
         endDate: null,
         organisation_id: novaExperience.organisation_id,
         app_id: novaExperience.app_id,
         segments: novaExperience.segments || [],
         feature_variants: novaExperience.feature_variants || [],
+        campaigns: novaExperience.campaigns || [],
         segment_count: novaExperience.segment_count || 0,
         feature_variant_count: novaExperience.feature_variant_count || 0,
         user_experience_count: novaExperience.user_experience_count || 0,
-        // autoRollout: {
-        //   enabled: false,
-        //   upliftThreshold: 5,
-        //   minUsers: 5000
-        // },
-        // campaigns: [
-        //   {
-        //     name: "Default Campaign",
-        //     segment: "All Players",
-        //     experiencePercent: 50,
-        //     controlPercent: 50,
-        //     users7d: 4871
-        //   }
-        // ],
-        // variants: [{
-        //   objectName: "Tutorial Object",
-        //   variants: [
-        //     { name: "Control", parameters: {} },
-        //     { name: "Variant A", parameters: {} }
-        //   ]
-        // }],
-        // metrics: [
-        //   { date: "2025-07-08", control: 38, variantA: 42 },
-        //   { date: "2025-07-09", control: 39, variantA: 43 },
-        //   { date: "2025-07-10", control: 37, variantA: 41 },
-        //   { date: "2025-07-11", control: 40, variantA: 44 },
-        //   { date: "2025-07-12", control: 38, variantA: 42 }
-        // ],
+        campaign_count: novaExperience.campaign_count || 0,
         history: [
           {
             date: novaExperience.created_at,
@@ -448,6 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk experience actions
   app.post("/api/experiences/bulk-action", authenticateToken, async (req, res) => {
     try {
+      // TODO: Fix this. Shouldnt delete directly from db.
       const { action, experienceIds } = req.body;
       
       if (!action || !experienceIds || !Array.isArray(experienceIds)) {
@@ -655,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organisationId =  "org123";
       const appId = "app123";
 
-      // Call Nova backend to get feature flags
+      // Call Nova backend to get segments
       const novaResponse = await callNovaBackend<SegmentListResponseItem[]>(
         `/api/v1/segments/?organisation_id=${organisationId}&app_id=${appId}`
       );
@@ -666,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: segment.pid,
           name: segment.name,
           description: segment.description || "",
-          rules: segment.rule_config?.rules || [],
+          rule_config: segment.rule_config || { conditions: [] },
           createdAt: new Date(segment.created_at).toLocaleDateString(),
           modifiedAt: new Date(segment.modified_at).toLocaleDateString(),
           experienceCount: segment.experience_count,
@@ -689,15 +675,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organisation_id: organisationId,
         app_id: appId,
         name: req.body.name,
-        description: req.body.description,
-        rule_config: { rules: req.body.rules },
+        description: req.body.description || "",
+        rule_config: req.body.rule_config || { conditions: [] },
       };
-      await callNovaBackend<GetFeatureFlagsResponse>("/api/v1/segments/", {
+      
+      const createdSegment = await callNovaBackend<any>("/api/v1/segments/", {
         method: "POST",
         body: JSON.stringify(segmentData),
       });
 
-      res.json({ success: true });
+      res.json({
+        id: createdSegment.pid,
+        name: createdSegment.name,
+        description: createdSegment.description || "",
+        rule_config: createdSegment.rule_config || { conditions: [] },
+        createdAt: new Date(createdSegment.created_at).toLocaleDateString(),
+        experienceCount: 0,
+      });
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create segment" });
     }
@@ -722,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = req.params.id;
 
-      // Call Nova backend to get feature flags
+      // Call Nova backend to get segment details
       const novaResponse = await callNovaBackend<SegmentDetailsResponse>(
         `/api/v1/segments/${id}/`
       );
@@ -740,7 +734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: novaResponse.pid,
         name: novaResponse.name,
         description: novaResponse.description,
-        rules: novaResponse.rule_config?.rules || [],
+        rule_config: novaResponse.rule_config || { conditions: [] },
         createdAt: new Date(novaResponse.created_at).toLocaleDateString(),
         modifiedAt: new Date(novaResponse.modified_at).toLocaleDateString(),
         experienceCount: novaResponse.experience_count,
@@ -750,7 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(segmentDetails);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segments" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segment details" });
     }
   });
 
@@ -831,24 +825,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Campaign routes
   app.get("/api/campaigns", authenticateToken, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+      const organisationId = "org123";
+      const appId = "app123";
 
-      const allCampaigns = [];
-      for (const project of projects) {
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        // Add default flag bundle if not present
-        const campaignsWithFlags = campaigns.map(campaign => ({
-          ...campaign,
-          flagBundle: campaign.flagBundle || `${campaign.utmSource}_v2.1`
-        }));
-        allCampaigns.push(...campaignsWithFlags);
-      }
+      // Call Nova Manager to get campaigns
+      const novaCampaigns = await callNovaBackend<any[]>(
+        `/api/v1/campaigns/?organisation_id=${organisationId}&app_id=${appId}`
+      );
 
-      res.json(allCampaigns);
+      // Transform Nova Manager campaigns to frontend format
+      const campaigns = novaCampaigns.map(campaign => ({
+        id: campaign.pid,
+        name: campaign.name,
+        description: campaign.description || "",
+        status: campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1),
+        ruleConfig: campaign.rule_config || { conditions: [] },
+        launchedAt: campaign.launched_at,
+        organisationId: campaign.organisation_id,
+        appId: campaign.app_id,
+        createdAt: campaign.created_at,
+        modifiedAt: campaign.modified_at,
+        experienceCount: campaign.experience_count || 0,
+        // Legacy fields for backward compatibility
+        utmSource: campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
+        utmCampaign: campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
+      }));
+
+      res.json(campaigns);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaigns" });
     }
@@ -896,29 +899,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/campaigns", authenticateToken, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.status(400).json({ message: "No project found for user" });
-      }
-
-      const projectId = projects[0].id; // Use first project for now
+      const organisationId = "org123";
+      const appId = "app123";
       const campaignData = req.body;
 
-      // Convert launchDate string to Date object if provided
-      if (campaignData.launchDate) {
-        campaignData.launchDate = new Date(campaignData.launchDate);
-      }
+      // Transform frontend data to Nova Manager format
+      const novaCampaignData = {
+        name: campaignData.name || campaignData.label || `${campaignData.utmSource} Campaign`,
+        description: campaignData.description || "",
+        status: "draft", // New campaigns start as draft
+        rule_config: {
+          conditions: [
+            {
+              field: "utm_source",
+              operator: "equals",
+              value: campaignData.utmSource
+            }
+          ],
+          operator: "AND"
+        },
+        launched_at: campaignData.launchDate || new Date().toISOString(),
+        organisation_id: organisationId,
+        app_id: appId
+      };
 
-      const campaign = await storage.createCampaign({
-        ...campaignData,
-        projectId,
-        userId: req.user.userId
-      });
+      // Call Nova Manager to create campaign
+      const novaCampaign = await callNovaBackend<any>(
+        `/api/v1/campaigns/`,
+        {
+          method: "POST",
+          body: JSON.stringify(novaCampaignData),
+        }
+      );
+
+      // Return in frontend format
+      const campaign = {
+        id: novaCampaign.pid,
+        name: novaCampaign.name,
+        description: novaCampaign.description || "",
+        status: novaCampaign.status.charAt(0).toUpperCase() + novaCampaign.status.slice(1),
+        rule_config: novaCampaign.rule_config,
+        launched_at: novaCampaign.launched_at,
+        organisation_id: novaCampaign.organisation_id,
+        app_id: novaCampaign.app_id,
+        created_at: novaCampaign.created_at,
+        modified_at: novaCampaign.modified_at,
+        experience_count: novaCampaign.experience_count || 0,
+        // Legacy fields for backward compatibility
+        utmSource: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
+        utmCampaign: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
+        launchDate: novaCampaign.launched_at
+      };
 
       res.json(campaign);
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create campaign" });
+    }
+  });
+
+  // Get single campaign details
+  app.get("/api/campaigns/:id", authenticateToken, async (req, res) => {
+    try {
+      const campaignId = req.params.id;
+      
+      // Call Nova Manager to get campaign details
+      const novaCampaign = await callNovaBackend<any>(
+        `/api/v1/campaigns/${campaignId}/`
+      );
+
+      // Transform Nova Manager response to frontend format
+      const detailedCampaign = {
+        id: novaCampaign.pid,
+        name: novaCampaign.name,
+        description: novaCampaign.description || "",
+        status: novaCampaign.status.charAt(0).toUpperCase() + novaCampaign.status.slice(1),
+        ruleConfig: novaCampaign.rule_config,
+        launchedAt: novaCampaign.launched_at,
+        organisationId: novaCampaign.organisation_id,
+        appId: novaCampaign.app_id,
+        createdAt: novaCampaign.created_at,
+        modifiedAt: novaCampaign.modified_at,
+        experiences: novaCampaign.experiences || [],
+        experienceCount: novaCampaign.experience_count || 0,
+        activeExperiences: novaCampaign.active_experiences || 0,
+        // Legacy fields for backward compatibility
+        utmSource: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
+        utmCampaign: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
+      };
+
+      res.json(detailedCampaign);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get campaign details" });
+    }
+  });
+
+  // Update campaign
+  app.put("/api/campaigns/:id", authenticateToken, async (req, res) => {
+    try {
+      const campaignId = req.params.id;
+      const updateData = req.body;
+      
+      // Call Nova Manager to update campaign
+      const updatedCampaign = await callNovaBackend<any>(
+        `/api/v1/campaigns/${campaignId}/`,
+        {
+          method: "PUT",
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      // Return in frontend format
+      const campaign = {
+        id: updatedCampaign.pid,
+        name: updatedCampaign.name,
+        description: updatedCampaign.description || "",
+        status: updatedCampaign.status.charAt(0).toUpperCase() + updatedCampaign.status.slice(1),
+        rule_config: updatedCampaign.rule_config,
+        launched_at: updatedCampaign.launched_at,
+        organisation_id: updatedCampaign.organisation_id,
+        app_id: updatedCampaign.app_id,
+        created_at: updatedCampaign.created_at,
+        modified_at: updatedCampaign.modified_at,
+        // Legacy fields for backward compatibility
+        utmSource: updatedCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
+        utmCampaign: updatedCampaign.name,
+        flagBundle: `${updatedCampaign.name.toLowerCase().replace(/\s+/g, '_')}_v2.1`,
+        launchDate: updatedCampaign.launched_at
+      };
+
+      res.json(campaign);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update campaign" });
     }
   });
 
@@ -984,23 +1095,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectId = req.params.id;
 
-      // Call Nova backend to get feature flag details
-      const novaFlag = await callNovaBackend<GetFeatureFlagDetailsResponse>(
-        `/api/v1/feature-flags/${objectId}/`
+      // Call Nova backend to get detailed feature flag information
+      const novaFlag = await callNovaBackend<any>(
+        `/api/v1/feature-flags/${objectId}/details/`
       );
 
       const flags = Object.entries(novaFlag.keys_config).map(
         ([keyName, keyConfig]) => ({ ...keyConfig, key: keyName })
       );
 
-      const variants = novaFlag.variants.map((variant) => {
+      const variants = novaFlag.variants.map((variant: any) => {
         return {
           id: variant.pid,
           name: variant.name,
           payload: variant.config,
           isDefault: false,
         };
-      })
+      });
 
       const objectDetails = {
         id: novaFlag.pid,
@@ -1012,7 +1123,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: novaFlag.is_active,
         variants,
         defaultVariant: novaFlag.default_variant,
-        stats: {},
+        organisation_id: novaFlag.organisation_id,
+        app_id: novaFlag.app_id,
+        experiences: novaFlag.experiences,
+        experience_count: novaFlag.experience_count,
+        variant_count: novaFlag.variant_count,
       };
 
       res.json(objectDetails);
@@ -1021,38 +1136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get object usage (experiences using this object)
-  app.get("/api/objects/:id/usage", authenticateToken, async (req, res) => {
-    try {
-      const objectId = parseInt(req.params.id);
-      
-      // Mock data for now - in production would query experiments that use this object
-      const mockExperiences = [
-        {
-          id: 1,
-          name: "Tutorial Difficulty Test",
-          campaign: "Q1 Acquisition Push",
-          status: "Active",
-          variants: ["Easy", "Normal"],
-          split: 50,
-          launchDate: "2025-01-15"
-        },
-        {
-          id: 2,
-          name: "Level Rewards Experiment",
-          campaign: "Google UAC Test",
-          status: "Draft",
-          variants: ["Standard", "Boosted"],
-          split: 70,
-          launchDate: "2025-01-20"
-        }
-      ];
 
-      res.json(mockExperiences);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object usage" });
-    }
-  });
 
   // Get object history
   app.get("/api/objects/:id/history", authenticateToken, async (req, res) => {

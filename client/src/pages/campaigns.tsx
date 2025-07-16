@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +13,27 @@ import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface Campaign {
-  id: number;
+  id: string;
   name: string;
+  description: string;
+  status: "Active" | "Paused" | "Draft";
+  ruleConfig: {
+    conditions: Array<{
+      field: string;
+      operator: string;
+      value: any;
+    }>;
+    operator: string;
+  };
+  launchedAt: string;
+  organisationId: string;
+  appId: string;
+  createdAt: string;
+  modifiedAt: string;
+  experienceCount: number;
+  // Legacy fields for backward compatibility
   utmSource: string;
   utmCampaign: string;
-  installs: number;
-  d0Retention: number;
-  d1Retention: number;
-  revenue: number;
-  flagBundle: string;
-  allocation: number;
-  status: "Active" | "Paused" | "Draft";
 }
 
 interface CampaignMetrics {
@@ -39,9 +48,10 @@ export default function Campaigns() {
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
+    name: "",
     utmSource: "",
-    label: "",
-    launchDate: new Date().toISOString().slice(0, 16)
+    launchDate: new Date().toISOString().slice(0, 16),
+    description: "",
   });
 
   const { data: metrics } = useQuery<CampaignMetrics>({
@@ -53,14 +63,25 @@ export default function Campaigns() {
   });
 
   const createCampaignMutation = useMutation({
-    mutationFn: async (campaignData: { utmSource: string; label: string; launchDate: string }) => {
+    mutationFn: async (campaignData: { name: string; utmSource: string; launchDate: string; description: string }) => {
       const payload = {
-        name: campaignData.label || `${campaignData.utmSource} Campaign`,
+        name: campaignData.name,
+        description: campaignData.description || `Campaign for ${campaignData.utmSource} traffic`,
         utmSource: campaignData.utmSource,
-        utmCampaign: campaignData.label || campaignData.utmSource,
+        utmCampaign: campaignData.name,
         flagBundle: "Default Bundle",
         status: "Draft",
-        launchDate: campaignData.launchDate
+        launchDate: campaignData.launchDate,
+        rule_config: {
+          conditions: [
+            {
+              field: "utm_source",
+              operator: "equals",
+              value: campaignData.utmSource
+            }
+          ],
+          operator: "AND"
+        }
       };
 
       const response = await apiRequest("POST", "/api/campaigns", payload);
@@ -79,13 +100,12 @@ export default function Campaigns() {
     campaign.utmCampaign.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const getRetentionBadge = (retention: number, avg: number) => {
-    if (retention >= avg + 5) return { label: "High", variant: "default" as const };
-    if (retention < avg - 3) return { label: "Low", variant: "destructive" as const };
-    return { label: "Normal", variant: "secondary" as const };
-  };
-
   const handleCreateCampaign = async () => {
+    if (!newCampaign.name.trim()) {
+      alert("Campaign name is required");
+      return;
+    }
+    
     if (!newCampaign.utmSource.trim()) {
       alert("UTM Source is required");
       return;
@@ -96,14 +116,15 @@ export default function Campaigns() {
       
       // Reset form and close modal
       setNewCampaign({
+        name: "",
         utmSource: "",
-        label: "",
-        launchDate: new Date().toISOString().slice(0, 16)
+        launchDate: new Date().toISOString().slice(0, 16),
+        description: "",
       });
       setShowNewCampaign(false);
       
       // Show success message
-      alert(`Campaign created successfully! UTM Source: ${newCampaign.utmSource}`);
+      alert(`Campaign "${newCampaign.name}" created successfully!`);
     } catch (error) {
       console.error("Failed to create campaign:", error);
       alert("Failed to create campaign. Please try again.");
@@ -133,7 +154,16 @@ export default function Campaigns() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="utmSource">UTM Source</Label>
+                <Label htmlFor="name">Campaign Name *</Label>
+                <Input 
+                  id="name" 
+                  placeholder="e.g., Q1 Acquisition Campaign" 
+                  value={newCampaign.name}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="utmSource">UTM Source *</Label>
                 <Input 
                   id="utmSource" 
                   placeholder="e.g., facebook" 
@@ -142,12 +172,12 @@ export default function Campaigns() {
                 />
               </div>
               <div>
-                <Label htmlFor="label">Label (optional)</Label>
+                <Label htmlFor="description">Description (optional)</Label>
                 <Input 
-                  id="label" 
-                  placeholder="e.g., Q1 Acquisition Campaign" 
-                  value={newCampaign.label}
-                  onChange={(e) => setNewCampaign(prev => ({ ...prev, label: e.target.value }))}
+                  id="description" 
+                  placeholder="e.g., Campaign for Facebook traffic acquisition" 
+                  value={newCampaign.description}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
               <div>
@@ -171,7 +201,7 @@ export default function Campaigns() {
       </div>
 
       {/* Header Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -219,7 +249,7 @@ export default function Campaigns() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div> */}
 
       {/* Search and Filter */}
       <div className="flex items-center space-x-4">
@@ -249,15 +279,14 @@ export default function Campaigns() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Installs</TableHead>
-                  <TableHead>D0 Retention</TableHead>
-                  <TableHead>Revenue</TableHead>
-                  <TableHead>Flag Bundle</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>UTM Source</TableHead>
+                  <TableHead>Experiences</TableHead>
+                  <TableHead>Created</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => {
-                  const retentionBadge = getRetentionBadge(campaign.d0Retention, metrics?.avgD0Retention || 0);
                   return (
                     <TableRow 
                       key={campaign.id} 
@@ -268,24 +297,34 @@ export default function Campaigns() {
                         <div>
                           <div className="font-medium">{campaign.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {campaign.utmSource} • {campaign.utmCampaign}
+                            {campaign.description || "No description"}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{campaign.installs.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={campaign.status === "Active" ? "default" : 
+                                  campaign.status === "Paused" ? "secondary" : "outline"}
+                          className={campaign.status === "Active" ? "bg-green-100 text-green-800 border-green-200" : ""}
+                        >
+                          {campaign.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {campaign.utmSource}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <span>{campaign.d0Retention}%</span>
-                          <Badge variant={retentionBadge.variant}>
-                            {retentionBadge.label}
-                          </Badge>
+                          <span>{campaign.experienceCount || 0}</span>
+                          <span className="text-sm text-muted-foreground">experiences</span>
                         </div>
                       </TableCell>
-                      <TableCell>${campaign.revenue.toLocaleString()}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {campaign.flagBundle || "rewards_v2.1"}
-                        </Badge>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(campaign.createdAt || campaign.launchedAt).toLocaleDateString()}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

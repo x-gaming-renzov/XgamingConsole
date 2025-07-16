@@ -40,15 +40,38 @@ interface ObjectDetails {
     description: string;
   }>;
   variants: Variant[];
-  stats: {
-    variants: number;
-    usedByExperiences: number;
-    players7d: number;
-    lastModified: string;
-  };
   createdAt: string;
-  isActive: string;
+  isActive: boolean;
   defaultVariant: Record<string, any>;
+  organisation_id: string;
+  app_id: string;
+  experiences: Array<{
+    id: string;
+    name: string;
+    description: string;
+    status: string;
+    priority: number;
+    created_at: string;
+    variants: string[];
+    campaigns: Array<{
+      id: string;
+      name: string;
+      description: string;
+      status: string;
+      rule_config: any;
+      launched_at: string | null;
+      target_percentage: number;
+    }>;
+    segments: Array<{
+      id: string;
+      name: string;
+      description: string;
+      rule_config: any;
+      target_percentage: number;
+    }>;
+  }>;
+  experience_count: number;
+  variant_count: number;
 }
 
 interface Variant {
@@ -59,7 +82,7 @@ interface Variant {
 }
 
 interface Experience {
-  id: number;
+  id: string;
   name: string;
   campaign: string;
   status: "Active" | "Draft" | "Completed";
@@ -83,21 +106,17 @@ export default function ObjectDetails() {
   const [showVariantValues, setShowVariantValues] = useState(false);
   const [experienceFilter, setExperienceFilter] = useState<"all" | "active" | "completed" | "draft">("all");
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState("overview");
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
     queryKey: [`/api/objects/${objectId}`],
     enabled: !!objectId
   });
 
-  const { data: experiences = [] } = useQuery<Experience[]>({
-    queryKey: [`/api/objects/${objectId}/usage`],
-    enabled: !!objectId
-  });
-
-  const { data: history = [] } = useQuery<HistoryEntry[]>({
-    queryKey: [`/api/objects/${objectId}/history`],
-    enabled: !!objectId
-  });
+  // const { data: history = [] } = useQuery<HistoryEntry[]>({
+  //   queryKey: [`/api/objects/${objectId}/history`],
+  //   enabled: !!objectId
+  // });
 
   const variants: Variant[] = [
     ...(objectDetails?.variants || []),
@@ -146,10 +165,12 @@ export default function ObjectDetails() {
     }));
   };
 
-  const filteredExperiences = experiences.filter(exp => {
+  const filteredExperiences = objectDetails?.experiences.filter(exp => {
     if (experienceFilter === "all") return true;
     return exp.status.toLowerCase() === experienceFilter;
   });
+
+  console.log(filteredExperiences, objectDetails?.experiences);
 
   if (isLoading) {
     return (
@@ -208,7 +229,7 @@ export default function ObjectDetails() {
                   </span>
                 </Badge>
                 <span className="text-sm text-muted-foreground">
-                  Last sync {objectDetails.stats?.lastModified || "Unknown"}
+                  Created at {new Date(objectDetails.createdAt).toLocaleDateString()}
                 </span>
               </div>
               <p className="text-muted-foreground mt-1">
@@ -225,12 +246,12 @@ export default function ObjectDetails() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="variants">Variants</TabsTrigger>
-            <TabsTrigger value="usage">Usage</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="experiences">Experiences</TabsTrigger>
+            {/* <TabsTrigger value="history">History</TabsTrigger> */}
           </TabsList>
 
           {/* Overview Tab */}
@@ -244,7 +265,7 @@ export default function ObjectDetails() {
                       <Layers className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{variants.length}</div>
+                      <div className="text-2xl font-bold">{objectDetails.variant_count || variants.length}</div>
                       <div className="text-sm text-muted-foreground">Variants defined</div>
                     </div>
                   </div>
@@ -258,26 +279,26 @@ export default function ObjectDetails() {
                       <Activity className="w-5 h-5 text-green-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{objectDetails.stats?.usedByExperiences || 0}</div>
+                      <div className="text-2xl font-bold">{objectDetails.experience_count || 0}</div>
                       <div className="text-sm text-muted-foreground">Experiences using</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                       <Users className="w-5 h-5 text-purple-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{(objectDetails.stats?.players7d || 0).toLocaleString()}</div>
+                      <div className="text-2xl font-bold">0</div>
                       <div className="text-sm text-muted-foreground">Players affected (7d)</div>
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardContent className="p-6">
@@ -286,8 +307,8 @@ export default function ObjectDetails() {
                       <Clock className="w-5 h-5 text-orange-600" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">10 Jul</div>
-                      <div className="text-sm text-muted-foreground">Last modified</div>
+                      <div className="text-2xl font-bold">{new Date(objectDetails.createdAt).toLocaleDateString()}</div>
+                      <div className="text-sm text-muted-foreground">Created at</div>
                     </div>
                   </div>
                 </CardContent>
@@ -318,6 +339,8 @@ export default function ObjectDetails() {
                 </div>
               </CardContent>
             </Card>
+
+
 
             {/* Quick Actions */}
             <Card>
@@ -474,13 +497,13 @@ export default function ObjectDetails() {
             </div>
           </TabsContent>
 
-          {/* Usage Tab */}
-          <TabsContent value="usage" className="space-y-6">
+          {/* Experiences Tab */}
+          <TabsContent value="experiences" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium">Usage</h3>
+                <h3 className="text-lg font-medium">Experiences Using This Object</h3>
                 <p className="text-sm text-muted-foreground">
-                  Experiences that use this object
+                  {objectDetails.experience_count} experience{objectDetails.experience_count !== 1 ? 's' : ''} using this object
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -515,54 +538,104 @@ export default function ObjectDetails() {
               </div>
             </div>
 
-            <Card>
-              <CardContent className="p-0">
-                {filteredExperiences.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Campaign</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Variants in this object</TableHead>
-                        <TableHead>Split %</TableHead>
-                        <TableHead>Launch date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredExperiences.map((experience) => (
-                        <TableRow key={experience.id} className="cursor-pointer hover:bg-accent/50">
-                          <TableCell className="font-medium">{experience.name}</TableCell>
-                          <TableCell>{experience.campaign}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                experience.status === "Active" ? "default" :
-                                experience.status === "Draft" ? "secondary" : "outline"
-                              }
-                            >
-                              {experience.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-1">
+            {filteredExperiences.length > 0 ? (
+              <div className="space-y-4">
+                {filteredExperiences.map((experience) => {
+                  const expDetails = objectDetails?.experiences?.find(exp => exp.id === experience.id);
+                  return (
+                    <Card key={experience.id} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h4 className="text-lg font-semibold">{experience.name}</h4>
+                              <Badge
+                                variant={
+                                  experience.status === "Active" ? "default" :
+                                  experience.status === "Draft" ? "secondary" : "outline"
+                                }
+                              >
+                                {experience.status}
+                              </Badge>
+                            </div>
+                            {expDetails?.description && (
+                              <p className="text-sm text-muted-foreground mb-3">{expDetails.description}</p>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              Created: {experience.launchDate} • Priority: {expDetails?.priority || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Variants Section */}
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-sm">Variants for this Object</h5>
+                            <div className="flex flex-wrap gap-1">
                               {(experience.variants || []).map((variant, index) => (
                                 <Badge key={index} variant="outline" className="text-xs">
                                   {variant}
                                 </Badge>
                               ))}
+                              {experience.variants.length === 0 && (
+                                <span className="text-xs text-muted-foreground">No variants</span>
+                              )}
                             </div>
-                          </TableCell>
-                          <TableCell>{experience.split}%</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {experience.launchDate}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-12">
+                          </div>
+
+                          {/* Campaigns Section */}
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-sm">Campaigns</h5>
+                            <div className="space-y-2">
+                              {expDetails?.campaigns?.map((campaign, index) => (
+                                <div key={index} className="border rounded-lg p-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="font-medium text-sm">{campaign.name}</div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {campaign.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    {campaign.description}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {campaign.target_percentage}% allocation
+                                    {campaign.launched_at && (
+                                      <span> • Launched: {new Date(campaign.launched_at).toLocaleDateString()}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )) || <span className="text-xs text-muted-foreground">No campaigns</span>}
+                            </div>
+                          </div>
+
+                          {/* Segments Section */}
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-sm">Target Segments</h5>
+                            <div className="space-y-2">
+                              {expDetails?.segments?.map((segment, index) => (
+                                <div key={index} className="border rounded-lg p-3">
+                                  <div className="font-medium text-sm mb-1">{segment.name}</div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    {segment.description}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {segment.target_percentage}% target
+                                  </div>
+                                </div>
+                              )) || <span className="text-xs text-muted-foreground">All users</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-12">
+                  <div className="text-center">
                     <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">
                       {experienceFilter === "all" 
@@ -585,13 +658,13 @@ export default function ObjectDetails() {
                       </Link>
                     )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="history" className="space-y-6">
+          {/* <TabsContent value="history" className="space-y-6">
             <div>
               <h3 className="text-lg font-medium">History</h3>
               <p className="text-sm text-muted-foreground">
@@ -635,7 +708,7 @@ export default function ObjectDetails() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </ConsoleLayout>

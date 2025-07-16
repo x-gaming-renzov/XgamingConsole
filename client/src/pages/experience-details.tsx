@@ -38,7 +38,7 @@ interface ExperienceDetails {
   priority: number;
   organisation_id: string;
   app_id: string;
-  startDate: string;
+  createdAt: string;
   endDate?: string;
   segments: Array<{
     pid: string;
@@ -54,9 +54,20 @@ interface ExperienceDetails {
     config: Record<string, any>;
     created_at: string;
   }>;
+  campaigns: Array<{
+    pid: string;
+    name: string;
+    description: string;
+    status: string;
+    rule_config: any;
+    launched_at: string;
+    target_percentage: number;
+    created_at: string;
+  }>;
   segment_count: number;
   feature_variant_count: number;
   user_experience_count: number;
+  campaign_count: number;
   history: Array<{
     date: string;
     event: string;
@@ -249,16 +260,16 @@ export default function ExperienceDetails() {
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="variants">Variants</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            {/* <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Summary Tiles */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-2">
@@ -303,6 +314,18 @@ export default function ExperienceDetails() {
                     <div>
                       <p className="text-sm text-muted-foreground">Variants</p>
                       <p className="text-2xl font-bold">{experience.feature_variant_count || 0}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <Settings className="w-5 h-5 text-indigo-500" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Campaigns</p>
+                      <p className="text-2xl font-bold">{experience.campaign_count || 0}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -352,6 +375,57 @@ export default function ExperienceDetails() {
               </CardContent>
             </Card>
 
+            {/* Campaigns Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Campaigns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {(experience.campaigns || []).map((campaign, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="grid grid-cols-5 gap-4 flex-1">
+                        <div>
+                          <p className="font-medium">{campaign.name}</p>
+                          <Badge className={`mt-1 ${
+                            campaign.status === 'active' ? 'bg-green-500' :
+                            campaign.status === 'paused' ? 'bg-yellow-500' :
+                            campaign.status === 'draft' ? 'bg-gray-500' :
+                            'bg-gray-400'
+                          } text-white`}>
+                            {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">UTM Source</p>
+                          <p className="font-medium">
+                            {campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'Unknown'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Target %</p>
+                          <p className="font-medium">{campaign.target_percentage}%</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Launched</p>
+                          <p className="font-medium">{new Date(campaign.launched_at).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Description</p>
+                          <p className="font-medium">{campaign.description || 'No description'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(experience.campaigns || []).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No campaigns configured for this experience</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Feature Variants Panel */}
             <Card>
               <CardHeader>
@@ -381,13 +455,13 @@ export default function ExperienceDetails() {
             {/* Schedule & Status */}
             <Card>
               <CardHeader>
-                <CardTitle>Schedule & Status</CardTitle>
+                <CardTitle>Experience Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Started</p>
-                    <p className="font-medium">{new Date(experience.startDate).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Created</p>
+                    <p className="font-medium">{new Date(experience.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Priority</p>
@@ -400,6 +474,101 @@ export default function ExperienceDetails() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="campaigns" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Campaign Configuration</h2>
+              {experience.status === "paused" && (
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Campaign
+                  </Button>
+                  <Button size="sm">Save Changes</Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {(experience.campaigns || []).map((campaign, index) => (
+                <Card key={index} className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span>{campaign.name}</span>
+                        <Badge className={`${
+                          campaign.status === 'active' ? 'bg-green-500' :
+                          campaign.status === 'paused' ? 'bg-yellow-500' :
+                          campaign.status === 'draft' ? 'bg-gray-500' :
+                          'bg-gray-400'
+                        } text-white`}>
+                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                        </Badge>
+                      </div>
+                      {experience.status === "paused" && (
+                        <Button variant="ghost" size="sm">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Description</label>
+                          <div className="bg-muted px-3 py-2 rounded border text-sm">
+                            {campaign.description || 'No description provided'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Target Percentage</label>
+                          <div className="bg-muted px-3 py-2 rounded border text-sm font-mono">
+                            {campaign.target_percentage}%
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Launched At</label>
+                          <div className="bg-muted px-3 py-2 rounded border text-sm">
+                            {new Date(campaign.launched_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Rule Configuration</label>
+                          <div className="bg-muted px-3 py-2 rounded border text-sm font-mono max-h-32 overflow-y-auto">
+                            {JSON.stringify(campaign.rule_config, null, 2)}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">UTM Source</label>
+                          <div className="bg-muted px-3 py-2 rounded border text-sm">
+                            {campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'Not specified'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      Created: {new Date(campaign.created_at).toLocaleString()}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {(experience.campaigns || []).length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <div className="text-muted-foreground">
+                    <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">No Campaigns Configured</h3>
+                    <p className="text-sm">This experience is not associated with any campaigns.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="variants" className="space-y-6">
@@ -483,7 +652,7 @@ export default function ExperienceDetails() {
             )}
           </TabsContent>
 
-          <TabsContent value="performance" className="space-y-6">
+          {/* <TabsContent value="performance" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Performance Analytics</h2>
               <Button variant="outline" size="sm">
@@ -492,7 +661,7 @@ export default function ExperienceDetails() {
               </Button>
             </div>
 
-            {/* Metrics Chart Placeholder */}
+            Metrics Chart Placeholder
             <Card>
               <CardHeader>
                 <CardTitle>D1 Retention Trend (14 days)</CardTitle>
@@ -504,7 +673,7 @@ export default function ExperienceDetails() {
               </CardContent>
             </Card>
 
-            {/* Variant Breakdown Table */}
+            Variant Breakdown Table
             <Card>
               <CardHeader>
                 <CardTitle>Variant Performance Breakdown</CardTitle>
@@ -541,9 +710,9 @@ export default function ExperienceDetails() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
-          <TabsContent value="history" className="space-y-6">
+          {/* <TabsContent value="history" className="space-y-6">
             <h2 className="text-2xl font-bold">Experience History</h2>
             
             <Card>
@@ -575,7 +744,7 @@ export default function ExperienceDetails() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </div>
