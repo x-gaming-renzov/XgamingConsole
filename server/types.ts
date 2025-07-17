@@ -2,6 +2,7 @@ export interface FeatureFlagItem {
   pid: string;
   name: string;
   description: string;
+  type: string;
   keys_config: Record<string, object>;
   default_variant: FlagVariant | null;
   is_active: boolean;
