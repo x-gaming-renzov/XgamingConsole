@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +13,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,17 +23,11 @@ import {
   Search,
   Plus,
   Target,
-  TrendingUp,
-  Settings,
-  Copy,
-  Pause,
-  Play,
-  Archive,
-  Trash2,
 } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
+import ExperienceForm from "@/components/experience-form";
 
 interface Experience {
   id: string;
@@ -58,84 +44,11 @@ interface Experience {
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedExperiences, setSelectedExperiences] = useState<string[]>([]);
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
-  const queryClient = useQueryClient();
 
   const { data: experiences, isLoading } = useQuery<Experience[]>({
     queryKey: ["/api/experiences"],
   });
-
-  // Bulk action mutation
-  const bulkActionMutation = useMutation({
-    mutationFn: async ({
-      action,
-      experienceIds,
-    }: {
-      action: string;
-      experienceIds: string[];
-    }) => {
-      const response = await apiRequest(
-        "POST",
-        "/api/experiences/bulk-action",
-        {
-          action,
-          experienceIds,
-        }
-      );
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
-      setSelectedExperiences([]); // Clear selection after action
-    },
-    onError: (error) => {
-      console.error("Bulk action failed:", error);
-    },
-  });
-
-  // Delete mutation for bulk delete
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (experienceIds: string[]) => {
-      const response = await apiRequest(
-        "POST",
-        "/api/experiences/bulk-action",
-        {
-          action: "delete",
-          experienceIds,
-        }
-      );
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
-      setSelectedExperiences([]); // Clear selection after action
-    },
-    onError: (error) => {
-      console.error("Bulk delete failed:", error);
-    },
-  });
-
-  // Bulk action handlers
-  const handleBulkAction = (action: string) => {
-    if (selectedExperiences.length === 0) return;
-    bulkActionMutation.mutate({ action, experienceIds: selectedExperiences });
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedExperiences.length === 0) return;
-    if (
-      confirm(
-        `Are you sure you want to delete ${
-          selectedExperiences.length
-        } experience${
-          selectedExperiences.length > 1 ? "s" : ""
-        }? This action cannot be undone.`
-      )
-    ) {
-      bulkDeleteMutation.mutate(selectedExperiences);
-    }
-  };
 
   const filteredExperiences =
     experiences?.filter((exp) => {
@@ -165,24 +78,6 @@ export default function Experiences() {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedExperiences(filteredExperiences.map((exp) => exp.id));
-    } else {
-      setSelectedExperiences([]);
-    }
-  };
-
-  const handleSelectExperience = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedExperiences([...selectedExperiences, id]);
-    } else {
-      setSelectedExperiences(
-        selectedExperiences.filter((expId) => expId !== id)
-      );
-    }
-  };
-
   return (
     <>
       <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
@@ -197,12 +92,7 @@ export default function Experiences() {
                 Manage and monitor your FTUE personalization experiences
               </p>
             </div>
-            <Link href="/experiences/new">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                New Experience
-              </Button>
-            </Link>
+            <ExperienceForm />
           </div>
 
           {/* Search and Filters */}
@@ -231,69 +121,7 @@ export default function Experiences() {
             </Select>
           </div>
 
-          {/* Bulk Actions */}
-          {selectedExperiences.length > 0 && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    {selectedExperiences.length} experience
-                    {selectedExperiences.length > 1 ? "s" : ""} selected
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBulkAction("pause")}
-                      disabled={
-                        bulkActionMutation.isPending ||
-                        bulkDeleteMutation.isPending
-                      }
-                    >
-                      <Pause className="w-4 h-4 mr-2" />
-                      Pause
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBulkAction("resume")}
-                      disabled={
-                        bulkActionMutation.isPending ||
-                        bulkDeleteMutation.isPending
-                      }
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Resume
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBulkAction("archive")}
-                      disabled={
-                        bulkActionMutation.isPending ||
-                        bulkDeleteMutation.isPending
-                      }
-                    >
-                      <Archive className="w-4 h-4 mr-2" />
-                      Archive
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleBulkDelete}
-                      disabled={
-                        bulkActionMutation.isPending ||
-                        bulkDeleteMutation.isPending
-                      }
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
 
           {/* Experiences Table */}
           <Card>
@@ -309,15 +137,6 @@ export default function Experiences() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={
-                            selectedExperiences.length ===
-                            filteredExperiences.length
-                          }
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Objects</TableHead>
@@ -328,82 +147,43 @@ export default function Experiences() {
                   </TableHeader>
                   <TableBody>
                     {filteredExperiences.map((experience) => (
-                      <TableRow key={experience.id}>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedExperiences.includes(
-                              experience.id
-                            )}
-                            onCheckedChange={(checked) =>
-                              handleSelectExperience(
-                                experience.id,
-                                checked as boolean
-                              )
-                            }
-                          />
+                      <TableRow 
+                        key={experience.id}
+                        className="group hover:bg-accent/30 cursor-pointer transition-colors"
+                        onClick={() => window.location.href = `/experiences/${experience.id}`}
+                      >
+                        <TableCell>
+                          <div className="font-medium">
+                            {experience.name}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
-                          >
-                            <div className="font-medium hover:text-primary">
-                              {experience.name}
-                            </div>
-                          </Link>
+                          <span className="text-muted-foreground">
+                            {experience.description || "No description"}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
-                          >
-                            <span className="text-muted-foreground">
-                              {experience.description || "No description"}
-                            </span>
-                          </Link>
+                          <span className="text-muted-foreground">
+                            {experience.feature_flags_count} object{experience.feature_flags_count === 1 ? '' : 's'}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
-                          >
-                            <span className="text-muted-foreground">
-                              {experience.feature_flags_count}
-                            </span>
-                          </Link>
+                          <span className="text-muted-foreground">
+                            {experience.segment_count} segment{experience.segment_count === 1 ? '' : 's'}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
+                          <Badge
+                            variant="outline"
+                            className={getStatusColor(experience.status)}
                           >
-                            <span className="text-muted-foreground">
-                              {experience.segment_count} segments
-                            </span>
-                          </Link>
+                            {experience.status}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
-                          >
-                            <Badge
-                              variant="outline"
-                              className={getStatusColor(experience.status)}
-                            >
-                              {experience.status}
-                            </Badge>
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/experiences/${experience.id}`}
-                            className="block w-full"
-                          >
-                            <span className="text-muted-foreground">
-                              {experience.createdAt}
-                            </span>
-                          </Link>
+                          <span className="text-muted-foreground">
+                            {experience.createdAt}
+                          </span>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -419,12 +199,12 @@ export default function Experiences() {
                     Create your first FTUE experience to start optimizing player
                     onboarding
                   </p>
-                  <Link href="/experiences/new">
+                  <ExperienceForm trigger={
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
                       Create Experience
                     </Button>
-                  </Link>
+                  } />
                 </div>
               )}
             </CardContent>

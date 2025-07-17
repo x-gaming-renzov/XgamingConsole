@@ -921,25 +921,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `/api/v1/segments/${id}/`
       );
 
-      const experiences = novaResponse.experience_segments.map((experience) => {
-        return {
-          id: experience.pid,
-          name: experience.name,
-          status: experience.status,
-          splitPercent: experience.target_percentage,
-        }
-      })
-
       const segmentDetails = {
         id: novaResponse.pid,
         name: novaResponse.name,
         description: novaResponse.description,
         rule_config: novaResponse.rule_config || { conditions: [] },
-        createdAt: new Date(novaResponse.created_at).toLocaleDateString(),
-        modifiedAt: new Date(novaResponse.modified_at).toLocaleDateString(),
-        experienceCount: novaResponse.experience_count,
-        activeExperiences: novaResponse.active_experiences,
-        experiences,
+        createdAt: novaResponse.created_at,
+        modifiedAt: novaResponse.modified_at,
+        experience_segments: novaResponse.experience_segments,
       }
 
       res.json(segmentDetails);
@@ -1258,6 +1247,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           flags,
           createdAt: new Date(flag.created_at).toLocaleDateString(),
           isActive: flag.is_active,
+          variants: flag.variants,
+          experience: flag.experience,
         };
       });
 
@@ -1300,34 +1291,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `/api/v1/feature-flags/${objectId}/details/`
       );
 
-      const flags = Object.entries(novaFlag.keys_config).map(
-        ([keyName, keyConfig]) => ({ ...keyConfig, key: keyName })
-      );
-
-      const variants = novaFlag.variants.map((variant: any) => {
-        return {
-          id: variant.pid,
-          name: variant.name,
-          payload: variant.config,
-          isDefault: false,
-        };
-      });
-
       const objectDetails = {
         id: novaFlag.pid,
         name: novaFlag.name,
         description: novaFlag.description,
-        type: "",
-        flags,
+        type: novaFlag.type,
+        keys_config: novaFlag.keys_config,
         createdAt: novaFlag.created_at,
         isActive: novaFlag.is_active,
-        variants,
         defaultVariant: novaFlag.default_variant,
-        organisation_id: novaFlag.organisation_id,
-        app_id: novaFlag.app_id,
-        experiences: novaFlag.experiences,
-        experience_count: novaFlag.experience_count,
-        variant_count: novaFlag.variant_count,
+        variants: novaFlag.variants,
+        experience: novaFlag.experience,
       };
 
       res.json(objectDetails);

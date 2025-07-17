@@ -1,161 +1,111 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   ChevronLeft, 
   Copy, 
-  Edit, 
-  Archive, 
   Plus, 
   Layers, 
   FileText, 
   Sliders,
-  Users,
   Clock,
-  Activity,
-  TrendingUp,
+  ExternalLink,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ObjectDetails {
   id: string;
   name: string;
-  type: "Level" | "Popup" | "Param";
+  type: string;
   description: string;
-  flags: Array<{
-    key: string;
-    type: "text" | "number" | "boolean";
-    defaultValue: any;
+  keys_config: Record<string, {
+    type: string;
     description: string;
+    default: any;
   }>;
-  variants: Variant[];
+  variants: Array<{
+    pid: string;
+    name: string;
+    config: Record<string, any>;
+  }>;
   createdAt: string;
   isActive: boolean;
   defaultVariant: Record<string, any>;
-  organisation_id: string;
-  app_id: string;
-  experiences: Array<{
-    id: string;
+  experience?: {
+    pid: string;
     name: string;
     description: string;
     status: string;
-    priority: number;
     created_at: string;
-    variants: string[];
-    campaigns: Array<{
-      id: string;
-      name: string;
-      description: string;
-      status: string;
-      rule_config: any;
-      launched_at: string | null;
-      target_percentage: number;
-    }>;
-    segments: Array<{
-      id: string;
-      name: string;
-      description: string;
-      rule_config: any;
-      target_percentage: number;
-    }>;
-  }>;
-  experience_count: number;
-  variant_count: number;
+    modified_at: string;
+  };
 }
 
-interface Variant {
-  id: string;
+interface VariantFormData {
   name: string;
-  payload: Record<string, any>;
-  isDefault: boolean;
-}
-
-interface Experience {
-  id: string;
-  name: string;
-  campaign: string;
-  status: "Active" | "Draft" | "Completed";
-  variants: string[];
-  split: number;
-  launchDate: string;
-}
-
-interface HistoryEntry {
-  id: number;
-  date: string;
-  version: string;
-  action: string;
-  details: string;
+  config: Record<string, any>;
 }
 
 export default function ObjectDetails() {
+  const queryClient = useQueryClient();
   const [, params] = useRoute("/objects/:id");
   const objectId = params?.id;
-  const [description, setDescription] = useState("");
-  const [showVariantValues, setShowVariantValues] = useState(false);
-  const [experienceFilter, setExperienceFilter] = useState<"all" | "active" | "completed" | "draft">("all");
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState("overview");
+  const [showVariantForm, setShowVariantForm] = useState(false);
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
     queryKey: [`/api/objects/${objectId}`],
     enabled: !!objectId
   });
 
-  // const { data: history = [] } = useQuery<HistoryEntry[]>({
-  //   queryKey: [`/api/objects/${objectId}/history`],
-  //   enabled: !!objectId
-  // });
-
-  const variants: Variant[] = [
-    ...(objectDetails?.variants || []),
-    {
-      id: "default",
-      name: "default",
-      isDefault: true,
-      payload: objectDetails?.defaultVariant || {},
-    },
-  ];
-
   const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "Level":
+    switch (type.toLowerCase()) {
+      case "level":
         return <Layers className="w-4 h-4" />;
-      case "Popup":
+      case "popup":
         return <FileText className="w-4 h-4" />;
-      case "Param":
+      case "param":
         return <Sliders className="w-4 h-4" />;
       default:
-        return <Layers className="w-4 h-4" />;
+        return <Settings className="w-4 h-4" />;
     }
   };
 
   const getTypeColor = (type: string) => {
-    switch (type) {
-      case "Level":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Popup":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "Param":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+    switch (type.toLowerCase()) {
+      case "level":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+      case "popup":
+        return "bg-green-50 text-green-700 border-green-200";
+      case "param":
+        return "bg-purple-50 text-purple-700 border-purple-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-50 text-gray-700 border-gray-200";
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "active":
+        return "bg-green-50 text-green-700 border-green-200";
+      case "draft":
+        return "bg-yellow-50 text-yellow-700 border-yellow-200";
+      case "paused":
+        return "bg-orange-50 text-orange-700 border-orange-200";
+      default:
+        return "bg-gray-50 text-gray-700 border-gray-200";
+    }
   };
 
   const toggleVariantExpansion = (variantId: string) => {
@@ -165,12 +115,22 @@ export default function ObjectDetails() {
     }));
   };
 
-  const filteredExperiences = objectDetails?.experiences.filter(exp => {
-    if (experienceFilter === "all") return true;
-    return exp.status.toLowerCase() === experienceFilter;
-  });
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
 
-  console.log(filteredExperiences, objectDetails?.experiences);
+  // Sort variants to show default first
+  const allVariants = objectDetails?.variants.sort((a, b) => {
+    if (a.name === "default") return -1;
+    if (b.name === "default") return 1;
+    return 0;
+  }) || [];
 
   if (isLoading) {
     return (
@@ -203,24 +163,16 @@ export default function ObjectDetails() {
   return (
     <ConsoleLayout>
       <div className="p-6 space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <Link href="/objects" className="hover:text-foreground">Objects</Link>
-          <span>/</span>
-          <span className="text-foreground">{objectDetails.name}</span>
-        </div>
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/objects">
               <Button variant="ghost" size="sm">
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Back
+                <ChevronLeft className="w-4 h-4" />
               </Button>
             </Link>
             <div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 mb-2">
                 <h1 className="text-2xl font-bold text-foreground">{objectDetails.name}</h1>
                 <Badge variant="outline" className={getTypeColor(objectDetails.type)}>
                   <span className="flex items-center space-x-1">
@@ -228,489 +180,353 @@ export default function ObjectDetails() {
                     <span>{objectDetails.type}</span>
                   </span>
                 </Badge>
-                <span className="text-sm text-muted-foreground">
-                  Created at {new Date(objectDetails.createdAt).toLocaleDateString()}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2 h-2 rounded-full ${objectDetails.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <span className={`text-sm font-medium ${objectDetails.isActive ? 'text-green-700' : 'text-gray-500'}`}>
+                    {objectDetails.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
-              <p className="text-muted-foreground mt-1">
-                Manage parameters and track where this object is personalised
+              <p className="text-muted-foreground">
+                {objectDetails.description || "No description provided"}
               </p>
             </div>
           </div>
-          <Link href={`/experiences/new?object=${objectDetails.id}`}>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              New Experience
-            </Button>
-          </Link>
+          <Dialog open={showVariantForm} onOpenChange={(open) => {
+            setShowVariantForm(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Variant
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader className="pb-4">
+                <DialogTitle>Create New Variant</DialogTitle>
+              </DialogHeader>
+              
+              <VariantForm 
+                objectId={objectDetails.id} 
+                object={objectDetails} 
+                onClose={() => setShowVariantForm(false)} 
+                onSuccess={() => {
+                  setShowVariantForm(false);
+                  queryClient.invalidateQueries({ queryKey: [`/api/objects/${objectDetails.id}`] });
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="variants">Variants</TabsTrigger>
-            <TabsTrigger value="experiences">Experiences</TabsTrigger>
-            {/* <TabsTrigger value="history">History</TabsTrigger> */}
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Summary Tiles */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Layers className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">{objectDetails.variant_count || variants.length}</div>
-                      <div className="text-sm text-muted-foreground">Variants defined</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Activity className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">{objectDetails.experience_count || 0}</div>
-                      <div className="text-sm text-muted-foreground">Experiences using</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">0</div>
-                      <div className="text-sm text-muted-foreground">Players affected (7d)</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card> */}
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">{new Date(objectDetails.createdAt).toLocaleDateString()}</div>
-                      <div className="text-sm text-muted-foreground">Created at</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Description */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Main Content */}
+          <div className="space-y-6">
+            {/* Object Details */}
             <Card>
               <CardHeader>
-                <CardTitle>Description</CardTitle>
+                <CardTitle>Object Information</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={description || objectDetails.description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description for this object..."
-                  className="min-h-[100px]"
-                  maxLength={300}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-muted-foreground">
-                    {(description || objectDetails.description || "").length}/300 characters
-                  </span>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Link href={`/experiences/new?object=${objectDetails.id}`}>
-                    <Button className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Experience
-                    </Button>
-                  </Link>
-                  <Button variant="outline" className="w-full">
-                    <Copy className="w-4 h-4 mr-2" />
-                    Duplicate Object
-                  </Button>
-                  <Button variant="outline" className="w-full text-destructive hover:text-destructive">
-                    <Archive className="w-4 h-4 mr-2" />
-                    Archive Object
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Parameters Tab */}
-          <TabsContent value="variants" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium">Variants</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage all variants and their properties including default/control variant
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="show-variants"
-                  checked={showVariantValues}
-                  onCheckedChange={setShowVariantValues}
-                />
-                <Label htmlFor="show-variants" className="text-sm">
-                  Show current variant values
-                </Label>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {variants.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="text-center text-muted-foreground">
-                      No variants found for this object
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                variants.map((variant, index) => {
-                  const isExpanded = expandedVariants[variant.id];
-                  const hasParameters = variant.payload && Object.keys(variant.payload).length > 0;
-                  
-                  return (
-                    <Card key={variant.id} className="overflow-hidden">
-                      <div 
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50"
-                        onClick={() => toggleVariantExpansion(variant.id)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center space-x-2">
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            )}
-                            <div className="font-medium">{variant.name}</div>
-                            {variant.isDefault && (
-                              <Badge variant="secondary">Default</Badge>
-                            )}
-                          </div>
-                        </div>
-                        {/* <div className="flex items-center space-x-4">
-                          <div className="text-sm text-muted-foreground">
-                            {variant.allocation}% allocation
-                          </div>
-                          {hasParameters && (
-                            <div className="text-xs text-muted-foreground">
-                              {Object.keys(variant.payload).length} parameters
-                            </div>
-                          )}
-                        </div> */}
-                      </div>
-                      
-                      {isExpanded && (
-                        <div className="border-t bg-muted/20">
-                          {/* {variant.description && (
-                            <div className="px-4 py-3 border-b bg-background">
-                              <p className="text-sm text-muted-foreground">
-                                {variant.description}
-                              </p>
-                            </div>
-                          )} */}
-                          
-                          <div className="p-4">
-                            {hasParameters ? (
-                              <div className="grid gap-3">
-                                {Object.entries(variant.payload).map(([key, value]) => (
-                                  <div key={key} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-                                    <div>
-                                      <Label htmlFor={`${variant.id}-${key}`} className="text-sm font-medium">
-                                        {key}
-                                      </Label>
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        {typeof value === 'string' ? 'Text' : 
-                                         typeof value === 'number' ? 'Number' : 
-                                         typeof value === 'boolean' ? 'Boolean' : 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      {typeof value === 'boolean' ? (
-                                        <div className="flex items-center space-x-2">
-                                          <Switch
-                                            id={`${variant.id}-${key}`}
-                                            checked={value}
-                                            disabled
-                                          />
-                                          <span className="text-sm">{value ? 'True' : 'False'}</span>
-                                        </div>
-                                      ) : (
-                                        <input
-                                          id={`${variant.id}-${key}`}
-                                          type={typeof value === 'number' ? 'number' : 'text'}
-                                          defaultValue={value?.toString()}
-                                          className="w-full px-3 py-2 border rounded-md text-sm bg-background"
-                                          readOnly
-                                        />
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-6 text-muted-foreground text-sm">
-                                No parameters defined for this variant
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Experiences Tab */}
-          <TabsContent value="experiences" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium">Experiences Using This Object</h3>
-                <p className="text-sm text-muted-foreground">
-                  {objectDetails.experience_count} experience{objectDetails.experience_count !== 1 ? 's' : ''} using this object
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant={experienceFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExperienceFilter("all")}
-                >
-                  All
-                </Button>
-                <Button
-                  variant={experienceFilter === "active" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExperienceFilter("active")}
-                >
-                  Active
-                </Button>
-                <Button
-                  variant={experienceFilter === "draft" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExperienceFilter("draft")}
-                >
-                  Draft
-                </Button>
-                <Button
-                  variant={experienceFilter === "completed" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setExperienceFilter("completed")}
-                >
-                  Completed
-                </Button>
-              </div>
-            </div>
-
-            {filteredExperiences.length > 0 ? (
-              <div className="space-y-4">
-                {filteredExperiences.map((experience) => {
-                  const expDetails = objectDetails?.experiences?.find(exp => exp.id === experience.id);
-                  return (
-                    <Card key={experience.id} className="overflow-hidden">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
+              <CardContent className="space-y-6">
+                {/* Connected Experience */}
+                {objectDetails.experience && (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Connected Experience</Label>
+                    <Link href={`/experiences/${objectDetails.experience.pid}`}>
+                      <div className="mt-1 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer transition-colors group">
+                        <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-2">
-                              <h4 className="text-lg font-semibold">{experience.name}</h4>
-                              <Badge
-                                variant={
-                                  experience.status === "Active" ? "default" :
-                                  experience.status === "Draft" ? "secondary" : "outline"
-                                }
-                              >
-                                {experience.status}
+                              <div className="flex items-center space-x-2 hover:text-primary">
+                                <span className="font-medium transition-colors">{objectDetails.experience.name}</span>
+                                <ExternalLink className="w-3 h-3 text-muted-foreground transition-colors" />
+                              </div>
+                              <Badge variant="outline" className={getStatusColor(objectDetails.experience.status)}>
+                                {objectDetails.experience.status}
                               </Badge>
                             </div>
-                            {expDetails?.description && (
-                              <p className="text-sm text-muted-foreground mb-3">{expDetails.description}</p>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              Created: {experience.launchDate} • Priority: {expDetails?.priority || 'N/A'}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-muted-foreground">
+                                Created: {formatDate(objectDetails.experience.created_at)}
+                              </span>
                             </div>
                           </div>
                         </div>
+                        {objectDetails.experience.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{objectDetails.experience.description}</p>
+                        )}
+                      </div>
+                    </Link>
+                  </div>
+                )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Variants Section */}
-                          <div className="space-y-2">
-                            <h5 className="font-medium text-sm">Variants for this Object</h5>
-                            <div className="flex flex-wrap gap-1">
-                              {(experience.variants || []).map((variant, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {variant}
+                {/* Object Schema */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Object Schema</Label>
+                  <div className="mt-2">
+                    {Object.keys(objectDetails.keys_config).length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Key</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Default Value</TableHead>
+                            <TableHead>Description</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(objectDetails.keys_config).map(([key, config], index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <code className="text-sm bg-muted px-2 py-1 rounded">{key}</code>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {config.type}
                                 </Badge>
-                              ))}
-                              {experience.variants.length === 0 && (
-                                <span className="text-xs text-muted-foreground">No variants</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm">{config.default?.toString() || "N/A"}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-muted-foreground">{config.description || "No description"}</span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No schema defined for this object
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Variants */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Variants ({objectDetails.variants.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {objectDetails.variants.length > 0 ? (
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
+                    {allVariants.map((variant) => {
+                      const isExpanded = expandedVariants[variant.pid];
+                      const hasConfig = variant.config && Object.keys(variant.config).length > 0;
+                      
+                      return (
+                        <div key={variant.pid} className="border rounded-lg overflow-hidden">
+                          <div 
+                            className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => toggleVariantExpansion(variant.pid)}
+                          >
+                            <div className="flex items-center space-x-3 w-full justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-foreground">{variant.name}</span>
+                                {variant.name === "default" && (
+                                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                                )}
+                              </div>
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
                               )}
                             </div>
                           </div>
-
-                          {/* Campaigns Section */}
-                          <div className="space-y-2">
-                            <h5 className="font-medium text-sm">Campaigns</h5>
-                            <div className="space-y-2">
-                              {expDetails?.campaigns?.map((campaign, index) => (
-                                <div key={index} className="border rounded-lg p-3">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <div className="font-medium text-sm">{campaign.name}</div>
-                                    <Badge variant="outline" className="text-xs">
-                                      {campaign.status}
-                                    </Badge>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mb-1">
-                                    {campaign.description}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {campaign.target_percentage}% allocation
-                                    {campaign.launched_at && (
-                                      <span> • Launched: {new Date(campaign.launched_at).toLocaleDateString()}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              )) || <span className="text-xs text-muted-foreground">No campaigns</span>}
+                          
+                          {isExpanded && hasConfig && (
+                            <div className="border-t bg-muted/20 p-4">
+                              {/* Content */}
+                              <div className="space-y-3">
+                                {Object.entries(variant.config).map(([key, value]) => {
+                                  return (
+                                    <div key={key} className="flex items-center justify-between">
+                                      <code className="text-sm bg-muted px-2 py-1 rounded">{key}</code>
+                                      <span className="font-mono text-sm">{value?.toString()}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-
-                          {/* Segments Section */}
-                          <div className="space-y-2">
-                            <h5 className="font-medium text-sm">Target Segments</h5>
-                            <div className="space-y-2">
-                              {expDetails?.segments?.map((segment, index) => (
-                                <div key={index} className="border rounded-lg p-3">
-                                  <div className="font-medium text-sm mb-1">{segment.name}</div>
-                                  <div className="text-xs text-muted-foreground mb-1">
-                                    {segment.description}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {segment.target_percentage}% target
-                                  </div>
-                                </div>
-                              )) || <span className="text-xs text-muted-foreground">All users</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-12">
-                  <div className="text-center">
-                    <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">
-                      {experienceFilter === "all" 
-                        ? "This object isn't in any Experience yet"
-                        : `No ${experienceFilter} experiences found`
-                      }
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      {experienceFilter === "all" 
-                        ? "Create one to start testing."
-                        : "Try selecting a different filter."
-                      }
-                    </p>
-                    {experienceFilter === "all" && (
-                      <Link href={`/experiences/new?object=${objectDetails.id}`}>
-                        <Button>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Experience
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* History Tab */}
-          {/* <TabsContent value="history" className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium">History</h3>
-              <p className="text-sm text-muted-foreground">
-                Timeline of changes to this object
-              </p>
-            </div>
-
-            <Card>
-              <CardContent className="p-6">
-                {history.length > 0 ? (
-                  <div className="space-y-6">
-                    {history.map((entry, index) => (
-                      <div key={entry.id} className="flex space-x-4">
-                        <div className="flex flex-col items-center">
-                          <div className="w-3 h-3 bg-primary rounded-full"></div>
-                          {index < history.length - 1 && (
-                            <div className="w-px h-12 bg-border mt-2"></div>
                           )}
                         </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium">{entry.date}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {entry.version}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-foreground">{entry.action}</div>
-                          <div className="text-sm text-muted-foreground">{entry.details}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">No history available</h3>
-                    <p className="text-muted-foreground">
-                      History tracking will begin with the next manifest update.
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Settings className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium text-foreground mb-2">No variants created</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Create variants to personalize this object for different user experiences.
                     </p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent> */}
-        </Tabs>
+          </div>
+        </div>
       </div>
     </ConsoleLayout>
   );
 }
+
+// Variant Form Component
+export function VariantForm({ objectId, object, onClose, onSuccess }: { objectId: string, object: any, onClose: () => void, onSuccess: () => void }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    config: {} as Record<string, any>
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleConfigChange = (key: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        [key]: value
+      }
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      alert('Please enter a variant name');
+      return;
+    }
+
+    // Check if variant name already exists for this object
+    const existingVariants = object?.variants || [];
+    const nameExists = existingVariants.some((variant: any) => 
+      variant.name.toLowerCase() === formData.name.trim().toLowerCase()
+    );
+    
+    if (nameExists) {
+      alert('A variant with this name already exists. Please choose a different name.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const response = await apiRequest("POST", `/api/objects/${objectId}/variants`, {
+        name: formData.name,
+        config: formData.config
+      });
+
+      if (response.ok) {
+        onSuccess();
+      } else {
+        throw new Error('Failed to create variant');
+      }
+    } catch (error) {
+      console.error('Error creating variant:', error);
+      alert('Failed to create variant. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="name" className="text-sm font-medium">
+          Variant Name
+        </Label>
+        <Input
+          id="name"
+          value={formData.name}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+          placeholder="Enter variant name"
+          className="mt-1"
+          disabled={isSubmitting}
+        />
+      </div>
+
+      <div>
+        <Label className="text-sm font-medium">Configuration</Label>
+        <div className="grid grid-cols-1 gap-4 mt-2">
+          {Object.entries(object?.keys_config || {}).map(([key, config]: [string, any]) => (
+            <div key={key} className="space-y-1">
+              <div className="grid grid-cols-3 gap-4 items-center">
+                <div className="space-y-1">
+                  <Label htmlFor={`config-${key}`} className="text-sm font-medium">
+                    {key}
+                  </Label>
+                  {config.description && (
+                    <p className="text-xs text-muted-foreground leading-tight">{config.description}</p>
+                  )}
+                </div>
+                
+                <div className="text-center">
+                  <Badge variant="outline" className="text-xs">
+                    {config.type}
+                  </Badge>
+                </div>
+                
+                <div>
+                  {config.type === "boolean" ? (
+                    <div className="flex items-center justify-start space-x-2">
+                      <input
+                        id={`config-${key}`}
+                        type="checkbox"
+                        checked={formData.config[key] === "true" || formData.config[key] === true}
+                        onChange={(e) => handleConfigChange(key, e.target.checked)}
+                        className="h-4 w-4 rounded border-border focus:ring-2 focus:ring-primary focus:ring-offset-0"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {formData.config[key] === "true" || formData.config[key] === true ? "True" : "False"}
+                      </span>
+                    </div>
+                  ) : (
+                    <Input
+                      id={`config-${key}`}
+                      type={config.type === "number" ? "number" : "text"}
+                      value={formData.config[key] || ""}
+                      onChange={(e) => handleConfigChange(key, e.target.value)}
+                      placeholder={config.default?.toString() || "Enter value"}
+                      className="focus:ring-1 focus:ring-primary focus:ring-offset-0 border-border"
+                      required
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <Button 
+          variant="outline" 
+          onClick={onClose}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting || !formData.name.trim()}
+          className="min-w-[120px]"
+        >
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Creating...
+            </>
+          ) : (
+            'Create Variant'
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+

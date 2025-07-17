@@ -9,6 +9,7 @@ import { Target, TrendingUp, CheckCircle, AlertTriangle, Plus, Trophy, Lightbulb
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
+import ExperienceForm from "@/components/experience-form";
 
 interface DashboardMetrics {
   activeExperiences: number;
@@ -89,12 +90,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Monitor your FTUE experiences and campaign performance</p>
         </div>
-        <Link href="/experiences/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Experience
-          </Button>
-        </Link>
+        <ExperienceForm />
       </div>
 
       {/* Alert Strip */}

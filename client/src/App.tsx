@@ -10,11 +10,12 @@ import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import CampaignDetails from "@/pages/campaign-details";
 import Segments from "@/pages/segments";
+import SegmentDetails from "@/pages/segment-details";
 import Objects from "@/pages/objects";
 import ObjectDetails from "@/pages/object-details";
 import Experiences from "@/pages/experiences";
 import ExperienceDetails from "@/pages/experience-details";
-import ExperienceWizard from "@/pages/experience-wizard";
+
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
@@ -30,12 +31,11 @@ function Router() {
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/campaigns/:campaignId" component={CampaignDetails} />
       <Route path="/segments" component={Segments} />
+      <Route path="/segments/:id" component={SegmentDetails} />
       <Route path="/objects" component={Objects} />
       <Route path="/objects/:id" component={ObjectDetails} />
       <Route path="/experiences" component={Experiences} />
-      <Route path="/experiences/new" component={ExperienceWizard} />
       <Route path="/experiences/:experienceId" component={ExperienceDetails} />
-      <Route path="/experience-wizard" component={ExperienceWizard} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
       <Route path="/project-settings" component={ProjectSettings} />

@@ -1,40 +1,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ConsoleLayout from "@/components/console-layout";
 import QuickExperiencePrompt from "@/components/quick-experience-prompt";
+import SegmentForm from "@/components/segment-form";
 import { 
   Plus, 
   Users, 
-  Settings,
-  Eye,
-  Trash2,
-  AlertTriangle,
-  X,
-  ChevronRight,
-  ChevronLeft,
-  Info,
-  Edit2,
-  TrendingUp,
-  Target,
-  Activity,
-  BarChart3,
-  Wrench
+  Search
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 
 interface Segment {
   id: string;
@@ -51,312 +29,39 @@ interface Segment {
   experienceCount: number;
 }
 
-interface SegmentDetails {
-  id: string;
-  name: string;
-  description: string;
-  rule_config: {
-    conditions: Array<{
-      field: string;
-      operator: string;
-      value: string | string[] | number | boolean;
-    }>;
-  };
-  createdAt: string;
-  modifiedAt: string;
-  experienceCount: number;
-  activeExperiences: number;
-  experiences: Experience[];
-}
-
-interface Experience {
-  id: string;
-  name: string;
-  status: 'active' | 'completed' | 'draft';
-  splitPercent: number;
-}
-
-interface PastOutcome {
-  id: string;
-  name: string;
-  uplift: number;
-  completedDate: string;
-}
-
-interface SegmentRule {
-  field: string;
-  operator: string;
-  value: string | string[] | number | boolean;
-  group: "and" | "or";
-}
-
-interface AttributeDefinition {
-  key: string;
-  label: string;
-  type: "string" | "number" | "boolean" | "enum";
-  category: string;
-  options?: string[];
-}
-
-const ATTRIBUTES: AttributeDefinition[] = [
-  // Acquisition
-  { key: "utm_source", label: "UTM Source", type: "enum", category: "Acquisition", options: ["facebook", "google", "tiktok", "instagram", "organic"] },
-  { key: "utm_campaign", label: "UTM Campaign", type: "string", category: "Acquisition" },
-  { key: "ad_group", label: "Ad Group", type: "string", category: "Acquisition" },
-  { key: "creative_id", label: "Creative ID", type: "string", category: "Acquisition" },
-  
-  // User Tier
-  { key: "tier", label: "Player Tier", type: "enum", category: "User Tier", options: ["newbie", "mid-core", "pro"] },
-  
-  // Geography
-  { key: "country", label: "Country", type: "enum", category: "Geography", options: ["US", "CA", "GB", "DE", "FR", "JP", "KR", "BR"] },
-  { key: "region", label: "Region", type: "string", category: "Geography" },
-  
-  // Device / App
-  { key: "device_os", label: "Device OS", type: "enum", category: "Device", options: ["iOS", "Android"] },
-  { key: "app_version", label: "App Version", type: "string", category: "Device" },
-  
-  // Lifecycle
-  { key: "install_age_days", label: "Install Age (Days)", type: "number", category: "Lifecycle" },
-  { key: "first_session_date", label: "First Session Date", type: "string", category: "Lifecycle" },
-  { key: "returning_player", label: "Returning Player", type: "boolean", category: "Lifecycle" }
-];
-
-const ADVANCED_ATTRIBUTES: AttributeDefinition[] = [
-  { key: "level_number", label: "Level Number", type: "number", category: "Game Progress" },
-  { key: "difficulty_setting", label: "Difficulty Setting", type: "enum", category: "Game Settings", options: ["easy", "normal", "hard"] },
-  { key: "tutorial_completed", label: "Tutorial Completed", type: "boolean", category: "Game Progress" }
-];
-
-const OPERATORS = {
-  string: [
-    { value: "equals", label: "equals" },
-    { value: "not_equals", label: "not equals" },
-    { value: "in", label: "is one of" },
-    { value: "not_in", label: "is not one of" },
-    { value: "contains", label: "contains" },
-    { value: "starts_with", label: "starts with" },
-    { value: "ends_with", label: "ends with" }
-  ],
-  number: [
-    { value: "equals", label: "equals" },
-    { value: "not_equals", label: "not equals" },
-    { value: "less_than", label: "less than" },
-    { value: "greater_than", label: "greater than" },
-    { value: "less_than_or_equal", label: "less than or equal" },
-    { value: "greater_than_or_equal", label: "greater than or equal" }
-  ],
-  boolean: [
-    { value: "equals", label: "is" }
-  ],
-  enum: [
-    { value: "equals", label: "equals" },
-    { value: "not_equals", label: "not equals" },
-    { value: "in", label: "is one of" },
-    { value: "not_in", label: "is not one of" }
-  ]
-};
-
 export default function Segments() {
-  const queryClient = useQueryClient();
   const [showQuickPrompt, setShowQuickPrompt] = useState(false);
-  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [editedName, setEditedName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSegmentForm, setShowSegmentForm] = useState(false);
 
-  const { data: segments, refetch } = useQuery<Segment[]>({
+  const { data: segments, isLoading } = useQuery<Segment[]>({
     queryKey: ["/api/segments"],
   });
 
-  const { 
-    data: selectedSegment, 
-    isLoading: isLoadingDetails,
-    error: detailsError 
-  } = useQuery<SegmentDetails>({
-    queryKey: ["/api/segments", selectedSegmentId],
-    queryFn: async () => {
-      if (!selectedSegmentId) return null;
-      const response = await apiRequest("GET", `/api/segments/${selectedSegmentId}`);
-      return await response.json();
-    },
-    enabled: !!selectedSegmentId && drawerOpen,
-  });
-
-  console.log(selectedSegment);
-
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [builderStep, setBuilderStep] = useState(1);
-  const [builderData, setBuilderData] = useState({
-    name: "",
-    rules: [] as SegmentRule[],
-    showAdvanced: false,
-    estimate: null as number | null
-  });
-
-  const resetBuilder = () => {
-    setBuilderStep(1);
-    setBuilderData({
-      name: "",
-      rules: [],
-      showAdvanced: false,
-      estimate: null
-    });
-  };
-
-  const addRule = (group: "and" | "or" = "and") => {
-    setBuilderData(prev => ({
-      ...prev,
-      rules: [...prev.rules, {
-        field: "",
-        operator: "",
-        value: "",
-        group
-      }]
-    }));
-  };
-
-  const updateRule = (index: number, field: keyof SegmentRule, value: any) => {
-    setBuilderData(prev => ({
-      ...prev,
-      rules: prev.rules.map((rule, i) => 
-        i === index ? { ...rule, [field]: value } : rule
-      )
-    }));
-  };
-
-  const removeRule = (index: number) => {
-    setBuilderData(prev => ({
-      ...prev,
-      rules: prev.rules.filter((_, i) => i !== index)
-    }));
-  };
-
-  const getAvailableAttributes = () => {
-    const base = ATTRIBUTES;
-    return builderData.showAdvanced ? [...base, ...ADVANCED_ATTRIBUTES] : base;
-  };
-
-  const getAttributeByKey = (key: string) => {
-    return getAvailableAttributes().find(attr => attr.key === key);
-  };
-
-  const getOperatorsForAttribute = (attributeKey: string) => {
-    const attribute = getAttributeByKey(attributeKey);
-    if (!attribute) return [];
-    return OPERATORS[attribute.type] || [];
-  };
-
-  const transformBackendRulesToFrontend = (ruleConfig: any): SegmentRule[] => {
-    if (!ruleConfig || !ruleConfig.conditions || !Array.isArray(ruleConfig.conditions)) {
-      return [];
-    }
-
-    return ruleConfig.conditions.map((condition: any, index: number) => ({
-      field: condition.field || "",
-      operator: condition.operator || "",
-      value: condition.value || "",
-      group: index === 0 ? "and" : "and" // Default to 'and' for now, can be enhanced later
-    }));
-  };
-
   const formatRulesDisplay = (ruleConfig: any) => {
     if (!ruleConfig || !ruleConfig.conditions || !Array.isArray(ruleConfig.conditions)) {
-      return "";
+      return "No rules defined";
     }
 
     const formatCondition = (condition: any) => {
-      const attr = getAttributeByKey(condition.field);
       const value = Array.isArray(condition.value) ? condition.value.join(", ") : condition.value;
-      return `${attr?.label || condition.field} ${condition.operator} ${value}`;
+      return `${condition.field} ${condition.operator} ${value}`;
     };
 
-    return ruleConfig.conditions.map(formatCondition).join(" AND ");
-  };
-
-  const estimateSegmentSize = async () => {
-    // Simulate API call for segment size estimation
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const estimate = Math.floor(Math.random() * 5000) + 500;
-    setBuilderData(prev => ({ ...prev, estimate }));
-  };
-
-  const createSegment = useMutation({
-    mutationFn: async (segmentData: any) => {
-      const response = await apiRequest("POST", "/api/segments/", segmentData);
-      return await response.json();
-    },
-    onSuccess: (data, variables) => {
-      // Invalidate segmentss cache for this object
-      queryClient.invalidateQueries({ queryKey: ["/api/segments"] });
-      console.log("Segment created successfully:", data);
-    },
-    onError: (error) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/segments"] });
-      console.error("Failed to create segment:", error);
+    // Show first 2 conditions and add "..." if there are more
+    const conditions = ruleConfig.conditions.slice(0, 2).map(formatCondition);
+    if (ruleConfig.conditions.length > 2) {
+      conditions.push(`+${ruleConfig.conditions.length - 2} more`);
     }
-  });
-
-  const transformRulesToBackendFormat = (rules: SegmentRule[]) => {
-    // Transform frontend rules to backend format
-    const conditions = rules
-      .filter(rule => rule.field && rule.operator && rule.value)
-      .map(rule => ({
-        field: rule.field,
-        operator: rule.operator,
-        value: rule.value
-      }));
-
-    return { conditions };
+    
+    return conditions.join("\nAND ");
   };
 
-  const saveSegment = () => {
-    const ruleConfig = transformRulesToBackendFormat(builderData.rules);
-    const segmentData = {
-      name: builderData.name,
-      description: "",
-      rule_config: ruleConfig,
-      organisation_id: "default-org", // TODO: Get from context
-      app_id: "default-app" // TODO: Get from context
-    };
-    createSegment.mutate(segmentData);
-    setShowBuilder(false);
-    resetBuilder();
-  };
-
-  const deleteSegment = (id: string) => {
-    // setSegments(prev => prev.filter(seg => seg.id !== id));
-  };
-
-  const openSegmentDetail = (segment: Segment) => {
-    setSelectedSegmentId(segment.id);
-    setEditedName(segment.name);
-    setDrawerOpen(true);
-  };
-
-  const closeDrawer = () => {
-    setDrawerOpen(false);
-    setSelectedSegmentId(null);
-    setEditingName(false);
-  };
-
-  const handleNameEdit = () => {
-    if (selectedSegment && editedName.trim()) {
-      // setSegments(prev => prev.map(seg => 
-      //   seg.id === selectedSegment.id ? { ...seg, name: editedName.trim() } : seg
-      // ));
-      setEditingName(false);
-    }
-  };
-
-  const canProceedStep = () => {
-    switch (builderStep) {
-      case 1: return builderData.name.trim().length > 0;
-      case 2: return builderData.rules.some(rule => rule.field && rule.operator && rule.value);
-      case 3: return builderData.estimate !== null;
-      default: return false;
-    }
-  };
+  // Filter segments based on search query
+  const filteredSegments = segments?.filter(segment =>
+    segment.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    segment.description.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   return (
     <>
@@ -365,375 +70,96 @@ export default function Segments() {
           {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground font-heading">Segments</h1>
+              <h1 className="text-2xl font-bold text-foreground">Segments</h1>
           <p className="text-muted-foreground">Define player groups for targeted experiences</p>
         </div>
-        <Dialog open={showBuilder} onOpenChange={setShowBuilder}>
-          <DialogTrigger asChild>
-            <Button onClick={resetBuilder}>
+            <Button onClick={() => setShowSegmentForm(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Segment
             </Button>
-          </DialogTrigger>
-        </Dialog>
       </div>
 
-      {/* Empty State */}
-      {!segments || segments.length === 0 && (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No segments yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create one to target an Experience at the right audience.
-            </p>
-            <Dialog open={showBuilder} onOpenChange={setShowBuilder}>
-              <DialogTrigger asChild>
-                <Button onClick={resetBuilder}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Segment
-                </Button>
-              </DialogTrigger>
-            </Dialog>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Segments Table */}
-      {segments && segments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>All Segments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {segments.map((segment) => (
-                <div 
-                  key={segment.id} 
-                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => openSegmentDetail(segment)}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium">{segment.name}</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground font-mono mt-1">
-                      {formatRulesDisplay(segment.rule_config)}
-                    </p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-muted-foreground">Used in:</span>
-                        <Badge variant="outline" className="text-xs">
-                          {segment.experienceCount} experiences
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openSegmentDetail(segment);
-                      }}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSegment(segment.id);
-                      }}
-                      disabled={segment.experienceCount > 0}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Segment Builder Modal */}
-      <Dialog open={showBuilder} onOpenChange={setShowBuilder}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Segment</DialogTitle>
-            <div className="flex items-center space-x-4 mt-4">
-              {[1, 2, 3].map((step) => (
-                <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    builderStep >= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {step}
-                  </div>
-                  {step < 3 && <ChevronRight className="w-4 h-4 mx-2 text-muted-foreground" />}
-                </div>
-              ))}
-            </div>
-          </DialogHeader>
-
-          <div className="mt-6">
-            {/* Step 1: Name */}
-            {builderStep === 1 && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="segment-name">Segment Name</Label>
+          {/* Search */}
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
-                    id="segment-name"
-                    placeholder="e.g., High-Value iOS Users"
-                    value={builderData.name}
-                    onChange={(e) => setBuilderData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Search segments..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
                   />
                 </div>
               </div>
-            )}
 
-            {/* Step 2: Define Rules */}
-            {builderStep === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Define Rules</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select attributes that define this player group.
-                  </p>
+          {/* Segments List */}
+          <Card>
+            <CardContent className="py-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-
-                {/* Rule Builder */}
-                <div className="space-y-4">
-                  {builderData.rules.map((rule, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-4 border border-border rounded-lg">
-                      {index > 0 && (
-                        <Select 
-                          value={rule.group} 
-                          onValueChange={(value: "and" | "or") => updateRule(index, "group", value)}
-                        >
-                          <SelectTrigger className="w-20">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="and">AND</SelectItem>
-                            <SelectItem value="or">OR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      
-                      <Select 
-                        value={rule.field} 
-                        onValueChange={(value) => updateRule(index, "field", value)}
+              ) : filteredSegments && filteredSegments.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Rules</TableHead>
+                      <TableHead>Experiences</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSegments.map((segment) => (
+                      <TableRow 
+                        key={segment.id} 
+                        className="group hover:bg-accent/30 cursor-pointer transition-colors"
+                        onClick={() => window.location.href = `/segments/${segment.id}`}
                       >
-                        <SelectTrigger className="w-48">
-                          <SelectValue placeholder="Select attribute" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(
-                            getAvailableAttributes().reduce((acc, attr) => {
-                              if (!acc[attr.category]) acc[attr.category] = [];
-                              acc[attr.category].push(attr);
-                              return acc;
-                            }, {} as Record<string, AttributeDefinition[]>)
-                          ).map(([category, attrs]) => (
-                            <div key={category}>
-                              <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                                {category}
+                        <TableCell>
+                          <div className="font-medium text-foreground">{segment.name}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground max-w-xs line-clamp-2">
+                            {segment.description || "No description"}
                               </div>
-                              {attrs.map((attr) => (
-                                <SelectItem key={attr.key} value={attr.key}>
-                                  {attr.label}
-                                </SelectItem>
-                              ))}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground font-mono max-w-md whitespace-pre-wrap">
+                            {formatRulesDisplay(segment.rule_config)}
                             </div>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select 
-                        value={rule.operator} 
-                        onValueChange={(value) => updateRule(index, "operator", value)}
-                        disabled={!rule.field}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue placeholder="Operator" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getOperatorsForAttribute(rule.field).map((op) => (
-                            <SelectItem key={op.value} value={op.value}>
-                              {op.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <div className="flex-1">
-                        {rule.field && getAttributeByKey(rule.field)?.type === "enum" ? (
-                          <Select 
-                            value={Array.isArray(rule.value) ? rule.value[0] : rule.value as string} 
-                            onValueChange={(value) => updateRule(index, "value", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select value" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getAttributeByKey(rule.field)?.options?.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : rule.field && getAttributeByKey(rule.field)?.type === "boolean" ? (
-                          <Select 
-                            value={rule.value as string} 
-                            onValueChange={(value) => updateRule(index, "value", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select value" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">True</SelectItem>
-                              <SelectItem value="false">False</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            placeholder="Enter value"
-                            value={rule.value as string}
-                            onChange={(e) => updateRule(index, "value", e.target.value)}
-                          />
-                        )}
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeRule(index)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-
-                  <div className="flex space-x-2">
-                    <Button variant="outline" onClick={() => addRule("and")}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add AND Rule
-                    </Button>
-                    <Button variant="outline" onClick={() => addRule("or")}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add OR Group
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Advanced Toggle */}
-                <div className="pt-4 border-t border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={builderData.showAdvanced}
-                        onCheckedChange={(checked) => setBuilderData(prev => ({ ...prev, showAdvanced: checked }))}
-                      />
-                      <Label>Include object parameters</Label>
-                      <div className="relative group">
-                        <Info className="w-4 h-4 text-muted-foreground cursor-help" />
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-2 bg-popover border border-border rounded-md shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          Use only if you need to target by level or flag parameters.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {builderData.showAdvanced && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Advanced segments use game-specific parameters. Ensure your manifest is up to date.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Review & Save */}
-            {builderStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Review & Save</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Review your segment rules and save when ready.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <h4 className="font-medium mb-2">{builderData.name}</h4>
-                  <p className="text-sm text-muted-foreground font-mono">
-                    {formatRulesDisplay(transformRulesToBackendFormat(builderData.rules))}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <Button onClick={estimateSegmentSize} disabled={builderData.estimate !== null}>
-                    Get Size Estimate
-                  </Button>
-                  
-                  {builderData.estimate !== null && (
-                    <Alert>
-                      <Users className="w-4 h-4" />
-                      <AlertDescription>
-                        ≈ {((builderData.estimate / 5000) * 100).toFixed(1)}% of daily players ({builderData.estimate.toLocaleString()} users)
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Calculated from last 7 days of log-ins.
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {builderData.estimate !== null && builderData.estimate < 100 && (
-                    <Alert>
-                      <AlertTriangle className="w-4 h-4" />
-                      <AlertDescription>
-                        Small segment size may affect experiment reliability. Consider broadening your criteria.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Modal Footer */}
-          <div className="flex justify-between items-center pt-6 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => builderStep > 1 ? setBuilderStep(builderStep - 1) : setShowBuilder(false)}
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              {builderStep > 1 ? "Previous" : "Cancel"}
-            </Button>
-            
-            <div className="flex space-x-2">
-              {builderStep === 3 ? (
-                <Button 
-                  onClick={saveSegment}
-                  disabled={!canProceedStep()}
-                >
-                  Save Segment
-                </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {segment.experienceCount} experiences
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
-                <Button 
-                  onClick={() => setBuilderStep(builderStep + 1)}
-                  disabled={!canProceedStep()}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">
+                    {searchQuery ? "No segments found" : "No segments yet"}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery 
+                      ? "Try adjusting your search terms" 
+                      : "Create one to target an Experience at the right audience."
+                    }
+                  </p>
+                  {!searchQuery && (
+                    <Button onClick={() => setShowSegmentForm(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Segment
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
-          </div>
-        </DialogContent>
-        </Dialog>
+            </CardContent>
+          </Card>
         </div>
       </ConsoleLayout>
       
@@ -742,306 +168,10 @@ export default function Segments() {
         onClose={() => setShowQuickPrompt(false)} 
       />
 
-      {/* Segment Detail Drawer */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="right" className="w-[480px] overflow-y-auto">
-          {selectedSegmentId && (
-            isLoadingDetails ? (
-              <div className="space-y-6">
-                {/* Header skeleton */}
-                <div className="space-y-3">
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-64" />
-                </div>
-                
-                {/* Tabs skeleton */}
-                <div className="space-y-4">
-                  <Skeleton className="h-10 w-full" />
-                  
-                  {/* Content skeleton */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="p-3 border rounded-lg">
-                        <Skeleton className="h-8 w-16 mb-1" />
-                        <Skeleton className="h-3 w-20" />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="p-3 border rounded-lg">
-                        <Skeleton className="h-4 w-full" />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              </div>
-            ) : detailsError ? (
-              <div className="text-center py-8">
-                <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
-                <p className="text-sm text-muted-foreground mb-4">Failed to load segment details</p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/segments", selectedSegmentId] })}
-                >
-                  <Activity className="w-4 h-4 mr-2" />
-                  Retry
-                </Button>
-              </div>
-            ) : selectedSegment && (
-              <>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {editingName ? (
-                        <Input
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          onBlur={handleNameEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleNameEdit();
-                            if (e.key === 'Escape') setEditingName(false);
-                          }}
-                          className="text-lg font-semibold"
-                          autoFocus
-                        />
-                      ) : (
-                        <span className="text-lg font-semibold">{selectedSegment.name}</span>
-                      )}
-                      {!editingName && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setEditingName(true)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </SheetTitle>
-                  <div className="text-sm font-mono text-muted-foreground">
-                    {formatRulesDisplay(selectedSegment.rule_config)}
-                  </div>
-                  {/* <div className="flex items-center space-x-4 text-sm">
-                    <span>📈 {selectedSegment.avgDailyUsers.toLocaleString()} avg daily users</span>
-                    {selectedSegment.metrics && (
-                      <span className={`${selectedSegment.metrics.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {selectedSegment.metrics.growthPercent >= 0 ? '+' : ''}{selectedSegment.metrics.growthPercent}% vs last wk
-                      </span>
-                    )}
-                  </div> */}
-                </SheetHeader>
-
-                <div className="mt-6">
-                  <Tabs defaultValue="edit-rules" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="overview">Overview</TabsTrigger>
-                      <TabsTrigger value="edit-rules">Edit Rules</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="overview" className="space-y-6 mt-6">
-                      {/* Key Metrics */}
-                      {/* {selectedSegment.metrics && (
-                        <div>
-                          <h3 className="text-sm font-medium text-muted-foreground mb-3">Key Metrics (last 7 days)</h3>
-                          <div className="grid grid-cols-2 gap-3">
-                            <Card>
-                              <CardContent className="p-3">
-                                <div className="text-2xl font-bold">{selectedSegment.metrics.d1Retention}%</div>
-                                <div className="text-xs text-muted-foreground">Avg D1 Retention</div>
-                              </CardContent>
-                            </Card>
-                            <Card>
-                              <CardContent className="p-3">
-                                <div className="text-2xl font-bold">{selectedSegment.metrics.d7Retention}%</div>
-                                <div className="text-xs text-muted-foreground">Avg D7 Retention</div>
-                              </CardContent>
-                            </Card>
-                            <Card>
-                              <CardContent className="p-3">
-                                <div className="text-2xl font-bold">{selectedSegment.metrics.activation}%</div>
-                                <div className="text-xs text-muted-foreground">Avg Activation</div>
-                              </CardContent>
-                            </Card>
-                            <Card>
-                              <CardContent className="p-3">
-                                <div className="text-2xl font-bold">{selectedSegment.metrics.activeExperiences}</div>
-                                <div className="text-xs text-muted-foreground">Active Experiences</div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        </div>
-                      )} */}
-
-                      {/* Active Experiences */}
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Experiences</h3>
-                        {selectedSegment.experiences && selectedSegment.experiences.length > 0 ? (
-                          <div className="space-y-2">
-                            {selectedSegment.experiences.map((exp) => (
-                              <Card key={exp.id} className="cursor-pointer hover:bg-muted/50">
-                                <CardContent className="p-3">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="font-medium text-sm">{exp.name}</div>
-                                      {/* <div className="text-xs text-muted-foreground">
-                                        {exp.splitPercent}% split • +{exp.uplift}% uplift
-                                      </div> */}
-                                    </div>
-                                    <Badge 
-                                      variant={exp.status === 'active' ? 'default' : exp.status === 'completed' ? 'secondary' : 'outline'}
-                                    >
-                                      {exp.status}
-                                    </Badge>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No experiences use this segment yet.</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Past Outcomes */}
-                      {/* {selectedSegment.pastOutcomes && selectedSegment.pastOutcomes.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-medium text-muted-foreground mb-3">Past Outcomes</h3>
-                          <div className="space-y-2">
-                            {selectedSegment.pastOutcomes
-                              .sort((a, b) => b.uplift - a.uplift)
-                              .map((outcome) => (
-                                <div key={outcome.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                                  <div className="text-sm">{outcome.name}</div>
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm font-medium text-green-600">+{outcome.uplift}%</span>
-                                    <span className="text-xs text-muted-foreground">{new Date(outcome.completedDate).toLocaleDateString()}</span>
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      )} */}
-
-                      {/* Segment Size Trend
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Segment Size Trend</h3>
-                        <Card>
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-center h-16 text-muted-foreground">
-                              <BarChart3 className="w-8 h-8 mr-2" />
-                              <span className="text-sm">28-day trend chart</span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div> */}
-
-                      {/* Create Experience CTA */}
-                      <div className="pt-4">
-                        <Button className="w-full" onClick={() => {
-                          setShowQuickPrompt(true);
-                          closeDrawer();
-                        }}>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Experience
-                        </Button>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="edit-rules" className="space-y-6 mt-6">
-                      {/* Live Estimate */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm font-medium text-muted-foreground">Live Estimate</h3>
-                          <Button variant="outline" size="sm" onClick={estimateSegmentSize}>
-                            <Activity className="w-4 h-4 mr-2" />
-                            Refresh
-                          </Button>
-                        </div>
-                        {/* <Card>
-                          <CardContent className="p-3">
-                            <div className="text-2xl font-bold">{selectedSegment.avgDailyUsers.toLocaleString()}</div>
-                            <div className="text-xs text-muted-foreground">estimated daily users</div>
-                          </CardContent>
-                        </Card> */}
-                      </div>
-
-                      {/* Rule Builder */}
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-3">Edit Rules</h3>
-                        <div className="text-sm text-muted-foreground mb-4">
-                          Modify the rules that define this segment. Changes will affect all future traffic.
-                        </div>
-                        
-                        {/* Simplified rule display for now */}
-                        <div className="space-y-3">
-                          {selectedSegment.rule_config?.conditions?.map((condition, index) => (
-                            <Card key={index}>
-                              <CardContent className="p-3">
-                                <div className="flex items-center space-x-2 text-sm">
-                                  {index > 0 && (
-                                    <Badge variant="outline" className="uppercase">
-                                      AND
-                                    </Badge>
-                                  )}
-                                  <span className="font-mono">{condition.field}</span>
-                                  <span>{condition.operator}</span>
-                                  <span className="font-medium">{condition.value}</span>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Save Changes */}
-                      <div className="flex space-x-2">
-                        <Button className="flex-1">
-                          Save Changes
-                        </Button>
-                        <Button variant="outline">
-                          Reset
-                        </Button>
-                      </div>
-
-                      {/* Danger Zone */}
-                      <div className="pt-6 border-t border-border">
-                        <div className="text-sm font-medium text-red-600 mb-2">Danger Zone</div>
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          disabled={selectedSegment.experienceCount > 0}
-                          onClick={() => {
-                            if (window.confirm('This segment is not used in any active experience. Delete permanently?')) {
-                              deleteSegment(selectedSegment.id);
-                              closeDrawer();
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Segment
-                        </Button>
-                        {selectedSegment.experienceCount > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Cannot delete: used in {selectedSegment.experienceCount} active experience(s)
-                          </p>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </>
-            )
-          )}
-        </SheetContent>
-      </Sheet>
+      <SegmentForm 
+        open={showSegmentForm}
+        onClose={() => setShowSegmentForm(false)}
+      />
     </>
   );
 }
