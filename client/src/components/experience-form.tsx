@@ -257,7 +257,7 @@ export default function ExperienceForm({ open, onOpenChange }: ExperienceFormPro
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {filteredObjects.map((object) => (
                     <div
                       key={object.id}

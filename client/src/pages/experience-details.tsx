@@ -124,7 +124,6 @@ interface ExperienceDetails {
   feature_flags_count: number;
   personalisations_count: number;
   segments_count: number;
-  user_experience_count: number;
 }
 
 export default function ExperienceDetails() {

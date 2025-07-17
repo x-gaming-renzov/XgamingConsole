@@ -390,8 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feature_flags_count: novaExperience.feature_flags_count || 0,
         personalisations_count: novaExperience.personalisations_count || 0,
         segments_count: novaExperience.segments_count || 0,
-        user_experience_count: novaExperience.user_experience_count || 0,
-        
+
         // For backward compatibility, keep some old fields
         campaigns: [],
         history: [
