@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,12 +30,13 @@ interface GameObject {
 }
 
 interface ExperienceFormProps {
-  trigger?: React.ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function ExperienceForm({ trigger }: ExperienceFormProps) {
+export default function ExperienceForm({ open, onOpenChange }: ExperienceFormProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
   const [experienceName, setExperienceName] = useState("");
   const [experienceDescription, setExperienceDescription] = useState("");
@@ -56,28 +58,39 @@ export default function ExperienceForm({ trigger }: ExperienceFormProps) {
     [objectsData]
   );
 
-  // Create experience mutation
-  const createExperience = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/experiences", data);
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
-      setOpen(false);
-      resetForm();
-    },
-    onError: (error) => {
-      console.error("Failed to create experience:", error);
-    },
-  });
-
+  // Reset form when opened
   const resetForm = () => {
     setExperienceName("");
     setExperienceDescription("");
     setSelectedObjects([]);
     setSearchQuery("");
   };
+
+  // Reset form when component opens
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open]);
+
+  // Create experience mutation
+  const createExperience = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/experiences", data);
+      return await response.json();
+    },
+    onSuccess: (createdExperience) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/experiences"] });
+      onOpenChange(false);
+      // Navigate to the created experience details page
+      if (createdExperience?.id) {
+        setLocation(`/experiences/${createdExperience.id}`);
+      }
+    },
+    onError: (error) => {
+      console.error("Failed to create experience:", error);
+    },
+  });
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -146,27 +159,13 @@ export default function ExperienceForm({ trigger }: ExperienceFormProps) {
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      resetForm();
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Experience
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create New Experience</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[45vw] min-w-[700px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Create New Experience</SheetTitle>
+        </SheetHeader>
+        <div className="mt-6">
         
         <form onSubmit={onSubmit} className="space-y-6">
           {/* Basic Information */}
@@ -303,7 +302,7 @@ export default function ExperienceForm({ trigger }: ExperienceFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
@@ -316,7 +315,8 @@ export default function ExperienceForm({ trigger }: ExperienceFormProps) {
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 } 

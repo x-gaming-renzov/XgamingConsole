@@ -24,9 +24,7 @@ import {
   Plus,
   Target,
 } from "lucide-react";
-import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
-import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 import ExperienceForm from "@/components/experience-form";
 
 interface Experience {
@@ -44,7 +42,7 @@ interface Experience {
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
+  const [showExperienceForm, setShowExperienceForm] = useState(false);
 
   const { data: experiences, isLoading } = useQuery<Experience[]>({
     queryKey: ["/api/experiences"],
@@ -80,7 +78,7 @@ export default function Experiences() {
 
   return (
     <>
-      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+      <ConsoleLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -92,7 +90,10 @@ export default function Experiences() {
                 Manage and monitor your FTUE personalization experiences
               </p>
             </div>
-            <ExperienceForm />
+            <Button onClick={() => setShowExperienceForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Experience
+            </Button>
           </div>
 
           {/* Search and Filters */}
@@ -199,12 +200,10 @@ export default function Experiences() {
                     Create your first FTUE experience to start optimizing player
                     onboarding
                   </p>
-                  <ExperienceForm trigger={
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Experience
-                    </Button>
-                  } />
+                  <Button onClick={() => setShowExperienceForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Experience
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -212,9 +211,9 @@ export default function Experiences() {
         </div>
       </ConsoleLayout>
 
-      <QuickExperiencePrompt
-        open={showQuickPrompt}
-        onClose={() => setShowQuickPrompt(false)}
+      <ExperienceForm
+        open={showExperienceForm}
+        onOpenChange={setShowExperienceForm}
       />
     </>
   );

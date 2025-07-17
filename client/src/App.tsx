@@ -28,8 +28,8 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/console" component={Console} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/campaigns" component={Campaigns} />
-      <Route path="/campaigns/:campaignId" component={CampaignDetails} />
+      {/* <Route path="/campaigns" component={Campaigns} />
+      <Route path="/campaigns/:campaignId" component={CampaignDetails} /> */}
       <Route path="/segments" component={Segments} />
       <Route path="/segments/:id" component={SegmentDetails} />
       <Route path="/objects" component={Objects} />

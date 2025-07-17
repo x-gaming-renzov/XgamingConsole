@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Layers, FileText, Sliders, AlertCircle, Plus, Activity, Clock } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
-import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface GameObject {
   id: string;
@@ -33,8 +32,6 @@ interface GameObject {
 }
 
 export default function Objects() {
-  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
-  
   const { data: objects, isLoading } = useQuery<GameObject[]>({
     queryKey: ["/api/objects"],
   });
@@ -76,7 +73,7 @@ export default function Objects() {
 
   return (
     <>
-      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+      <ConsoleLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -173,11 +170,6 @@ export default function Objects() {
           </Card>
         </div>
       </ConsoleLayout>
-      
-      <QuickExperiencePrompt 
-        open={showQuickPrompt} 
-        onClose={() => setShowQuickPrompt(false)} 
-      />
     </>
   );
 }

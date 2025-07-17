@@ -8,8 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Target, TrendingUp, CheckCircle, AlertTriangle, Plus, Trophy, Lightbulb, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import ConsoleLayout from "@/components/console-layout";
-import QuickExperiencePrompt from "@/components/quick-experience-prompt";
-import ExperienceForm from "@/components/experience-form";
 
 interface DashboardMetrics {
   activeExperiences: number;
@@ -54,8 +52,6 @@ interface InsightIdea {
 }
 
 export default function Dashboard() {
-  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
-  
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/metrics/overview"],
   });
@@ -82,7 +78,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+      <ConsoleLayout>
       <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -90,7 +86,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Monitor your FTUE experiences and campaign performance</p>
         </div>
-        <ExperienceForm />
       </div>
 
       {/* Alert Strip */}
@@ -399,11 +394,6 @@ export default function Dashboard() {
 
       </div>
       </ConsoleLayout>
-
-      <QuickExperiencePrompt 
-        open={showQuickPrompt} 
-        onClose={() => setShowQuickPrompt(false)} 
-      />
     </>
   );
 }

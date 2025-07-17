@@ -221,7 +221,7 @@ export default function SegmentForm({ open, onClose }: SegmentFormProps) {
         <DialogHeader>
           <DialogTitle>Create New Segment</DialogTitle>
           <DialogTitle>
-            <div className="flex items-center space-x-4 mt-4 mb-2">
+            <div className="flex items-center mt-4 mb-2">
                 {[1, 2, 3].map((stepNumber) => (
                 <div key={stepNumber} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${

@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ConsoleLayout from "@/components/console-layout";
-import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 import SegmentForm from "@/components/segment-form";
 import { 
   Plus, 
@@ -30,7 +29,6 @@ interface Segment {
 }
 
 export default function Segments() {
-  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSegmentForm, setShowSegmentForm] = useState(false);
 
@@ -65,7 +63,7 @@ export default function Segments() {
 
   return (
     <>
-      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+      <ConsoleLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
       <div className="flex items-center justify-between">
@@ -162,11 +160,6 @@ export default function Segments() {
           </Card>
         </div>
       </ConsoleLayout>
-      
-      <QuickExperiencePrompt 
-        open={showQuickPrompt} 
-        onClose={() => setShowQuickPrompt(false)} 
-      />
 
       <SegmentForm 
         open={showSegmentForm}

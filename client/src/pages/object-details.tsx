@@ -19,7 +19,9 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronRight,
-  Settings
+  Settings,
+  Package,
+  CirclePlay
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import { apiRequest } from "@/lib/queryClient";
@@ -231,26 +233,20 @@ export default function ObjectDetails() {
                 {/* Connected Experience */}
                 {objectDetails.experience && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Connected Experience</Label>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Connected Experience</Label>
+                    </div>
                     <Link href={`/experiences/${objectDetails.experience.pid}`}>
-                      <div className="mt-1 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer transition-colors group">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="flex items-center space-x-2 hover:text-primary">
-                                <span className="font-medium transition-colors">{objectDetails.experience.name}</span>
-                                <ExternalLink className="w-3 h-3 text-muted-foreground transition-colors" />
-                              </div>
-                              <Badge variant="outline" className={getStatusColor(objectDetails.experience.status)}>
-                                {objectDetails.experience.status}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-muted-foreground">
-                                Created: {formatDate(objectDetails.experience.created_at)}
-                              </span>
-                            </div>
+                      <div className="mt-1 rounded-lg py-2 hover:bg-muted/50 cursor-pointer transition-colors group inline-block">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2">
+                            <CirclePlay className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                            <span className="font-medium transition-colors">{objectDetails.experience.name}</span>
+                            <ExternalLink className="w-3 h-3 text-muted-foreground transition-colors" />
                           </div>
+                          <Badge variant="outline" className={getStatusColor(objectDetails.experience.status)}>
+                            {objectDetails.experience.status}
+                          </Badge>
                         </div>
                         {objectDetails.experience.description && (
                           <p className="text-sm text-muted-foreground mt-2">{objectDetails.experience.description}</p>
@@ -325,6 +321,7 @@ export default function ObjectDetails() {
                           >
                             <div className="flex items-center space-x-3 w-full justify-between">
                               <div className="flex items-center space-x-2">
+                                <Package className="w-4 h-4 text-blue-500 flex-shrink-0" />
                                 <span className="font-medium text-foreground">{variant.name}</span>
                                 {variant.name === "default" && (
                                   <Badge variant="secondary" className="text-xs">Default</Badge>

@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Search, Plus, DollarSign, Users, TrendingUp, Package } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import QuickExperiencePrompt from "@/components/quick-experience-prompt";
 
 interface Campaign {
   id: string;
@@ -46,7 +45,6 @@ interface CampaignMetrics {
 export default function Campaigns() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewCampaign, setShowNewCampaign] = useState(false);
-  const [showQuickPrompt, setShowQuickPrompt] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
     name: "",
     utmSource: "",
@@ -133,7 +131,7 @@ export default function Campaigns() {
 
   return (
     <>
-      <ConsoleLayout onQuickExperience={() => setShowQuickPrompt(true)}>
+      <ConsoleLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -348,11 +346,6 @@ export default function Campaigns() {
         </Card>
         </div>
       </ConsoleLayout>
-      
-      <QuickExperiencePrompt 
-        open={showQuickPrompt} 
-        onClose={() => setShowQuickPrompt(false)} 
-      />
     </>
   );
 }

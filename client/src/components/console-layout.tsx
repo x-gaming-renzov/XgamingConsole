@@ -10,10 +10,9 @@ import { useAuth } from "@/lib/auth";
 
 interface ConsoleLayoutProps {
   children: ReactNode;
-  onQuickExperience?: () => void;
 }
 
-export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLayoutProps) {
+export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const [selectedProject, setSelectedProject] = useState("project-1");
@@ -59,13 +58,13 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
       path: "/segments",
       description: "Player segments"
     },
-    {
-      id: "campaigns",
-      label: "Campaigns",
-      icon: UserCheck,
-      path: "/campaigns",
-      description: "Marketing campaigns"
-    },
+    // {
+    //   id: "campaigns",
+    //   label: "Campaigns",
+    //   icon: UserCheck,
+    //   path: "/campaigns",
+    //   description: "Marketing campaigns"
+    // },
 
   ];
 
@@ -105,8 +104,8 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
             </div>
           </SidebarHeader>
           
-          <SidebarContent className="p-4">
-            <div className="space-y-6">
+          <SidebarContent className="p-4 flex flex-col h-full">
+            <div className="flex-1">
               {/* Primary Navigation */}
               <div className="space-y-2">
                 {navigationItems.map((item) => {
@@ -133,7 +132,7 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
               </div>
 
               {/* Quick Actions */}
-              <div className="pt-4 border-t border-border">
+              {/* <div className="pt-4 border-t border-border">
                 <p className="text-xs font-medium text-muted-foreground mb-3 px-3">QUICK ACTIONS</p>
                 <Button 
                   className="w-full justify-start mb-2"
@@ -142,42 +141,42 @@ export default function ConsoleLayout({ children, onQuickExperience }: ConsoleLa
                   <Plus className="w-4 h-4 mr-3" />
                   Quick Experience
                 </Button>
-              </div>
+              </div> */}
+            </div>
 
-              {/* Bottom Actions */}
-              <div className="pt-4 border-t border-border space-y-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-start text-muted-foreground">
-                      <Settings className="w-4 h-4 mr-3" />
-                      Settings
-                      <ChevronDown className="w-4 h-4 ml-auto" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Settings</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <Link href="/personal-settings">
-                      <DropdownMenuItem>
-                        Personal Settings
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/project-settings">
-                      <DropdownMenuItem>
-                        Project Settings
-                      </DropdownMenuItem>
-                    </Link>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-muted-foreground hover:text-destructive"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="w-4 h-4 mr-3" />
-                  Sign Out
-                </Button>
-              </div>
+            {/* Bottom Actions - Positioned at bottom */}
+            <div className="pt-4 border-t border-border space-y-2 mt-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+                    <Settings className="w-4 h-4 mr-3" />
+                    Settings
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Settings</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <Link href="/personal-settings">
+                    <DropdownMenuItem>
+                      Personal Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/project-settings">
+                    <DropdownMenuItem>
+                      Project Settings
+                    </DropdownMenuItem>
+                  </Link>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start text-muted-foreground hover:text-destructive"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Sign Out
+              </Button>
             </div>
           </SidebarContent>
         </Sidebar>
