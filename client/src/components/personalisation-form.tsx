@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,7 +18,8 @@ interface PersonalisationFormProps {
 }
 
 export default function PersonalisationForm({ open, onOpenChange, objects }: PersonalisationFormProps) {
-  const [formData, setFormData] = useState(() => {
+  // Function to generate initial form data
+  const getInitialFormData = () => {
     const initialVariants: Record<string, { 
       mode: 'existing' | 'new';
       variant_id?: string;
@@ -40,11 +41,18 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
       description: '',
       variants: initialVariants
     };
-  });
+  };
 
+  const [formData, setFormData] = useState(() => getInitialFormData());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const { experienceId } = useParams();
+
+  // Reset form data when the form opens or closes
+  useEffect(() => {
+    setFormData(getInitialFormData());
+    setIsSubmitting(false);
+  }, [open, objects]);
 
   const handleVariantModeChange = (objectId: string, mode: 'existing' | 'new') => {
     setFormData(prev => ({

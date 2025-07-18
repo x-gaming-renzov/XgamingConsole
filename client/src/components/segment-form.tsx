@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,11 @@ export default function SegmentForm({ open, onClose }: SegmentFormProps) {
       rules: []
     });
   };
+
+  // Reset form when the form opens or closes
+  useEffect(() => {
+    resetForm();
+  }, [open]);
 
   const addRule = () => {
     setFormData(prev => ({

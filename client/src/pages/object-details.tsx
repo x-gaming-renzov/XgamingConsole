@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -211,6 +211,7 @@ export default function ObjectDetails() {
               <VariantForm 
                 objectId={objectDetails.id} 
                 object={objectDetails} 
+                open={showVariantForm}
                 onClose={() => setShowVariantForm(false)} 
                 onSuccess={() => {
                   setShowVariantForm(false);
@@ -375,13 +376,21 @@ export default function ObjectDetails() {
 }
 
 // Variant Form Component
-export function VariantForm({ objectId, object, onClose, onSuccess }: { objectId: string, object: any, onClose: () => void, onSuccess: () => void }) {
-  const [formData, setFormData] = useState({
+export function VariantForm({ objectId, object, open, onClose, onSuccess }: { objectId: string, object: any, open: boolean, onClose: () => void, onSuccess: () => void }) {
+  // Function to generate initial form data
+  const getInitialFormData = () => ({
     name: '',
     config: {} as Record<string, any>
   });
-  
+
+  const [formData, setFormData] = useState(() => getInitialFormData());
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form data when the form opens or closes
+  useEffect(() => {
+    setFormData(getInitialFormData());
+    setIsSubmitting(false);
+  }, [open]);
 
   const handleConfigChange = (key: string, value: any) => {
     setFormData(prev => ({
