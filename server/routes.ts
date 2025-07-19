@@ -8,7 +8,7 @@ import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
-const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://localhost:8000";
+const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "https://nova-manager-475016739432.us-central1.run.app";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Middleware to verify JWT token
