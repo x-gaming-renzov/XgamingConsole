@@ -15,7 +15,8 @@ import Objects from "@/pages/objects";
 import ObjectDetails from "@/pages/object-details";
 import Experiences from "@/pages/experiences";
 import ExperienceDetails from "@/pages/experience-details";
-
+import Metrics from "@/pages/metrics";
+import MetricDetails from "@/pages/metric-details";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
@@ -36,6 +37,8 @@ function Router() {
       <Route path="/objects/:id" component={ObjectDetails} />
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/:experienceId" component={ExperienceDetails} />
+      <Route path="/metrics" component={Metrics} />
+      <Route path="/metrics/:id" component={MetricDetails} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
       <Route path="/project-settings" component={ProjectSettings} />

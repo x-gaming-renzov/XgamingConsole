@@ -1516,6 +1516,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Metrics endpoints
+  app.get("/api/metrics", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+
+      // Call Nova Manager to get metrics
+      const novaMetrics = await callNovaBackend<any[]>(
+        `/api/v1/metrics/?organisation_id=${organisationId}&app_id=${appId}`
+      );
+
+      res.json(novaMetrics);
+    } catch (error) {
+      console.error("Failed to fetch metrics:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
+    }
+  });
+
+  app.get("/api/metrics/:id", authenticateToken, async (req, res) => {
+    try {
+      const metricId = req.params.id;
+
+      // Call Nova Manager to get metric details
+      const novaMetric = await callNovaBackend<any>(
+        `/api/v1/metrics/${metricId}/`
+      );
+
+      res.json(novaMetric);
+    } catch (error) {
+      console.error("Failed to fetch metric details:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metric details" });
+    }
+  });
+
+
+  app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+
+      const { type, config, timeRange = "7d", granularity = "daily" } = req.body;
+
+      // Calculate date range based on timeRange parameter
+      const endDate = new Date();
+      const startDate = new Date();
+      
+      switch (timeRange) {
+        case "24h":
+          startDate.setDate(endDate.getDate() - 1);
+          break;
+        case "7d":
+          startDate.setDate(endDate.getDate() - 7);
+          break;
+        case "30d":
+          startDate.setDate(endDate.getDate() - 30);
+          break;
+        case "90d":
+          startDate.setDate(endDate.getDate() - 90);
+          break;
+        default:
+          startDate.setDate(endDate.getDate() - 7);
+      }
+
+      const start = startDate.toISOString();
+      const end = endDate.toISOString();
+
+      console.log("type", type);
+      // Call Nova Manager to run the metric query
+      const queryData = await callNovaBackend<any>(
+        `/api/v1/metrics/compute/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            organisation_id: organisationId,
+            app_id: appId,
+            type,
+            config,
+            time_range: { start, end },
+            granularity
+          })
+        }
+      );
+
+      console.log("queryData", queryData)
+      res.json(queryData);
+    } catch (error) {
+      console.error("Failed to fetch metric data:", error);
+      // Return empty data instead of error for better UX
+      res.json([]);
+    }
+  });
+
+  app.post("/api/metrics", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+      const metricData = req.body;
+
+      // Transform frontend data to Nova Manager format
+      const novaMetricData = {
+        name: metricData.name,
+        description: metricData.description || "",
+        type: metricData.type,
+        config: metricData.config,
+        organisation_id: organisationId,
+        app_id: appId
+      };
+
+      // Call Nova Manager to create metric
+      const novaMetric = await callNovaBackend<any>(
+        `/api/v1/metrics/`,
+        {
+          method: "POST",
+          body: JSON.stringify(novaMetricData),
+        }
+      );
+
+      res.json(novaMetric);
+    } catch (error) {
+      console.error("Failed to create metric:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create metric" });
+    }
+  });
+
   // Insights endpoints
   app.get("/api/insights/top-experiences", authenticateToken, async (req, res) => {
     try {

@@ -58,6 +58,13 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       path: "/segments",
       description: "Player segments"
     },
+    {
+      id: "metrics",
+      label: "Metrics",
+      icon: Lightbulb,
+      path: "/metrics",
+      description: "Analytics and KPIs"
+    },
     // {
     //   id: "campaigns",
     //   label: "Campaigns",
