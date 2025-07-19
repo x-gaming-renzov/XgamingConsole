@@ -1582,7 +1582,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const start = startDate.toISOString();
       const end = endDate.toISOString();
 
-      console.log("type", type);
       // Call Nova Manager to run the metric query
       const queryData = await callNovaBackend<any>(
         `/api/v1/metrics/compute/`,
