@@ -26,11 +26,47 @@ interface MetricFormProps {
   onClose: () => void;
 }
 
+interface EventFilter {
+  event_name: string;
+  filters?: Record<string, any> | null;
+}
+
+interface BaseConfig {
+  time_range: string;
+  granularity?: string;
+  group_by: string[];
+  filters: Record<string, { operator: string; value: string }>;
+}
+
+interface CountConfig extends BaseConfig {
+  event_name: string;
+  distinct: boolean;
+}
+
+interface AggregationConfig extends BaseConfig {
+  event_name: string;
+  property: string;
+  aggregation: 'sum' | 'avg' | 'min' | 'max';
+}
+
+interface RatioConfig extends BaseConfig {
+  numerator_event: string;
+  denominator_event: string;
+}
+
+interface RetentionConfig extends BaseConfig {
+  initial_event: string;
+  return_event: string;
+  retention_window: string;
+}
+
+type MetricConfig = CountConfig | AggregationConfig | RatioConfig | RetentionConfig;
+
 interface MetricData {
   name: string;
   description: string;
   type: 'count' | 'aggregation' | 'ratio' | 'retention';
-  config: any;
+  config: MetricConfig;
 }
 
 interface Filter {
@@ -58,13 +94,50 @@ const operators = [
   { value: 'not_exists', label: 'Does not exist' }
 ];
 
+const getDefaultConfig = (type: 'count' | 'aggregation' | 'ratio' | 'retention'): MetricConfig => {
+  const baseConfig = {
+    time_range: '7d',
+    group_by: [] as string[],
+    filters: {} as Record<string, { operator: string; value: string }>
+  };
+
+  switch (type) {
+    case 'count':
+      return {
+        ...baseConfig,
+        event_name: '',
+        distinct: false
+      } as CountConfig;
+    case 'aggregation':
+      return {
+        ...baseConfig,
+        event_name: '',
+        property: '',
+        aggregation: 'sum'
+      } as AggregationConfig;
+    case 'ratio':
+      return {
+        ...baseConfig,
+        numerator_event: '',
+        denominator_event: ''
+      } as RatioConfig;
+    case 'retention':
+      return {
+        ...baseConfig,
+        initial_event: '',
+        return_event: '',
+        retention_window: '7d'
+      } as RetentionConfig;
+  }
+};
+
 export default function MetricForm({ open, onClose }: MetricFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<MetricData>({
     name: '',
     description: '',
     type: 'count',
-    config: {}
+    config: getDefaultConfig('count')
   });
   
   const [filters, setFilters] = useState<Filter[]>([]);
@@ -87,7 +160,7 @@ export default function MetricForm({ open, onClose }: MetricFormProps) {
       name: '',
       description: '',
       type: 'count',
-      config: {}
+      config: getDefaultConfig('count')
     });
     setFilters([]);
     setBreakdowns([]);
@@ -127,55 +200,103 @@ export default function MetricForm({ open, onClose }: MetricFormProps) {
     setBreakdowns(updated);
   };
 
+  // Validation functions
+  const validateFormData = (): boolean => {
+    if (!formData.name.trim()) return false;
+    if (!formData.config.time_range) return false;
+    
+    // Validate group_by - no empty strings
+    const validGroupBy = breakdowns.filter(b => b.trim() !== '');
+    
+    // Validate filters - all must have property and value
+    const validFilters = filters.every(f => f.property.trim() && f.value.trim());
+    if (!validFilters) return false;
+
+    // Type-specific validation
+    switch (formData.type) {
+      case 'count':
+        const countConfig = formData.config as CountConfig;
+        return !!countConfig.event_name?.trim();
+      
+      case 'aggregation':
+        const aggConfig = formData.config as AggregationConfig;
+        return !!(aggConfig.event_name?.trim() && aggConfig.property?.trim() && aggConfig.aggregation);
+      
+      case 'ratio':
+        const ratioConfig = formData.config as RatioConfig;
+        return !!(ratioConfig.numerator_event?.trim() && ratioConfig.denominator_event?.trim());
+      
+      case 'retention':
+        const retentionConfig = formData.config as RetentionConfig;
+        return !!(retentionConfig.initial_event?.trim() && retentionConfig.return_event?.trim() && retentionConfig.retention_window);
+      
+      default:
+        return false;
+    }
+  };
+
+  const isFormValid = validateFormData();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Build config based on metric type
-    let config: any = {
-      time_granularity: 'daily',
+    if (!isFormValid) return;
+    
+    // Build base config
+    const baseConfig = {
+      time_range: formData.config.time_range,
       group_by: breakdowns.filter(b => b.trim() !== ''),
       filters: filters.reduce((acc, filter) => {
-        if (filter.property && filter.value) {
+        if (filter.property.trim() && filter.value.trim()) {
           acc[filter.property] = {
             operator: filter.operator,
             value: filter.value
           };
         }
         return acc;
-      }, {} as any)
+      }, {} as Record<string, { operator: string; value: string }>)
     };
 
-    // Add type-specific config
+    // Build type-specific config
+    let config: any = { ...baseConfig };
+
     switch (formData.type) {
       case 'count':
-        config.event_name = formData.config.event_name || 'user_login';
-        config.distinct = formData.config.distinct || false;
+        const countConfig = formData.config as CountConfig;
+        config.event_name = countConfig.event_name;
+        config.distinct = countConfig.distinct;
         break;
+        
       case 'aggregation':
-        config.event_name = formData.config.event_name || 'purchase';
-        config.property = formData.config.property || 'amount';
-        config.aggregation = formData.config.aggregation || 'sum';
+        const aggConfig = formData.config as AggregationConfig;
+        config.event_name = aggConfig.event_name;
+        config.property = aggConfig.property;
+        config.aggregation = aggConfig.aggregation;
         break;
+        
       case 'ratio':
+        const ratioConfig = formData.config as RatioConfig;
         config.numerator = {
-          event_name: formData.config.numerator_event || 'purchase',
+          event_name: ratioConfig.numerator_event,
           filters: {}
         };
         config.denominator = {
-          event_name: formData.config.denominator_event || 'user_login',
+          event_name: ratioConfig.denominator_event,
           filters: {}
         };
         break;
+        
       case 'retention':
+        const retentionConfig = formData.config as RetentionConfig;
         config.initial_event = {
-          event_name: formData.config.initial_event || 'user_signup',
+          event_name: retentionConfig.initial_event,
           filters: {}
         };
         config.return_event = {
-          event_name: formData.config.return_event || 'user_login',
+          event_name: retentionConfig.return_event,
           filters: {}
         };
-        config.retention_window = formData.config.retention_window || '7d';
+        config.retention_window = retentionConfig.retention_window;
         break;
     }
 
@@ -244,7 +365,11 @@ export default function MetricForm({ open, onClose }: MetricFormProps) {
                 <Label htmlFor="type">Metric Type</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value: any) => setFormData({ ...formData, type: value, config: {} })}
+                  onValueChange={(value: any) => {
+                    const newConfig = getDefaultConfig(value);
+                    newConfig.time_range = formData.config.time_range;
+                    setFormData({ ...formData, type: value, config: newConfig });
+                  }}
                 >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select metric type" />
@@ -259,27 +384,57 @@ export default function MetricForm({ open, onClose }: MetricFormProps) {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="time_range">Time Range</Label>
+                <Select
+                  value={formData.config.time_range || '7d'}
+                  onValueChange={(value) => setFormData({
+                    ...formData,
+                    config: { ...formData.config, time_range: value }
+                  })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select time range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1h">Last 1 Hour</SelectItem>
+                    <SelectItem value="6h">Last 6 Hours</SelectItem>
+                    <SelectItem value="24h">Last 24 Hours</SelectItem>
+                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                    <SelectItem value="90d">Last 90 Days</SelectItem>
+                    <SelectItem value="1y">Last 1 Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Type-specific configuration */}
               <div className="space-y-4">
                 {formData.type === 'count' && (
                   <>
                     <EventSelector
                       label="Event Name"
-                      value={formData.config.event_name || ''}
-                      onChange={(value) => setFormData({
-                        ...formData,
-                        config: { ...formData.config, event_name: value }
-                      })}
+                      value={(formData.config as CountConfig).event_name || ''}
+                      onChange={(value) => {
+                        const config = formData.config as CountConfig;
+                        setFormData({
+                          ...formData,
+                          config: { ...config, event_name: value }
+                        });
+                      }}
                       placeholder="Search or enter event name"
                     />
                     <div className="flex items-center space-x-2">
                       <Switch
                         id="distinct"
-                        checked={formData.config.distinct || false}
-                        onCheckedChange={(checked) => setFormData({
-                          ...formData,
-                          config: { ...formData.config, distinct: checked }
-                        })}
+                        checked={(formData.config as CountConfig).distinct || false}
+                        onCheckedChange={(checked) => {
+                          const config = formData.config as CountConfig;
+                          setFormData({
+                            ...formData,
+                            config: { ...config, distinct: checked }
+                          });
+                        }}
                       />
                       <Label htmlFor="distinct" className="text-sm">Count unique users only</Label>
                     </div>

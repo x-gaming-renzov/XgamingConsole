@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import PersonalisationForm from "@/components/personalisation-form";
 import SegmentExperienceForm from "@/components/segment-experience-form";
+import MetricForm from "@/components/metric-form";
 import { 
   ChevronLeft, 
   Plus,
@@ -25,7 +26,8 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
-  Trash2
+  Trash2,
+  BarChart3
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import ConsoleLayout from "@/components/console-layout";
@@ -135,6 +137,7 @@ export default function ExperienceDetails() {
   const [showDefaultPersonalisations, setShowDefaultPersonalisations] = useState(false);
   const [expandedObjects, setExpandedObjects] = useState<Record<string, boolean>>({});
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
+  const [showMetricsForm, setShowMetricsForm] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   const { data: experience, isLoading } = useQuery<ExperienceDetails>({
@@ -276,7 +279,7 @@ export default function ExperienceDetails() {
           <TabsList className="inline-flex w-auto space-x-2">
             <TabsTrigger className="px-6" value="objects">Objects ({experience.feature_flags_count})</TabsTrigger>
             <TabsTrigger className="px-6" value="personalisations">Personalisations ({experience.personalisations_count})</TabsTrigger>
-            <TabsTrigger className="px-6" value="segments">Segments ({experience.segments_count})</TabsTrigger>
+            <TabsTrigger className="px-6" value="segments">Targeting ({experience.segments_count})</TabsTrigger>
           </TabsList>
 
           {/* Objects Tab */}
@@ -560,7 +563,7 @@ export default function ExperienceDetails() {
           {/* Segments Tab */}
           <TabsContent value="segments" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Experience Segments</h3>
+              <h3 className="text-xl font-semibold">Targeting</h3>
               <Button
                 variant="default"
                 size="sm"
@@ -568,7 +571,7 @@ export default function ExperienceDetails() {
                 className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white"
               >
                 <Plus className="w-4 h-4" />
-                <span>Create Segment Experience</span>
+                <span>Create Targeting Rule</span>
               </Button>
             </div>
 
@@ -654,54 +657,156 @@ export default function ExperienceDetails() {
                       )}
                     </div>
 
-                    {/* Segment Rules Accordion */}
-                    <div className="border rounded-lg overflow-hidden">
-                      <div 
-                        className={`flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
-                          expandedObjects[`segment-rules-${segment.segment.pid}`] ? '' : 'rounded-lg'
-                        }`}
-                        onClick={() => toggleObjectExpansion(`segment-rules-${segment.segment.pid}`)}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <Users className="w-4 h-4 text-blue-500" />
-                          <Label className="text-sm font-medium cursor-pointer">Segment Rules</Label>
+                    {/* Side by side layout for rules and metrics */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Targeting Rules */}
+                      <div className="border rounded-lg overflow-hidden">
+                        <div 
+                          className={`flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
+                            expandedObjects[`segment-rules-${segment.segment.pid}`] ? '' : 'rounded-lg'
+                          }`}
+                          onClick={() => toggleObjectExpansion(`segment-rules-${segment.segment.pid}`)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Users className="w-4 h-4 text-blue-500" />
+                            <Label className="text-sm font-medium cursor-pointer">Targeting Rules</Label>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {expandedObjects[`segment-rules-${segment.segment.pid}`] ? 
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            }
+                          </div>
                         </div>
-                        <div className="flex-shrink-0">
-                          {expandedObjects[`segment-rules-${segment.segment.pid}`] ? 
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                          }
-                        </div>
-                      </div>
-                      
-                      {expandedObjects[`segment-rules-${segment.segment.pid}`] && (
-                        <div className="p-3 border-t bg-muted/10">
-                          {segment.segment.rule_config?.conditions && segment.segment.rule_config.conditions.length > 0 ? (
-                            <div className="space-y-2">
-                              {segment.segment.rule_config.conditions.map((condition: { field: string; operator: string; value: string | string[] | number | boolean }, condIndex: number) => (
-                                <div key={condIndex} className="flex items-center space-x-3 py-2 px-3">
-                                  {condIndex > 0 && (
-                                    <Badge variant="outline" className="text-xs font-medium">
-                                      AND
-                                    </Badge>
-                                  )}
-                                  <div className="flex items-center space-x-2 text-sm">
-                                    <span className="font-medium text-foreground">{condition.field}</span>
-                                    <span className="text-muted-foreground">{condition.operator}</span>
-                                    <span className="font-medium text-foreground">
-                                      {Array.isArray(condition.value) ? condition.value.join(", ") : String(condition.value)}
-                                    </span>
+                        
+                        {expandedObjects[`segment-rules-${segment.segment.pid}`] && (
+                          <div className="p-3 border-t bg-muted/10">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <p className="text-sm font-semibold">Segment</p>
+                              <p className="text-sm font-medium">{segment.segment.name}</p>
+                            </div>
+                            {segment.segment.rule_config?.conditions && segment.segment.rule_config.conditions.length > 0 ? (
+                              <div className="space-y-2">
+                                {segment.segment.rule_config.conditions.map((condition: { field: string; operator: string; value: string | string[] | number | boolean }, condIndex: number) => (
+                                  <div key={condIndex} className="flex items-center space-x-3 py-2 px-3">
+                                    {condIndex > 0 && (
+                                      <Badge variant="outline" className="text-xs font-medium">
+                                        AND
+                                      </Badge>
+                                    )}
+                                    <div className="flex items-center space-x-2 text-sm">
+                                      <span className="font-medium text-foreground">{condition.field}</span>
+                                      <span className="text-muted-foreground">{condition.operator}</span>
+                                      <span className="font-medium text-foreground">
+                                        {Array.isArray(condition.value) ? condition.value.join(", ") : String(condition.value)}
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-4">
-                              <p className="text-sm text-muted-foreground">No rules configured</p>
-                            </div>
-                          )}
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-4">
+                                <p className="text-sm text-muted-foreground">All Users</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Metrics */}
+                      <div className="border rounded-lg overflow-hidden">
+                        <div 
+                          className={`flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
+                            expandedObjects[`metrics-${segment.segment.pid}`] ? '' : 'rounded-lg'
+                          }`}
+                          onClick={() => toggleObjectExpansion(`metrics-${segment.segment.pid}`)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <BarChart3 className="w-4 h-4 text-orange-500" />
+                            <Label className="text-sm font-medium cursor-pointer">Metrics</Label>
+                          </div>
+                          <div className="flex-shrink-0">
+                            {expandedObjects[`metrics-${segment.segment.pid}`] ? 
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            }
+                          </div>
                         </div>
-                      )}
+                        
+                        {expandedObjects[`metrics-${segment.segment.pid}`] && (
+                          <div className="p-3 border-t bg-muted/10">
+                            <div className="space-y-3">
+                              {/* Metric cards */}
+                              <div className="space-y-3">
+                                {/* Example metric cards that would show when metrics exist */}
+                                {true && (
+                                  <>
+                                    <div className="border rounded-lg p-3 bg-muted">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex items-start space-x-2 min-w-0 flex-1">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 mt-1.5"></div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-medium text-white-900 mb-1">Conversion Rate</div>
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-xs text-white-500">Target:</span>
+                                              <span className="text-xs font-medium text-white-700">12%</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                          <div className="text-lg font-bold text-green-600">15.2%</div>
+                                          <div className="text-xs text-green-600">+3.2%</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="border rounded-lg p-3 bg-muted shadow-sm hover:shadow-md transition-shadow">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex items-start space-x-2 min-w-0 flex-1">
+                                          <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-1.5"></div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-medium text-white-900 mb-1">Session Duration</div>
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-xs text-white-500">Target:</span>
+                                              <span className="text-xs font-medium text-white-700">300s</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                          <div className="text-lg font-bold text-orange-600">245s</div>
+                                          <div className="text-xs text-orange-600">-55s</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                                
+                                {/* Placeholder when no metrics exist */}
+                                {false && (
+                                  <div className="text-center py-4">
+                                    <p className="text-xs text-muted-foreground">No metrics configured yet</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Track conversion rates, engagement, and custom events</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Add Metric Button */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowMetricsForm(true);
+                                }}
+                                className="w-full border-dashed hover:border-solid text-xs"
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Add Metric
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -713,8 +818,8 @@ export default function ExperienceDetails() {
                     <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
                       <Target className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">No Segments Assigned</h3>
-                    <p className="text-sm text-muted-foreground">Experience segments will appear here when configured.</p>
+                    <h3 className="text-lg font-semibold mb-2">No Targeting Rules</h3>
+                    <p className="text-sm text-muted-foreground">Create targeting rules to personalise experiences for specific user segments.</p>
                   </CardContent>
                 </Card>
               )}
@@ -734,6 +839,12 @@ export default function ExperienceDetails() {
           open={showSegmentForm}
           onOpenChange={setShowSegmentForm}
           personalisations={experience?.personalisations || []} 
+        />
+
+        {/* Metrics Form */}
+        <MetricForm 
+          open={showMetricsForm}
+          onClose={() => setShowMetricsForm(false)}
         />
       </div>
     </ConsoleLayout>

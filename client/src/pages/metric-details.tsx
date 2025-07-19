@@ -106,9 +106,7 @@ export default function MetricDetails() {
       
       const response = await apiRequest("POST", `/api/metrics/compute`, {
         type: metric.type,
-        config: metric.config,
-        timeRange,
-        granularity,
+        config: { ...metric.config, time_range: timeRange, granularity: granularity },
       });
       return response.json();
     }

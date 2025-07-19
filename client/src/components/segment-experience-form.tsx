@@ -221,7 +221,7 @@ export default function SegmentExperienceForm({ open, onOpenChange, personalisat
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[45vw] min-w-[700px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Create Segment Experience</SheetTitle>
+          <SheetTitle>Create Targeting Rule</SheetTitle>
         </SheetHeader>
         <div className="mt-6">
           <div className="space-y-6">
