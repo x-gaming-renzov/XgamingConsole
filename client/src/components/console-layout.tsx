@@ -146,7 +146,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                   if (!item.path) return null;
                   
                   const Icon = item.icon;
-                  const isActive = location.includes(item.path);
+                  const isActive = location.startsWith(item.path);
 
                   return (
                     <Link key={item.id} href={item.path}>
