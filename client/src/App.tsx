@@ -4,8 +4,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "@/pages/landing";
 import Console from "@/pages/console";
+import AppSelector from "@/components/AppSelector";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import CampaignDetails from "@/pages/campaign-details";
@@ -31,6 +33,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/console" component={Console} />
+      <Route path="/selector" component={AppSelector} />
       <Route path="/dashboard" component={Dashboard} />
       {/* <Route path="/campaigns" component={Campaigns} />
       <Route path="/campaigns/:campaignId" component={CampaignDetails} /> */}
@@ -57,12 +60,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
