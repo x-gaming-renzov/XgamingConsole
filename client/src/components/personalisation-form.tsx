@@ -251,7 +251,7 @@ export default function PersonalisationForm({ open, onOpenChange, onSuccess }: P
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {objects.map(({pid: objectId, feature_flag: object}) => (
+                  {objects.map(({pid: objectId, feature_flag: object}: {pid: string, feature_flag: any}) => (
                     <div key={objectId} className="border rounded-lg p-4">
                       <div className="flex items-center space-x-2 mb-4">
                         <Package className="w-4 h-4 text-blue-500" />

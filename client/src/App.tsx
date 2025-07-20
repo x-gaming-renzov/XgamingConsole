@@ -20,6 +20,7 @@ import MetricDetails from "@/pages/metric-details";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
+import CreatePersonalisation from "@/pages/create-personalisation";
 
 import NotFound from "@/pages/not-found";
 import Personalisations from "./pages/personalisations";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/:experienceId" component={ExperienceDetails} />
       <Route path="/personalisations" component={Personalisations} />
+      <Route path="/create-personalisation" component={CreatePersonalisation} />
       <Route path="/experiences/:experienceId/personalisations" component={PersonalisationDetails} />
       <Route path="/metrics" component={Metrics} />
       <Route path="/metrics/:id" component={MetricDetails} />

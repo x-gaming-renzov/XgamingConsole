@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 interface Experience {
-  id: string;
+  pid: string;
   name: string;
   description: string;
   status: string;
@@ -27,6 +27,7 @@ interface ExperienceSelectorProps {
   placeholder?: string;
   label?: string;
   required?: boolean;
+  className?: string;
 }
 
 export default function ExperienceSelector({
@@ -35,7 +36,8 @@ export default function ExperienceSelector({
   disabled = false,
   placeholder = "Search and select an experience...",
   label = "Experience",
-  required = false
+  required = false,
+  className = "",
 }: ExperienceSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,13 +64,15 @@ export default function ExperienceSelector({
 
   // Get selected experience details when value changes
   useEffect(() => {
-    if (value && !selectedExperience) {
-      const experience = experiences.find((exp: Experience) => exp.id === value);
+    if (value) {
+      const experience = experiences.find((exp: Experience) => exp.pid === value);
       if (experience) {
         setSelectedExperience(experience);
       }
+    } else {
+      setSelectedExperience(null);
     }
-  }, [value, experiences, selectedExperience]);
+  }, [value, experiences]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -84,7 +88,7 @@ export default function ExperienceSelector({
 
   const handleSelect = (experience: Experience) => {
     setSelectedExperience(experience);
-    onValueChange(experience.id, experience);
+    onValueChange(experience.pid, experience);
     setIsOpen(false);
     setSearchTerm("");
   };
@@ -110,7 +114,7 @@ export default function ExperienceSelector({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${className}`}>
       {label && (
         <Label className="text-sm font-medium">
           {label}
@@ -121,22 +125,14 @@ export default function ExperienceSelector({
       <div className="relative" ref={dropdownRef}>
         {/* Selected Experience Display */}
         {selectedExperience && !isOpen ? (
-          <div className="flex items-center justify-between p-3 border rounded-md bg-background hover:bg-muted/50 cursor-pointer transition-colors"
+          <div className="flex items-center justify-between px-3 py-2 border rounded-md bg-background hover:bg-muted/50 cursor-pointer transition-colors"
                onClick={() => !disabled && setIsOpen(true)}>
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               <CirclePlay className="w-4 h-4 text-purple-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2">
                   <span className="font-medium text-sm truncate">{selectedExperience.name}</span>
-                  <Badge variant="outline" className={`text-xs ${getStatusColor(selectedExperience.status)}`}>
-                    {selectedExperience.status}
-                  </Badge>
                 </div>
-                {selectedExperience.description && (
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    {selectedExperience.description}
-                  </p>
-                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -194,7 +190,7 @@ export default function ExperienceSelector({
               <div className="py-1">
                 {experiences.map((experience: Experience) => (
                   <div
-                    key={experience.id}
+                    key={experience.pid}
                     className="px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSelect(experience)}
                   >
@@ -204,9 +200,6 @@ export default function ExperienceSelector({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium text-sm truncate">{experience.name}</span>
-                            <Badge variant="outline" className={`text-xs ${getStatusColor(experience.status)}`}>
-                              {experience.status}
-                            </Badge>
                           </div>
                           {experience.description && (
                             <p className="text-xs text-muted-foreground truncate">
@@ -215,7 +208,7 @@ export default function ExperienceSelector({
                           )}
                         </div>
                       </div>
-                      {selectedExperience?.id === experience.id && (
+                      {selectedExperience?.pid === experience.pid && (
                         <Check className="w-4 h-4 text-primary" />
                       )}
                     </div>

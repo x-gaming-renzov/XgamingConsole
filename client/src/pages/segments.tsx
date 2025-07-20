@@ -71,11 +71,11 @@ export default function Segments() {
               <h1 className="text-2xl font-bold text-foreground">Segments</h1>
           <p className="text-muted-foreground">Define player groups for targeted experiences</p>
         </div>
-            <Button onClick={() => setShowSegmentForm(true)}>
+            <Button onClick={() => setShowSegmentForm(true)} className="text-white">
               <Plus className="w-4 h-4 mr-2" />
               New Segment
             </Button>
-      </div>
+        </div>
 
           {/* Search */}
           <div className="flex items-center space-x-4">
@@ -149,7 +149,7 @@ export default function Segments() {
                     }
                   </p>
                   {!searchQuery && (
-                    <Button onClick={() => setShowSegmentForm(true)}>
+                    <Button onClick={() => setShowSegmentForm(true)} className="text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Segment
                     </Button>

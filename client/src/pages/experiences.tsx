@@ -28,11 +28,13 @@ import ConsoleLayout from "@/components/console-layout";
 import ExperienceForm from "@/components/experience-form";
 
 interface Experience {
-  id: string;
+  pid: string;
   name: string;
   description: string;
   status: "Draft" | "Active" | "Rolling out" | "Completed" | "Paused";
   features: { pid: string; }[];
+  personalisations: { pid: string; }[];
+  variants: { pid: string; }[];
 }
 
 export default function Experiences() {
@@ -83,10 +85,6 @@ export default function Experiences() {
                 Experiences
               </h1>
             </div>
-            <Button onClick={() => setShowExperienceForm(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Experience
-            </Button>
           </div>
 
           {/* Search and Filters */}
@@ -133,6 +131,7 @@ export default function Experiences() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Variants</TableHead>
                       <TableHead>Objects</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -140,9 +139,9 @@ export default function Experiences() {
                   <TableBody>
                     {filteredExperiences.map((experience) => (
                       <TableRow 
-                        key={experience.id}
+                        key={experience.pid}
                         className="group hover:bg-accent/30 cursor-pointer transition-colors"
-                        onClick={() => window.location.href = `/experiences/${experience.id}`}
+                        onClick={() => window.location.href = `/experiences/${experience.pid}`}
                       >
                         <TableCell>
                           <div className="font-medium">
@@ -152,6 +151,11 @@ export default function Experiences() {
                         <TableCell>
                           <span className="text-muted-foreground">
                             {experience.description || "No description"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-muted-foreground">
+                            {experience.variants.length || 0} variants
                           </span>
                         </TableCell>
                         <TableCell>
@@ -178,12 +182,10 @@ export default function Experiences() {
                     No experiences found
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    Create your first FTUE experience to start optimizing player
-                    onboarding
+                    We haven't received any flagged objects yet. Push a new build with the Pulse manifest to see levels & pop-ups here.
                   </p>
-                  <Button onClick={() => setShowExperienceForm(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Experience
+                  <Button variant="outline">
+                    View SDK Documentation
                   </Button>
                 </div>
               )}

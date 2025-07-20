@@ -267,16 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Call Nova Manager to get experiences
       const novaExperiences = await callNovaBackend<any[]>(url);
 
-      // Transform Nova Manager experiences to frontend format
-      const experiences = novaExperiences.map(exp => ({
-        id: exp.pid,
-        name: exp.name,
-        description: exp.description || "",
-        status: exp.status.charAt(0).toUpperCase() + exp.status.slice(1), // Capitalize status
-        features: exp.features || [],
-      }));
-
-      res.json(experiences);
+      res.json(novaExperiences);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiences" });
     }
@@ -419,19 +410,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const personalisationData = req.body;
 
-      // Transform frontend data to Nova Manager format
-      const novaPersonalisationData = {
-        name: personalisationData.name,
-        description: personalisationData.description || "",
-        variants: personalisationData.variants,
-      };
-
       // Call Nova Manager to create personalisation
       const novaPersonalisation = await callNovaBackend<any>(
-        `/api/v1/personalisations/`,
+        `/api/v1/personalisations/create-personalisation/`,
         {
           method: "POST",
-          body: JSON.stringify(novaPersonalisationData),
+          body: JSON.stringify(req.body),
         }
       );
 
@@ -443,14 +427,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Experience Personalisation endpoints
-  app.get("/api/experiences/:experienceId/personalisations", authenticateToken, async (req, res) => {
+  app.get("/api/personalisations/personalised-experiences/:experienceId", authenticateToken, async (req, res) => {
     try {
       const { experienceId } = req.params;
       const { skip = 0, limit = 100 } = req.query;
 
       // Call Nova Manager to get personalisations
       const novaPersonalisations = await callNovaBackend<any[]>(
-        `/api/v1/experiences/${experienceId}/personalisations/`
+        `/api/v1/personalisations/personalised-experiences/${experienceId}/`
       );
 
       res.json(novaPersonalisations);
@@ -1250,10 +1234,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectId = req.params.id;
 
-      console.log(`/api/v1/feature-flags/${objectId}/details/`)
       // Call Nova backend to get detailed feature flag information
       const novaFlag = await callNovaBackend<any>(
-        `/api/v1/feature-flags/${objectId}/details/`
+        `/api/v1/feature-flags/${objectId}/`
       );
 
       const objectDetails = {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn } from "lucide-react";
+import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
@@ -89,7 +89,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <Sidebar className="border-r border-border">
-          <SidebarHeader className="p-6 border-b border-border">
+          <SidebarHeader className="p-4 pt-8">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-primary" />
@@ -101,7 +101,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
             </div>
             
             {/* Project Selector */}
-            <div>
+            <div className="mb-4">
               <p className="text-xs font-medium text-muted-foreground mb-2">PROJECT</p>
               <Select value={selectedProject} onValueChange={setSelectedProject}>
                 <SelectTrigger className="w-full">
@@ -121,13 +121,26 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
             </div>
           </SidebarHeader>
           
-          <SidebarContent className="p-4 flex flex-col h-full">
+          <div className="px-4 mb-2">
+            <Link href="/create-personalisation">
+              <Button className="w-full h-[58px] bg-gradient-to-r from-primary via-blue-500 to-purple-500 hover:from-primary/90 hover:via-primary/90 text-white shadow-lg hover:shadow-xl transition-all duration-300 group relative overflow-hidden">
+                <Wand2 className="w-4 h-4 text-white mr-3" />
+                <div className="flex flex-col items-start flex-1 z-10">
+                  <span className="font-semibold text-[15px]">Create Magic</span>
+                  <span className="text-[13px] opacity-90">Build personalisation</span>
+                </div>
+              </Button>
+            </Link>
+          </div>
+
+          <SidebarContent className="p-4 pl-0 flex flex-col h-full">
             <div className="flex-1">
+              {/* Prominent CTA Button */}
               {/* Primary Navigation */}
               <div>
                 {navigationItems.map((item) => {
                   if (item.type === "divider") {
-                    return <div className="h-px border-t border-border my-2" />;
+                    return <div key={item.id} className="h-px border-t border-border my-4 ml-4" />;
                   }
                   
                   if (!item.path) return null;
@@ -138,15 +151,27 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                   return (
                     <Link key={item.id} href={item.path}>
                       <Button
-                        variant={isActive ? "default" : "ghost"}
-                        className={`w-full justify-start h-auto p-3 ${
-                          isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                        variant="ghost"
+                        className={`w-full justify-start h-auto p-3 pl-6 mb-1 transition-all duration-200 relative rounded-l-none hover:text-current ${
+                          isActive 
+                            ? "bg-green-500/10 hover:bg-green-500/10 text-green-400" 
+                            : "text-muted-foreground hover:bg-transparent hover:text-muted-foreground"
                         }`}
                       >
-                        {Icon && <Icon className="w-5 h-5 mr-3" />}
+                        <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center transition-colors ${
+                          isActive 
+                            ? "bg-green-500 text-white" 
+                            : "bg-muted/50 text-muted-foreground"
+                        }`}>
+                          {Icon && <Icon className="w-4 h-4" />}
+                        </div>
                         <div className="flex flex-col items-start">
-                          <span className="font-medium">{item.label}</span>
-                          <span className="text-xs opacity-75">{item.description}</span>
+                          <span className={`font-medium text-sm ${
+                            isActive ? "text-green-400" : ""
+                          }`}>{item.label}</span>
+                          <span className={`text-xs opacity-75 ${
+                            isActive ? "text-green-400/70" : ""
+                          }`}>{item.description}</span>
                         </div>
                       </Button>
                     </Link>
@@ -207,7 +232,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Top Bar */}
-          <div className="h-16 border-b border-border flex items-center justify-between px-6">
+          <div className="h-16 border-b border-border flex items-center justify-between p-6 ml-4">
             <div className="flex items-center space-x-4">
               <h1 className="text-lg font-semibold text-foreground">
                 {user?.name ? `Welcome back, ${user.name}` : "Console"}
@@ -222,7 +247,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
           </div>
 
           {/* Page Content */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex flex-col flex-1 overflow-auto">
             {children}
           </div>
         </div>

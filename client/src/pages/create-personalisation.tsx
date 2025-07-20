@@ -1,0 +1,975 @@
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Package, 
+  Target, 
+  Users, 
+  Sparkles, 
+  Check, 
+  Plus,
+  Trash2,
+  Wand2,
+  Zap,
+  ArrowRight
+} from "lucide-react";
+import ConsoleLayout from "@/components/console-layout";
+import ExperienceSelector from "@/components/experience-selector";
+
+interface ExperienceVariant {
+  name: string;
+  description: string;
+  is_default: boolean;
+  target_percentage: number;
+  feature_variants: Record<string, { 
+    name: string; 
+    config: Record<string, any>;
+  }>;
+}
+
+interface PersonalisationFormData {
+  name: string;
+  description: string;
+  experienceId: string;
+  rollout_percentage: number;
+  rule_config: {
+    conditions: Array<{
+      field: string;
+      operator: string;
+      value: string;
+      type: string;
+    }>;
+  };
+  experience_variants: ExperienceVariant[];
+}
+
+export default function CreatePersonalisation() {
+  const [location, setLocation] = useLocation();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableSegments, setAvailableSegments] = useState<any[]>([]);
+  const [isLoadingSegments, setIsLoadingSegments] = useState(true);
+  
+  const queryClient = useQueryClient();
+
+  // Parse URL parameters to get preselected experience ID
+  const urlParams = new URLSearchParams(window.location.search);
+  const preselectedExperienceId = urlParams.get('experienceId');
+
+  const [formData, setFormData] = useState<PersonalisationFormData>({
+    name: '',
+    description: '',
+    experienceId: preselectedExperienceId || '',
+    rollout_percentage: 100,
+    rule_config: {
+      conditions: []
+    },
+    experience_variants: [],
+  });
+
+  // Separate state for experience variants created in step 1
+  const [createdVariants, setCreatedVariants] = useState<ExperienceVariant[]>([]);
+
+  // Query for experience objects when experience is selected
+  const { data: objects = [], isLoading: isLoadingObjects } = useQuery({
+    queryKey: [`/api/experiences/${formData.experienceId}/objects`],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/experiences/${formData.experienceId}/objects`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return [];
+    },
+    enabled: !!formData.experienceId,
+  });
+
+  // Initialize experience variants when objects load
+  useEffect(() => {
+    if (objects.length > 0 && createdVariants.length === 0) {
+      const initialFeatureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+      objects.forEach((object: any) => {
+        initialFeatureVariants[object.pid] = {
+          name: '',
+          config: {}
+        };
+      });
+      
+      // Create default experience variant
+      const defaultVariant: ExperienceVariant = {
+        name: '',
+        description: '',
+        is_default: false,
+        target_percentage: 0,
+        feature_variants: initialFeatureVariants
+      };
+      
+      setCreatedVariants([defaultVariant]);
+    }
+  }, [objects]);
+
+  // Load available segments on component mount
+  useEffect(() => {
+    const loadAvailableSegments = async () => {
+      try {
+        const response = await apiRequest("GET", `/api/segments`);
+        if (response.ok) {
+          const segments = await response.json();
+          setAvailableSegments(segments);
+        }
+      } catch (error) {
+        console.error('Failed to load available segments:', error);
+      } finally {
+        setIsLoadingSegments(false);
+      }
+    };
+
+    loadAvailableSegments();
+  }, []);
+
+  const handleExperienceChange = (experienceId: string, experience: any) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      experienceId
+    }));
+    setCreatedVariants([]); // Reset created variants when experience changes
+  };
+
+  const addExperienceVariant = () => {
+    if (objects.length === 0) return;
+    
+    const initialFeatureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+    objects.forEach((object: any) => {
+      initialFeatureVariants[object.pid] = {
+        name: '',
+        config: {}
+      };
+    });
+    
+    const newVariant: ExperienceVariant = {
+      name: '',
+      description: '',
+      is_default: false,
+      target_percentage: 0,
+      feature_variants: initialFeatureVariants
+    };
+    
+    setCreatedVariants(prev => [...prev, newVariant]);
+  };
+
+  const removeExperienceVariant = (index: number) => {
+    setCreatedVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateCreatedVariant = (index: number, field: keyof ExperienceVariant, value: any) => {
+    setCreatedVariants(prev => prev.map((variant, i) => 
+      i === index ? { ...variant, [field]: value } : variant
+    ));
+  };
+
+  const handleFeatureVariantNameChange = (variantIndex: number, objectId: string, name: string) => {
+    setCreatedVariants(prev => prev.map((variant, i) => 
+      i === variantIndex ? {
+        ...variant,
+        feature_variants: {
+          ...variant.feature_variants,
+          [objectId]: {
+            ...variant.feature_variants[objectId],
+            name
+          }
+        }
+      } : variant
+    ));
+  };
+
+  const handleFeatureVariantConfigChange = (variantIndex: number, objectId: string, key: string, value: any) => {
+    setCreatedVariants(prev => prev.map((variant, i) => 
+      i === variantIndex ? {
+        ...variant,
+        feature_variants: {
+          ...variant.feature_variants,
+          [objectId]: {
+            ...variant.feature_variants[objectId],
+            config: {
+              ...variant.feature_variants[objectId]?.config,
+              [key]: value
+            }
+          }
+        }
+      } : variant
+    ));
+  };
+
+  const validateStep1 = () => {
+    if (!formData.name.trim()) return false;
+    if (!formData.experienceId) return false;
+    if (objects.length === 0) return false;
+    if (createdVariants.length === 0) return false;
+    
+    // Check if all created variants have names
+    const invalidVariants = createdVariants.filter((variant) => {
+      if (!variant.name.trim()) return true;
+      
+      // Check if all feature variants have names
+      const missingFeatureVariants = objects.filter((object: any) => {
+        const featureVariant = variant.feature_variants[object.pid];
+        return !featureVariant || !featureVariant.name?.trim();
+      });
+      
+      return missingFeatureVariants.length > 0;
+    });
+    
+    return invalidVariants.length === 0;
+  };
+
+  const handleNext = () => {
+    if (currentStep === 1 && validateStep1()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    }
+  };
+
+  const validateStep2 = () => {
+    // Check if total target percentage equals 100%
+    const totalPercentage = createdVariants.reduce((sum, variant) => sum + variant.target_percentage, 0);
+    return totalPercentage === 100;
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare experience variants according to backend schema using createdVariants
+      const experience_variants = createdVariants.map(variant => ({
+        experience_variant: {
+          name: variant.name,
+          description: variant.description,
+          is_default: variant.is_default,
+          feature_variants: objects.map((object: any) => ({
+            experience_feature_id: object.pid,
+            name: variant.feature_variants[object.pid]?.name || '',
+            config: variant.feature_variants[object.pid]?.config || {}
+          }))
+        },
+        target_percentage: variant.target_percentage
+      }));
+
+      // Create personalisation according to backend schema
+      const personalisationResponse = await apiRequest("POST", `/api/personalisations`, {
+        name: formData.name,
+        description: formData.description,
+        experience_id: formData.experienceId,
+        rule_config: formData.rule_config,
+        rollout_percentage: formData.rollout_percentage,
+        experience_variants: experience_variants
+      });
+
+      if (!personalisationResponse.ok) {
+        throw new Error('Failed to create personalisation');
+      }
+
+      // Invalidate queries and redirect
+      queryClient.invalidateQueries({ queryKey: ['/api/personalisations'] });
+      setLocation('/personalisations');
+      
+    } catch (error) {
+      console.error('Error creating personalisation:', error);
+      alert('Failed to create personalisation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <ConsoleLayout>
+      <div className="flex-1 bg-gradient-to-br from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8 pr-12">
+            <div className="flex items-center space-x-4">
+              <Link href="/personalisations">
+                <Button variant="ghost" size="sm" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div className="flex items-center space-x-3">
+                <div className="w-14 h-14 bg-gradient-to-r from-primary/20 via-primary/10 to-blue-600/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
+                  <div className="w-12 h-12 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center shadow-inner">
+                    <Wand2 className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">
+                    Create Personalisation
+                  </h1>
+                  <p className="text-muted-foreground">Build magical experiences for your players</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Step Navigation moved to top right */}
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+                  currentStep >= 1 
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
+                    : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
+                }`}>
+                  {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Configuration</p>
+                  <p className="text-xs text-muted-foreground">Setup variants</p>
+                </div>
+              </div>
+              <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
+                currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'
+              }`} />
+              <div className="flex items-center space-x-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+                  currentStep >= 2 
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
+                    : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
+                }`}>
+                  2
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Targeting</p>
+                  <p className="text-xs text-muted-foreground">Define rules</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="px-6 space-y-8">
+            {currentStep === 1 && (
+              <div className="space-y-8">
+                {/* Experience Selection and Personalisation Name in same row */}
+                <div className="grid grid-cols-2 gap-6 w-2/3">
+                  <div>
+                    <ExperienceSelector
+                      value={formData.experienceId}
+                      onValueChange={handleExperienceChange}
+                      disabled={isSubmitting}
+                      required={true}
+                      label="Select Experience"
+                      placeholder="Search and select an experience..."
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Personalisation Name
+                      <span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter personalisation name"
+                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+                
+                {/* Description spanning both columns */}
+                <div className="w-2/3">
+                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                  <Input
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Description"
+                    className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+
+                
+                {/* Experience Variants */}
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <Label className="text-lg font-semibold">
+                      Experience Variants
+                      {createdVariants.length > 0 && (
+                        <span className="ml-2 text-muted-foreground font-normal">({createdVariants.length} variant{createdVariants.length !== 1 ? 's' : ''})</span>
+                      )}
+                    </Label>
+                    <Button 
+                      onClick={addExperienceVariant}
+                      variant="outline"
+                      className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                      disabled={!formData.experienceId || objects.length === 0 || isSubmitting}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Variant
+                    </Button>
+                  </div>
+                  
+                  {!formData.experienceId ? (
+                    <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="w-8 h-8 text-primary/70" />
+                      </div>
+                      <p className="text-muted-foreground text-lg">
+                        Please select an experience to configure variants
+                      </p>
+                    </div>
+                  ) : isLoadingObjects ? (
+                    <div className="text-center py-16">
+                      <div className="relative">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+                        <div className="absolute inset-0 animate-pulse">
+                          <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-full mx-auto"></div>
+                        </div>
+                      </div>
+                      <p className="text-muted-foreground">Loading objects...</p>
+                    </div>
+                  ) : objects.length === 0 ? (
+                    <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="w-8 h-8 text-primary/70" />
+                      </div>
+                      <p className="text-muted-foreground text-lg">No objects found in this experience</p>
+                    </div>
+                  ) : createdVariants.length === 0 ? (
+                    <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="w-8 h-8 text-primary/70" />
+                      </div>
+                      <p className="text-muted-foreground text-lg mb-4">No experience variants created yet</p>
+                      <Button 
+                        onClick={addExperienceVariant}
+                        variant="outline"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create First Variant
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {createdVariants.map((variant, variantIndex) => (
+                        <div key={variantIndex} className="relative bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 backdrop-blur-sm border border-white/30 rounded-xl p-6 shadow-sm">
+                          {/* Remove Button */}
+                          {createdVariants.length > 1 ? 
+                            <div className="absolute right-2 top-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeExperienceVariant(variantIndex)}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50/70 dark:hover:bg-red-900/30 transition-colors"
+                                disabled={createdVariants.length === 1 || isSubmitting}
+                                title={createdVariants.length === 1 ? "Cannot remove the last variant" : "Remove this variant"}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          : null}
+
+                          {/* Variant Details */}
+                          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
+                            <div>
+                              <Label className="text-sm font-medium">Variant Name *</Label>
+                              <Input
+                                value={variant.name}
+                                onChange={(e) => updateCreatedVariant(variantIndex, 'name', e.target.value)}
+                                placeholder="Enter variant name"
+                                className="mt-2 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-sm font-medium">Description</Label>
+                              <Input
+                                value={variant.description}
+                                onChange={(e) => updateCreatedVariant(variantIndex, 'description', e.target.value)}
+                                placeholder="Describe this variant"
+                                className="mt-2 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Object Configurations */}
+                            <div>
+                              <div className="flex items-center space-x-2 mb-6">
+                                <div className="h-px bg-gradient-to-r from-primary/20 to-blue-600/20 flex-1"></div>
+                                <Label className="text-sm font-semibold text-foreground px-3 bg-white/50 dark:bg-gray-800/50 rounded-full">Object Configurations</Label>
+                                <div className="h-px bg-gradient-to-r from-blue-600/20 to-primary/20 flex-1"></div>
+                              </div>
+                              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                              {objects.map(({pid: objectId, feature_flag: object}: {pid: string, feature_flag: any}) => (
+                                <Card key={objectId} className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-white/30">
+                                  <CardHeader className="pb-4">
+                                    <div className="flex items-start space-x-3">
+                                      <div className="p-1.5 bg-primary/10 rounded-lg">
+                                        <Package className="w-6 h-6 text-primary" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <CardTitle className="text-base text-foreground mb-1">
+                                          {object.name}
+                                        </CardTitle>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{object.description || 'No description'}</p>
+                                      </div>
+                                    </div>
+                                  </CardHeader>
+                                  
+                                  <CardContent className="space-y-4">
+                                    {/* Feature Variant Name */}
+                                    <div>
+                                      <Label className="text-xs font-medium">Feature Name *</Label>
+                                      <Input
+                                        value={variant.feature_variants[objectId]?.name || ''}
+                                        onChange={(e) => handleFeatureVariantNameChange(variantIndex, objectId, e.target.value)}
+                                        placeholder="Enter feature name"
+                                        className="mt-1 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
+                                        disabled={isSubmitting}
+                                      />
+                                    </div>
+                                    
+                                    {/* Configuration */}
+                                    {Object.keys(object.keys_config || {}).length > 0 && (
+                                      <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                          <div className="h-px bg-border flex-1"></div>
+                                          <Label className="text-xs font-medium text-foreground px-2">Config</Label>
+                                          <div className="h-px bg-border flex-1"></div>
+                                        </div>
+                                        
+                                        {Object.entries(object.keys_config || {}).map(([key, config]: [string, any]) => (
+                                          <div key={key} className="space-y-1">
+                                            <Label className="text-xs font-medium text-foreground">{key}</Label>
+                                            {config.description && (
+                                              <p className="text-xs text-muted-foreground">{config.description}</p>
+                                            )}
+                                            
+                                            {config.type === 'boolean' ? (
+                                              <Select
+                                                value={variant.feature_variants[objectId]?.config?.[key]?.toString() || ''}
+                                                onValueChange={(value) => {
+                                                  const boolValue = value === 'true';
+                                                  handleFeatureVariantConfigChange(variantIndex, objectId, key, boolValue);
+                                                }}
+                                                disabled={isSubmitting}
+                                              >
+                                                <SelectTrigger className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm">
+                                                  <SelectValue placeholder={`Default: ${String(config.default)}`} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="true">True</SelectItem>
+                                                  <SelectItem value="false">False</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            ) : (
+                                              <Input
+                                                type={config.type === 'number' ? 'number' : 'text'}
+                                                placeholder={`Default: ${String(config.default)}`}
+                                                value={variant.feature_variants[objectId]?.config?.[key] || ''}
+                                                onChange={(e) => {
+                                                  const value = config.type === 'number' ? 
+                                                    Number(e.target.value) : 
+                                                    e.target.value;
+                                                  handleFeatureVariantConfigChange(variantIndex, objectId, key, value);
+                                                }}
+                                                className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
+                                                disabled={isSubmitting}
+                                              />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-8">
+                {/* Header Section */}
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Configure Targeting & Distribution
+                  </h2>
+                  <p className="text-sm text-muted-foreground">Set up targeting rules, variant distribution, and rollout percentage</p>
+                </div>
+
+                {/* Targeting Rules */}
+                <div className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30 rounded-lg p-6">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center">
+                      <Target className="w-4 h-4 text-white" />
+                    </div>
+                    <Label className="text-lg font-semibold">Targeting Rules</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Define conditions to control which users see this personalisation (optional)
+                  </p>
+
+                  {formData.rule_config.conditions.length === 0 ? (
+                    <div className="text-center py-12 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Target className="w-8 h-8 text-gray-500" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No targeting conditions yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Add conditions to control which users see this personalisation
+                      </p>
+                      <Button 
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            rule_config: {
+                              ...prev.rule_config,
+                              conditions: [{ field: '', operator: 'equals', value: '', type: 'text' }]
+                            }
+                          }));
+                        }}
+                        variant="outline"
+                        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add First Condition
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {formData.rule_config.conditions.map((condition, index) => (
+                        <div key={index} className="bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20 p-4">
+                          <div className="flex items-center">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <Label className="text-xs font-medium mb-1 block">Field</Label>
+                                <Input
+                                  placeholder="e.g. country, age"
+                                  value={condition.field}
+                                  onChange={(e) => {
+                                    const updatedConditions = formData.rule_config.conditions.map((c, i) =>
+                                      i === index ? { ...c, field: e.target.value } : c
+                                    );
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      rule_config: { ...prev.rule_config, conditions: updatedConditions }
+                                    }));
+                                  }}
+                                  className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+                              
+                              <div>
+                                <Label className="text-xs font-medium mb-1 block">Operator</Label>
+                                <Select
+                                  value={condition.operator}
+                                  onValueChange={(value) => {
+                                    const updatedConditions = formData.rule_config.conditions.map((c, i) =>
+                                      i === index ? { ...c, operator: value } : c
+                                    );
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      rule_config: { ...prev.rule_config, conditions: updatedConditions }
+                                    }));
+                                  }}
+                                >
+                                  <SelectTrigger className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm">
+                                    <SelectValue placeholder="Select operator" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="equals">Equals</SelectItem>
+                                    <SelectItem value="not_equals">Not Equals</SelectItem>
+                                    <SelectItem value="greater_than">Greater Than</SelectItem>
+                                    <SelectItem value="less_than">Less Than</SelectItem>
+                                    <SelectItem value="contains">Contains</SelectItem>
+                                    <SelectItem value="in">In</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              <div>
+                                <Label className="text-xs font-medium mb-1 block">Value</Label>
+                                {condition.type === 'boolean' ? (
+                                  <Select
+                                    value={condition.value?.toString() || ''}
+                                    onValueChange={(value) => {
+                                      const boolValue = value === 'true';
+                                      const updatedConditions = formData.rule_config.conditions.map((c, i) =>
+                                        i === index ? { ...c, value: boolValue.toString() } : c
+                                      );
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        rule_config: { ...prev.rule_config, conditions: updatedConditions }
+                                      }));
+                                    }}
+                                    disabled={isSubmitting}
+                                  >
+                                    <SelectTrigger className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm">
+                                      <SelectValue placeholder="Select value" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="true">True</SelectItem>
+                                      <SelectItem value="false">False</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    type={condition.type === 'number' ? 'number' : 'text'}
+                                    placeholder={condition.type === 'number' ? 'Enter number' : 'Enter value'}
+                                    value={condition.value}
+                                    onChange={(e) => {
+                                      const value = condition.type === 'number' ? 
+                                        Number(e.target.value) : 
+                                        e.target.value;
+                                      const updatedConditions = formData.rule_config.conditions.map((c, i) =>
+                                        i === index ? { ...c, value: value.toString() } : c
+                                      );
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        rule_config: { ...prev.rule_config, conditions: updatedConditions }
+                                      }));
+                                    }}
+                                    className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
+                                    disabled={isSubmitting}
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-6">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    rule_config: {
+                                      ...prev.rule_config,
+                                      conditions: prev.rule_config.conditions.filter((_, i) => i !== index)
+                                    }
+                                  }));
+                                }}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50/70 dark:hover:bg-red-900/30 ml-2"
+                              >
+                                <Trash2 className="w-6 h-6" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Add Condition Button - Below conditions */}
+                      <div className="pt-2">
+                        <Button 
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              rule_config: {
+                                ...prev.rule_config,
+                                conditions: [
+                                  ...prev.rule_config.conditions,
+                                  { field: '', operator: 'equals', value: '', type: 'text' }
+                                ]
+                              }
+                            }));
+                          }}
+                          variant="outline"
+                          className="w-full bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Condition
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Variant Distribution & Rollout Percentage */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Variant Distribution */}
+                  <div className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30 rounded-lg p-6">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <Package className="w-4 h-4 text-white" />
+                      </div>
+                      <Label className="text-lg font-semibold">Variant Distribution</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Set what percentage of users see each experience variant
+                    </p>
+                    
+                    <div className="space-y-4">
+                      {createdVariants.map((variant, index) => (
+                        <div key={index} className="flex items-center space-x-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-foreground">{variant.name || `Variant ${index + 1}`}</h4>
+                            <p className="text-xs text-muted-foreground">{variant.description || 'No description'}</p>
+                          </div>
+                          <div className="flex items-center space-x-3 w-32">
+                            <Input
+                              type="number"
+                              value={variant.target_percentage}
+                              onChange={(e) => {
+                                const updatedVariants = createdVariants.map((v, i) => 
+                                  i === index ? { ...v, target_percentage: Math.max(0, Math.min(100, Number(e.target.value))) } : v
+                                );
+                                setCreatedVariants(updatedVariants);
+                              }}
+                              min="0"
+                              max="100"
+                              className="text-center bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
+                              disabled={isSubmitting}
+                            />
+                            <span className="text-sm font-medium text-foreground">%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Total Percentage Display */}
+                    <div className="mt-6 pt-4 border-t border-white/20">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Total Distribution</span>
+                        <span className={`text-lg font-semibold ${
+                          createdVariants.reduce((sum, v) => sum + v.target_percentage, 0) === 100 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {createdVariants.reduce((sum, v) => sum + v.target_percentage, 0)}%
+                        </span>
+                      </div>
+                      {createdVariants.reduce((sum, v) => sum + v.target_percentage, 0) !== 100 && (
+                        <p className="text-xs text-red-600 mt-2">
+                          Total percentage must equal 100% to proceed
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rollout Percentage */}
+                  <div className="h-fit bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30 rounded-lg p-6">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">%</span>
+                      </div>
+                      <Label className="text-lg font-semibold">Rollout Percentage</Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      What percentage of users should see this personalisation?
+                    </p>
+                    <div className="flex items-center space-x-4">
+                      <Slider
+                        value={[formData.rollout_percentage]}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, rollout_percentage: value[0] }))}
+                        max={100}
+                        min={0}
+                        step={5}
+                        className="flex-1"
+                        disabled={isSubmitting}
+                      />
+                      <div className="w-20">
+                        <Input
+                          type="number"
+                          value={formData.rollout_percentage}
+                          onChange={(e) => setFormData(prev => ({ ...prev, rollout_percentage: Math.max(0, Math.min(100, Number(e.target.value))) }))}
+                          min="0"
+                          max="100"
+                          className="text-center bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+
+
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-8 border-t border-white/20">
+              <div>
+                {currentStep === 2 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePrevious}
+                    className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Previous
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex space-x-3">
+                <Link href="/personalisations">
+                  <Button variant="ghost" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
+                    Cancel
+                  </Button>
+                </Link>
+                
+                {currentStep === 1 ? (
+                  <Button 
+                    onClick={handleNext}
+                    disabled={!validateStep1()}
+                    className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+                  >
+                    Next Step
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                                  ) : (
+                    <Button 
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || !validateStep2()}
+                      className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
+                    >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
+                        Create Magic
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ConsoleLayout>
+  );
+} 

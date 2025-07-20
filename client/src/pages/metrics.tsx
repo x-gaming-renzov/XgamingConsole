@@ -97,7 +97,7 @@ export default function Metrics() {
               <h1 className="text-2xl font-bold text-foreground">Metrics</h1>
               <p className="text-muted-foreground">Track and analyze key performance indicators</p>
             </div>
-            <Button onClick={() => setShowMetricForm(true)}>
+            <Button onClick={() => setShowMetricForm(true)} className="text-white">
               <Plus className="w-4 h-4 mr-2" />
               New Metric
             </Button>
@@ -174,7 +174,7 @@ export default function Metrics() {
                     }
                   </p>
                   {!searchQuery && (
-                    <Button onClick={() => setShowMetricForm(true)}>
+                    <Button onClick={() => setShowMetricForm(true)} className="text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Metric
                     </Button>
