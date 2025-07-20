@@ -24,14 +24,22 @@ import ConsoleLayout from "@/components/console-layout";
 import PersonalisationForm from "@/components/personalisation-form";
 import { useLocation } from "wouter";
 
+interface Experience {
+  pid: string;
+  name: string;
+  description: string;
+  status: string;
+}
+
 interface Personalisation {
   pid: string;
   name: string;
   description: string;
   experience_id: string;
-  priority: number;
-  rollout_percentage: number;
-  rule_config: {
+  experience: Experience;
+  priority?: number;
+  rollout_percentage?: number;
+  rule_config?: {
     conditions?: Array<{
       field: string;
       operator: string;
@@ -39,7 +47,7 @@ interface Personalisation {
       type: string;
     }>;
   };
-  experience_variants: Array<{
+  experience_variants?: Array<{
     target_percentage: number;
     experience_variant: {
       name: string;
@@ -58,25 +66,32 @@ export default function Personalisations() {
   >({});
   const [, setLocation] = useLocation();
 
-  // Fetch personalisations for active experience
+  // Fetch all personalisations
   const { data: personalisations = [], isLoading: personalisationsLoading } =
     useQuery<Personalisation[]>({
-      queryKey: [
-        `/api/personalisations/personalised-experiences/${activeExperience}`,
-      ],
-      enabled: !!activeExperience,
+      queryKey: ["/api/personalisations"],
     });
+
+  // Derive unique experiences from personalisations
+  const experiences = personalisations.reduce((acc, personalisation) => {
+    const experience = personalisation.experience;
+    if (!acc.find(e => e.pid === experience.pid)) {
+      acc.push(experience);
+    }
+    return acc;
+  }, [] as Experience[]);
 
   // Set first experience as active when experiences load
   useEffect(() => {
-    if (personalisations.length > 0 && !activeExperience) {
-      setActiveExperience(personalisations[0].experience_id);
+    if (experiences.length > 0 && !activeExperience) {
+      setActiveExperience(experiences[0].pid);
     }
-  }, [personalisations, activeExperience]);
+  }, [experiences, activeExperience]);
 
-  // Sort personalisations by priority desc and filter by search
+  // Filter personalisations for active experience and search
   const filteredPersonalisations = personalisations
-    .sort((a, b) => b.priority - a.priority)
+    .filter(personalisation => personalisation.experience_id === activeExperience)
+    .sort((a, b) => (b.priority || 0) - (a.priority || 0))
     .filter(
       (personalisation) =>
         personalisation.name
@@ -146,7 +161,7 @@ export default function Personalisations() {
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : personalisations.length === 0 ? (
+          ) : experiences.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-6">
               <div className="max-w-2xl mx-auto text-center">
                 {/* Hero Illustration */}
@@ -256,7 +271,7 @@ export default function Personalisations() {
               </div>
             </div>
           ) : (
-            <>
+            <div className="flex-1">
               {/* Hero Header */}
               <div className="relative overflow-hidden">
                 <div className="relative p-6">
@@ -302,65 +317,65 @@ export default function Personalisations() {
                           ))}
                         </div>
                       ) : (
-                        personalisations.map((personalisation) => (
+                        experiences.map((experience) => (
                           <Card
-                            key={personalisation.pid}
+                            key={experience.pid}
                             className={`group cursor-pointer border transition-all duration-200 ${
-                              activeExperience === personalisation.pid
+                              activeExperience === experience.pid
                                 ? "border-green-500 bg-green-50 shadow-md dark:bg-green-950/30"
                                 : "border-slate-200/60 bg-blue-50/60 hover:border-slate-300/80 hover:shadow-md hover:bg-blue-100/80 dark:border-slate-700/40 dark:bg-blue-950/20 dark:hover:border-slate-600/60 dark:hover:bg-blue-900/30"
                             }`}
                             onClick={() =>
-                              setActiveExperience(personalisation.pid)
+                              setActiveExperience(experience.pid)
                             }
                           >
                             <CardContent className="p-4 relative">
                               <div className="flex items-center space-x-3">
-                                {/* <div className={`w-2 h-8 rounded-full flex-shrink-0 ${
-                                activeExperience === personalisation.pid 
-                                  ? "bg-green-500" 
-                                  : `${getExperienceStatusColor(personalisation.status)} opacity-60 group-hover:opacity-80`
-                              }`}></div> */}
+                                <div className={`w-2 h-8 rounded-full flex-shrink-0 ${
+                                  activeExperience === experience.pid 
+                                    ? "bg-green-500" 
+                                    : `${getExperienceStatusColor(experience.status)} opacity-60 group-hover:opacity-80`
+                                }`}></div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-2">
                                     <h4
                                       className={`font-medium text-sm truncate ${
-                                        activeExperience === personalisation.pid
+                                        activeExperience === experience.pid
                                           ? "text-green-800 dark:text-green-200"
                                           : "text-foreground group-hover:text-foreground/90"
                                       }`}
                                     >
-                                      {personalisation.name}
+                                      {experience.name}
                                     </h4>
                                     <div
                                       className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
-                                        activeExperience === personalisation.pid
+                                        activeExperience === experience.pid
                                           ? "bg-green-100 dark:bg-green-900/50"
                                           : "bg-muted/50 group-hover:bg-muted/70"
                                       }`}
                                     >
                                       <Gamepad2
                                         className={`w-3 h-3 ${
-                                          activeExperience === personalisation.pid
+                                          activeExperience === experience.pid
                                             ? "text-green-600 dark:text-green-400"
                                             : "text-muted-foreground group-hover:text-muted-foreground/80"
                                         }`}
                                       />
                                     </div>
                                   </div>
-                                  {personalisation.description && (
+                                  {experience.description && (
                                     <p
                                       className={`text-xs truncate mt-1 ${
-                                        activeExperience === personalisation.pid
+                                        activeExperience === experience.pid
                                           ? "text-green-600 dark:text-green-400"
                                           : "text-muted-foreground group-hover:text-muted-foreground/80"
                                       }`}
                                     >
-                                      {personalisation.description}
+                                      {experience.description}
                                     </p>
                                   )}
                                 </div>
-                                {activeExperience === personalisation.pid ? (
+                                {activeExperience === experience.pid ? (
                                   <ArrowRight className="w-4 h-4 text-green-600 dark:text-green-400" />
                                 ) : (
                                   <div className="w-4 h-4 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
@@ -474,8 +489,8 @@ export default function Personalisations() {
                                       </div>
 
                                       {/* Experience Variants Distribution */}
-                                      {personalisation.experience_variants
-                                        .length > 0 && (
+                                      {personalisation.experience_variants &&
+                                        personalisation.experience_variants.length > 0 && (
                                         <div className="space-y-3">
                                           <h5 className="text-sm font-medium text-muted-foreground">
                                             Variant Distribution
@@ -525,7 +540,7 @@ export default function Personalisations() {
                                             {/* Fallback labels for small segments */}
                                             <div className="flex items-center justify-start space-x-4 mt-4">
                                               {personalisation.experience_variants
-                                                .filter(
+                                                ?.filter(
                                                   (variant) =>
                                                     variant.target_percentage <=
                                                     15
@@ -537,9 +552,9 @@ export default function Personalisations() {
                                                   >
                                                     <div
                                                       className={`w-2 h-2 rounded-full ${getVariantColor(
-                                                        personalisation.experience_variants.indexOf(
+                                                        personalisation.experience_variants?.indexOf(
                                                           variant
-                                                        )
+                                                        ) || 0
                                                       )}`}
                                                     />
                                                     <span
@@ -795,7 +810,7 @@ export default function Personalisations() {
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </ConsoleLayout>
