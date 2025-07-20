@@ -33,5 +33,13 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // proxy API requests to Express server running on port 3000
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

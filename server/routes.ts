@@ -6,13 +6,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
+import { registerNovaRoutes } from './routes/novaRoutes';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
 const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://127.0.0.1:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Middleware to verify JWT token
-function authenticateToken(req: any, res: any, next: any) {
+export function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -30,7 +31,8 @@ function authenticateToken(req: any, res: any, next: any) {
 }
 
 // Helper function to call Nova backend
-async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
+export async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
+  console.log(`callNovaBackend: forwarding request to Nova ${NOVA_BACKEND_URL}${endpoint}`, options);
   const response = await fetch(`${NOVA_BACKEND_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -49,106 +51,71 @@ async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Log all incoming API requests for debugging
+  app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.path}`);
+    next();
+  });
   // Auth routes
+  // Proxy registration to Nova
   app.post("/api/auth/register", async (req, res) => {
+    console.log('Proxy /api/auth/register -> Nova', req.body);
     try {
-      const userData = insertUserSchema.parse(req.body);
-      
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      
-      // Create user
-      const user = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
+      const novaResp = await callNovaBackend<any>('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
       });
-
-      // Create default project
-      const project = await storage.createProject({
-        name: userData.company || "My Game",
-        description: "Default project",
-        userId: user.id,
-      });
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        user: { ...user, password: undefined },
-        project,
-        token,
-      });
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Registration failed" });
+      return res.json(novaResp);
+    } catch (err: any) {
+      console.error('Nova register error:', err);
+      return res.status(err.status || 502).json({ message: err.message || 'Registration failed' });
     }
   });
 
+  // Proxy login to Nova
   app.post("/api/auth/login", async (req, res) => {
+    console.log('Proxy /api/auth/login -> Nova', req.body);
     try {
+      // Prepare OAuth2 form data for Nova token endpoint
       const { email, password } = req.body;
-      
-      // Find user
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-
-      // Get user's projects
-      const projects = await storage.getProjectsByUserId(user.id);
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        user: { ...user, password: undefined },
-        projects,
-        token,
+      const form = new URLSearchParams({
+        grant_type: 'password',
+        username: email,
+        password,
+        scope: '',
+        client_id: '',
+        client_secret: ''
+      }).toString();
+      const novaResp = await callNovaBackend<any>('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form,
       });
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Login failed" });
+      return res.json(novaResp);
+    } catch (err: any) {
+      console.error('Nova login error:', err);
+      return res.status(err.status || 502).json({ message: err.message || 'Login failed' });
     }
   });
 
   // Get current user
-  app.get("/api/auth/me", authenticateToken, async (req, res) => {
+  // Proxy current user info to Nova
+  app.get("/api/auth/me", authenticateToken, async (req: any, res) => {
+    console.log('Proxy /api/auth/me -> Nova');
     try {
-      const user = await storage.getUser(req.user.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const projects = await storage.getProjectsByUserId(user.id);
-      
-      res.json({
-        user: { ...user, password: undefined },
-        projects,
+      const novaResp = await callNovaBackend<any>('/api/v1/auth/me', {
+        headers: { Authorization: req.headers['authorization'] },
       });
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+      return res.json(novaResp);
+    } catch (err: any) {
+      console.error('Nova me error:', err);
+      return res.status(err.status || 502).json({ message: err.message || 'Fetch current user failed' });
     }
   });
+  // Nova proxy routes (orgs & apps)
+  registerNovaRoutes(app);
 
-  // Project routes
+  // Legacy Project routes
   app.get("/api/projects", authenticateToken, async (req, res) => {
     try {
       const projects = await storage.getProjectsByUserId(req.user.userId);
