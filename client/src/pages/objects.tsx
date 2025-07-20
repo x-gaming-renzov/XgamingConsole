@@ -12,22 +12,13 @@ import ConsoleLayout from "@/components/console-layout";
 interface GameObject {
   id: string;
   name: string;
-  type: "Level" | "Popup" | "Param";
-  flags: Array<{
-    key: string;
-    type: "text" | "number" | "boolean";
-    defaultValue: any;
-    description: string;
-  }>;
-  createdAt: string;
+  type: string;
   description: string;
   variants: Array<{
     name: string;
     config: Record<string, any>;
   }>;
-  experience: {
-    name: string;
-  } | null;
+  experiences: { experience_id: string }[];
   isActive?: boolean;
 }
 
@@ -79,7 +70,6 @@ export default function Objects() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Objects</h1>
-              <p className="text-muted-foreground">Manage flagged game objects that can be personalized</p>
             </div>
           </div>
 
@@ -95,11 +85,10 @@ export default function Objects() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Object</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Experience</TableHead>
-                      <TableHead>Variants</TableHead>
+                      <TableHead>Experiences</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -110,10 +99,10 @@ export default function Objects() {
                         onClick={() => window.location.href = `/objects/${object.id}`}
                       >
                         <TableCell>
-                          <div className="space-y-1">
                             <div className="font-medium text-foreground">{object.name}</div>
-                            <div className="text-sm text-muted-foreground line-clamp-1">{object.description}</div>
-                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground line-clamp-1">{object.description}</div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getTypeColor(object.type)}>
@@ -125,13 +114,8 @@ export default function Objects() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-1">
-                            <span className="font-medium">{object.experience?.name || ""}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-1">
-                            <span className="font-medium">{object.variants.length}</span>
-                            <span className="text-sm text-muted-foreground">variants</span>
+                            <span className="font-medium">{object.experiences?.length || 0}</span>
+                            <span className="text-sm text-muted-foreground">experiences</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -140,12 +124,6 @@ export default function Objects() {
                             <span className={`text-sm font-medium ${object.isActive !== false ? 'text-green-700' : 'text-gray-500'}`}>
                               {object.isActive !== false ? 'Active' : 'Inactive'}
                             </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatDate(object.createdAt)}</span>
                           </div>
                         </TableCell>
                       </TableRow>

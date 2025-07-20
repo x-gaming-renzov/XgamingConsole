@@ -45,6 +45,7 @@ export default function ExperienceForm({ open, onOpenChange }: ExperienceFormPro
   // Fetch available objects from API
   const { data: objectsData = [] } = useQuery<any[]>({
     queryKey: ["/api/objects/available"],
+    enabled: open,
   });
 
   const objects: GameObject[] = useMemo(

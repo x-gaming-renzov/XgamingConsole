@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,27 +10,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package } from "lucide-react";
+import ExperienceSelector from "./experience-selector";
 
 interface PersonalisationFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  objects: any[];
+  onSuccess?: () => void;
 }
 
-export default function PersonalisationForm({ open, onOpenChange, objects }: PersonalisationFormProps) {
+export default function PersonalisationForm({ open, onOpenChange, onSuccess }: PersonalisationFormProps) {
+  const [selectedExperienceId, setSelectedExperienceId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Query for experience objects when experience is selected
+  const { data: objects = [], isLoading: isLoadingObjects } = useQuery({
+    queryKey: [`/api/experiences/${selectedExperienceId}/objects`],
+    queryFn: async () => {
+      console.log("query")
+      const response = await apiRequest('GET', `/api/experiences/${selectedExperienceId}/objects`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return [];
+    },
+    enabled: !!selectedExperienceId,
+  });
+
   // Function to generate initial form data
   const getInitialFormData = () => {
     const initialVariants: Record<string, { 
-      mode: 'existing' | 'new';
       variant_id?: string;
       name?: string; 
       config?: Record<string, any>;
     }> = {};
     
     // Initialize all objects with "new" mode as default
-    objects.forEach(object => {
+    objects.forEach((object: any) => {
       initialVariants[object.pid] = {
-        mode: 'new',
         name: '',
         config: {}
       };
@@ -44,42 +62,16 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
   };
 
   const [formData, setFormData] = useState(() => getInitialFormData());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const queryClient = useQueryClient();
-  const { experienceId } = useParams();
 
-  // Reset form data when the form opens or closes
+  // Reset form data when the form opens or closes or objects change
   useEffect(() => {
     setFormData(getInitialFormData());
     setIsSubmitting(false);
-  }, [open, objects]);
+    setSelectedExperienceId('');
+  }, [open]);
 
-  const handleVariantModeChange = (objectId: string, mode: 'existing' | 'new') => {
-    setFormData(prev => ({
-      ...prev,
-      variants: {
-        ...prev.variants,
-        [objectId]: {
-          mode,
-          variant_id: mode === 'existing' ? undefined : prev.variants[objectId]?.variant_id,
-          name: mode === 'new' ? prev.variants[objectId]?.name || '' : undefined,
-          config: mode === 'new' ? prev.variants[objectId]?.config || {} : undefined,
-        }
-      }
-    }));
-  };
-
-  const handleExistingVariantSelect = (objectId: string, variantId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      variants: {
-        ...prev.variants,
-        [objectId]: {
-          ...prev.variants[objectId],
-          variant_id: variantId,
-        }
-      }
-    }));
+  const handleExperienceChange = (experienceId: string, experience: any) => {
+    setSelectedExperienceId(experienceId);
   };
 
   const handleVariantNameChange = (objectId: string, variantName: string) => {
@@ -111,9 +103,24 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
     }));
   };
 
+  // Validate variants
+  const missingVariants = objects.filter((object: any) => {
+    const variant = formData.variants[object.pid];
+    if (!variant) return true;
+
+    return !variant.name?.trim();
+  });
+
+  console.log("formData", formData, missingVariants)
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
       alert('Please enter a personalisation name');
+      return;
+    }
+
+    if (!selectedExperienceId) {
+      alert('Please select an experience');
       return;
     }
 
@@ -122,20 +129,10 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
       return;
     }
 
-    // Validate variants
-    const missingVariants = objects.filter(object => {
-      const variant = formData.variants[object.pid];
-      if (!variant) return true;
-      
-      if (variant.mode === 'existing') {
-        return !variant.variant_id;
-      } else {
-        return !variant.name?.trim();
-      }
-    });
+
     
     if (missingVariants.length > 0) {
-      alert(`Please configure variants for: ${missingVariants.map(obj => obj.name).join(', ')}`);
+      alert(`Please configure variants for: ${missingVariants.map((obj: any) => obj.feature_flag.name).join(', ')}`);
       return;
     }
 
@@ -143,30 +140,25 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
     
     try {
       // Transform form data to API format
-      const variants = objects.map(object => {
+      const variants: Record<string, {name: string, config: Record<string, any>}> = {}
+
+      objects.forEach((object: any) => {
         const variant = formData.variants[object.pid];
-        if (variant.mode === 'existing') {
-          return {
-            feature_id: object.pid,
-            variant_id: variant.variant_id,
-          };
-        } else {
-          return {
-            feature_id: object.pid,
-            name: variant.name?.trim(),
-            config: variant.config || object.default_variant || {}
-          };
-        }
+
+        variants[object.pid] = {
+          name: variant.name?.trim() || '',
+          config: variant.config || object.default_variant || {}
+        };
       });
 
-      const response = await apiRequest("POST", `/api/experiences/${experienceId}/personalisations`, {
+      const response = await apiRequest("POST", `/api/experiences/personalisations`, {
         name: formData.name,
         description: formData.description,
         variants: variants
       });
 
       if (response.ok) {
-        queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
+        onSuccess?.();
         onOpenChange(false);
       } else {
         throw new Error('Failed to create personalisation');
@@ -187,9 +179,22 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
         </SheetHeader>
         <div className="mt-6">
           <div className="space-y-6">
+            {/* Experience Selection - First */}
+            <ExperienceSelector
+              value={selectedExperienceId}
+              onValueChange={handleExperienceChange}
+              disabled={isSubmitting}
+              required={true}
+              label="Select Experience"
+              placeholder="Search and select an experience..."
+            />
+            
             {/* Name Field */}
             <div>
-              <Label htmlFor="name" className="text-sm font-medium">Personalisation Name</Label>
+              <Label htmlFor="name" className="text-sm font-medium">
+                Personalisation Name
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -217,10 +222,27 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
             {/* Objects to Configure */}
             <div>
               <Label className="text-sm font-medium mb-4 block">
-                Objects to Configure ({objects.length} object{objects.length !== 1 ? 's' : ''})
+                Objects to Configure
+                {selectedExperienceId && objects.length > 0 && (
+                  <span> ({objects.length} object{objects.length !== 1 ? 's' : ''})</span>
+                )}
               </Label>
               
-              {objects.length === 0 ? (
+              {!selectedExperienceId ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm text-muted-foreground">
+                    Please select an experience to configure objects
+                  </p>
+                </div>
+              ) : isLoadingObjects ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-sm text-muted-foreground">
+                    Loading objects...
+                  </p>
+                </div>
+              ) : objects.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="text-sm text-muted-foreground">
@@ -229,124 +251,73 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {objects.map((object) => (
-                    <div key={object.pid} className="border rounded-lg p-4">
+                  {objects.map(({pid: objectId, feature_flag: object}) => (
+                    <div key={objectId} className="border rounded-lg p-4">
                       <div className="flex items-center space-x-2 mb-4">
                         <Package className="w-4 h-4 text-blue-500" />
                         <span className="font-medium">{object.name}</span>
                       </div>
                       
                       <div className="space-y-4">
-                        {/* Mode Selection with Radio Buttons */}
-                        <div>
-                          <Label className="text-sm font-medium mb-2 block">Variant Option</Label>
-                          <RadioGroup 
-                            value={formData.variants[object.pid]?.mode || 'new'} 
-                            onValueChange={(value: 'existing' | 'new') => handleVariantModeChange(object.pid, value)}
-                            disabled={isSubmitting}
-                            className="flex items-center space-x-6"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="new" id={`new-${object.pid}`} />
-                              <Label htmlFor={`new-${object.pid}`} className="text-sm">Create new variant</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="existing" id={`existing-${object.pid}`} />
-                              <Label htmlFor={`existing-${object.pid}`} className="text-sm">Use existing variant</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-
-                        {/* Existing Variant Selection */}
-                        {formData.variants[object.pid]?.mode === 'existing' && (
+                        <div className="space-y-4">
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Select Variant</Label>
-                            <Select
-                              value={formData.variants[object.pid]?.variant_id || ''}
-                              onValueChange={(value) => handleExistingVariantSelect(object.pid, value)}
+                            <Label className="text-sm font-medium mb-2 block">Variant Name</Label>
+                            <Input
+                              value={formData.variants[objectId]?.name || ''}
+                              onChange={(e) => handleVariantNameChange(objectId, e.target.value)}
+                              placeholder="Enter variant name"
                               disabled={isSubmitting}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose an existing variant" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {object.variants?.map((variant: any) => (
-                                  <SelectItem key={variant.pid} value={variant.pid}>
-                                    {variant.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {(!object.variants || object.variants.length === 0) && (
-                              <p className="text-xs text-muted-foreground mt-2">
-                                No existing variants available for this object
-                              </p>
-                            )}
+                            />
                           </div>
-                        )}
-
-                        {/* New Variant Creation */}
-                        {formData.variants[object.pid]?.mode === 'new' && (
-                          <div className="space-y-4">
+                          
+                          {Object.keys(object.keys_config || {}).length > 0 && (
                             <div>
-                              <Label className="text-sm font-medium mb-2 block">Variant Name</Label>
-                              <Input
-                                value={formData.variants[object.pid]?.name || ''}
-                                onChange={(e) => handleVariantNameChange(object.pid, e.target.value)}
-                                placeholder="Enter variant name"
-                                disabled={isSubmitting}
-                              />
-                            </div>
-                            
-                            {Object.keys(object.keys_config || {}).length > 0 && (
-                              <div>
-                                <Label className="text-sm font-medium mb-2 block">Configuration</Label>
-                                <div className="grid grid-cols-2 gap-4">
-                                  {Object.entries(object.keys_config || {}).map(([key, config]: [string, any]) => (
-                                    <div key={key}>
-                                      <Label className="text-sm font-medium text-foreground">{key}</Label>
-                                      {config.type === 'boolean' ? (
-                                        <Select
-                                          value={formData.variants[object.pid]?.config?.[key]?.toString() || ''}
-                                          onValueChange={(value) => {
-                                            const boolValue = value === 'true';
-                                            handleVariantConfigChange(object.pid, key, boolValue);
-                                          }}
-                                          disabled={isSubmitting}
-                                        >
-                                          <SelectTrigger className="mt-1">
-                                            <SelectValue placeholder={`Default: ${String(config.default)}`} />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="true">True</SelectItem>
-                                            <SelectItem value="false">False</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      ) : (
-                                        <Input
-                                          type={config.type === 'number' ? 'number' : 'text'}
-                                          placeholder={`Default: ${String(config.default)}`}
-                                          value={formData.variants[object.pid]?.config?.[key]}
-                                          onChange={(e) => {
-                                            const value = config.type === 'number' ? 
-                                              Number(e.target.value) : 
-                                              e.target.value;
-                                            handleVariantConfigChange(object.pid, key, value);
-                                          }}
-                                          className="text-sm mt-1"
-                                          disabled={isSubmitting}
-                                        />
-                                      )}
-                                      {config.description && (
-                                        <p className="text-xs text-muted-foreground italic mt-1">{config.description}</p>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
+                              <Label className="text-sm font-medium mb-2 block">Configuration</Label>
+                              <div className="grid grid-cols-2 gap-4">
+                                {Object.entries(object.keys_config || {}).map(([key, config]: [string, any]) => (
+                                  <div key={key}>
+                                    <Label className="text-sm font-medium text-foreground">{key}</Label>
+                                    {config.type === 'boolean' ? (
+                                      <Select
+                                        value={formData.variants[objectId]?.config?.[key]?.toString() || ''}
+                                        onValueChange={(value) => {
+                                          const boolValue = value === 'true';
+                                          handleVariantConfigChange(objectId, key, boolValue);
+                                        }}
+                                        disabled={isSubmitting}
+                                      >
+                                        <SelectTrigger className="mt-1">
+                                          <SelectValue placeholder={`Default: ${String(config.default)}`} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="true">True</SelectItem>
+                                          <SelectItem value="false">False</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      <Input
+                                        type={config.type === 'number' ? 'number' : 'text'}
+                                        placeholder={`Default: ${String(config.default)}`}
+                                        value={formData.variants[objectId]?.config?.[key]}
+                                        onChange={(e) => {
+                                          const value = config.type === 'number' ? 
+                                            Number(e.target.value) : 
+                                            e.target.value;
+                                          handleVariantConfigChange(objectId, key, value);
+                                        }}
+                                        className="text-sm mt-1"
+                                        disabled={isSubmitting}
+                                      />
+                                    )}
+                                    {config.description && (
+                                      <p className="text-xs text-muted-foreground italic mt-1">{config.description}</p>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -365,7 +336,7 @@ export default function PersonalisationForm({ open, onOpenChange, objects }: Per
               </Button>
               <Button 
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.name.trim() || objects.length === 0}
+                disabled={isSubmitting || !formData.name.trim() || !selectedExperienceId || objects.length === 0}
                 className="min-w-[120px]"
               >
                 {isSubmitting ? (

@@ -197,7 +197,7 @@ export default function SegmentExperienceForm({ open, onOpenChange, personalisat
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest("POST", `/api/experiences/${experienceId}/segments`, {
+      const response = await apiRequest("POST", `/api/experiences/${experienceId}/targeting-rules/`, {
         segment_id: formData.segment_id,
         target_percentage: formData.target_percentage,
         personalisation_distribution: formData.personalisation_distribution

@@ -8,7 +8,7 @@ import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
-const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "https://nova-manager-475016739432.us-central1.run.app";
+const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://127.0.0.1:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Middleware to verify JWT token
@@ -256,10 +256,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organisationId = "org123";
       const appId = "app123";
 
+      const { search } = req.query;
+
+      let url = `/api/v1/experiences/?organisation_id=${organisationId}&app_id=${appId}`
+
+      if (search) {
+        url += `&search=${search}`
+      }
+
       // Call Nova Manager to get experiences
-      const novaExperiences = await callNovaBackend<any[]>(
-        `/api/v1/experiences/?organisation_id=${organisationId}&app_id=${appId}`
-      );
+      const novaExperiences = await callNovaBackend<any[]>(url);
 
       // Transform Nova Manager experiences to frontend format
       const experiences = novaExperiences.map(exp => ({
@@ -267,11 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: exp.name,
         description: exp.description || "",
         status: exp.status.charAt(0).toUpperCase() + exp.status.slice(1), // Capitalize status
-        createdAt: new Date(exp.created_at).toLocaleDateString(),
-        organisation_id: exp.organisation_id,
-        app_id: exp.app_id,
-        segment_count: exp.segment_count || 0,
-        feature_flags_count: exp.feature_flags_count || 0,
+        features: exp.features || [],
       }));
 
       res.json(experiences);
@@ -373,99 +375,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `/api/v1/experiences/${experienceId}/`
       );
 
-      // Transform Nova Manager response to frontend format
-      const detailedExperience = {
-        id: novaExperience.pid,
-        name: novaExperience.name,
-        status: novaExperience.status,
-        description: novaExperience.description || "",
-        createdAt: novaExperience.created_at,
-
-        // New structure based on updated API
-        feature_flags: novaExperience.feature_flags || [],
-        personalisations: novaExperience.personalisations || [],
-        experience_segments: novaExperience.experience_segments || [],
-        
-        // Counts
-        feature_flags_count: novaExperience.feature_flags_count || 0,
-        personalisations_count: novaExperience.personalisations_count || 0,
-        segments_count: novaExperience.segments_count || 0,
-
-        // For backward compatibility, keep some old fields
-        campaigns: [],
-        history: [
-          {
-            date: novaExperience.created_at,
-            event: `Experience created (${novaExperience.status})`,
-            by: "System",
-            type: "created"
-          }
-        ]
-      };
-
-      res.json(detailedExperience);
+      res.json(novaExperience);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
     }
   });
 
-  // Personalisation endpoints
-  app.post("/api/experiences/:experienceId/personalisations", authenticateToken, async (req, res) => {
+  // Experience Objects
+  app.get("/api/experiences/:id/objects", authenticateToken, async (req, res) => {
     try {
-      const { experienceId } = req.params;
-      const personalisationData = req.body;
+      const experienceId = req.params.id;
 
-      // Validate required fields
-      if (!personalisationData.name || !personalisationData.variants || !Array.isArray(personalisationData.variants)) {
-        return res.status(400).json({ message: "Name and variants are required" });
-      }
+      // Call Nova Manager to get experience details
+      const novaExperience = await callNovaBackend<any>(
+        `/api/v1/experiences/${experienceId}/features/`
+      );
+
+      res.json(novaExperience);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
+    }
+  });
+
+  // Personalisations endpoints
+  app.get("/api/personalisations", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+
+      // Call Nova Manager to get personalisations
+      const novaPersonalisations = await callNovaBackend<any[]>(
+        `/api/v1/personalisations/?organisation_id=${organisationId}&app_id=${appId}`
+      );
+
+      res.json(novaPersonalisations);
+    } catch (error) {
+      console.error("Failed to get personalisations:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get personalisations" });
+    }
+  });
+
+  app.post("/api/personalisations", authenticateToken, async (req, res) => {
+    try {
+      const personalisationData = req.body;
 
       // Transform frontend data to Nova Manager format
       const novaPersonalisationData = {
         name: personalisationData.name,
         description: personalisationData.description || "",
-        experience_id: experienceId,
-        variants: personalisationData.variants.map((variant: any) => ({
-          feature_id: variant.feature_id,
-          variant_id: variant.variant_id || null, // For selecting existing variants
-          name: variant.name || null, // For creating new variants
-          config: variant.config || null, // For creating new variants
-        })),
+        variants: personalisationData.variants,
       };
 
       // Call Nova Manager to create personalisation
       const novaPersonalisation = await callNovaBackend<any>(
-        `/api/v1/experiences/${experienceId}/personalisations/`,
+        `/api/v1/personalisations/`,
         {
           method: "POST",
           body: JSON.stringify(novaPersonalisationData),
         }
       );
 
-      // Transform response to frontend format
-      const personalisation = {
-        id: novaPersonalisation.pid,
-        name: novaPersonalisation.name,
-        description: novaPersonalisation.description || "",
-        experienceId: novaPersonalisation.experience_id,
-        lastUpdatedAt: novaPersonalisation.last_updated_at,
-        createdAt: novaPersonalisation.created_at,
-        variants: novaPersonalisation.variants?.map((variant: any) => ({
-          id: variant.pid,
-          featureId: variant.feature_id,
-          name: variant.name,
-          config: variant.config,
-          createdAt: variant.created_at,
-        })) || [],
-      };
-
-      res.json(personalisation);
+      res.json(novaPersonalisation);
     } catch (error) {
       console.error("Failed to create personalisation:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create personalisation" });
     }
   });
 
+  // Experience Personalisation endpoints
   app.get("/api/experiences/:experienceId/personalisations", authenticateToken, async (req, res) => {
     try {
       const { experienceId } = req.params;
@@ -473,21 +450,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova Manager to get personalisations
       const novaPersonalisations = await callNovaBackend<any[]>(
-        `/api/v1/experiences/${experienceId}/personalisations/?skip=${skip}&limit=${limit}`
+        `/api/v1/experiences/${experienceId}/personalisations/`
       );
 
-      // Transform response to frontend format
-      const personalisations = novaPersonalisations.map((personalisation: any) => ({
-        id: personalisation.pid,
-        name: personalisation.name,
-        description: personalisation.description || "",
-        experienceId: personalisation.experience_id,
-        lastUpdatedAt: personalisation.last_updated_at,
-        createdAt: personalisation.created_at,
-        variantsCount: personalisation.variants_count || 0,
-      }));
-
-      res.json(personalisations);
+      res.json(novaPersonalisations);
     } catch (error) {
       console.error("Failed to get personalisations:", error);
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get personalisations" });
@@ -675,26 +641,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Create experience segment assignment
-  app.post("/api/experiences/:experienceId/segments", authenticateToken, async (req, res) => {
+  // Create experience targeting rules
+  app.post("/api/experiences/:experienceId/targeting-rules/", authenticateToken, async (req, res) => {
     try {
       const { experienceId } = req.params;
-      const segmentData = req.body;
+      const targetingRuleData = req.body;
 
       // Transform frontend data to Nova Manager format
       const novaSegmentData = {
-        segment_id: segmentData.segment_id,
-        target_percentage: segmentData.target_percentage,
-        personalisation_distribution: segmentData.personalisation_distribution.map((item: any) => ({
+        rollout_percentage: targetingRuleData.target_percentage,
+        rule_config: { conditions: [] },
+        personalisations: targetingRuleData.personalisation_distribution.map((item: any) => ({
           personalisation_id: item.personalisation_id,
           target_percentage: item.target_percentage,
           use_default: item.is_default || false,
         })),
+        segments: [{ segment_id: targetingRuleData.segment_id, rule_config: { operator: "equals", value: "facebook" } }],
       };
 
       // Call Nova Manager to create experience segment
       const response = await callNovaBackend(
-        `/api/v1/experiences/${experienceId}/segments/`,
+        `/api/v1/experiences/${experienceId}/targeting-rules/`,
         {
           method: "POST",
           body: JSON.stringify(novaSegmentData),
@@ -1244,10 +1211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           description: flag.description || "",
           type: flag.type,
           flags,
-          createdAt: new Date(flag.created_at).toLocaleDateString(),
           isActive: flag.is_active,
-          variants: flag.variants,
-          experience: flag.experience,
+          experiences: flag.experiences,
         };
       });
 
@@ -1285,6 +1250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const objectId = req.params.id;
 
+      console.log(`/api/v1/feature-flags/${objectId}/details/`)
       // Call Nova backend to get detailed feature flag information
       const novaFlag = await callNovaBackend<any>(
         `/api/v1/feature-flags/${objectId}/details/`
@@ -1296,12 +1262,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: novaFlag.description,
         type: novaFlag.type,
         keys_config: novaFlag.keys_config,
-        createdAt: novaFlag.created_at,
         isActive: novaFlag.is_active,
         defaultVariant: novaFlag.default_variant,
-        variants: novaFlag.variants,
-        experience: novaFlag.experience,
+        experiences: novaFlag.experiences,
       };
+
+      console.log(objectDetails, novaFlag)
 
       res.json(objectDetails);
     } catch (error) {
@@ -1348,43 +1314,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Variant API routes
-  app.get("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
-    try {
-      const { objectId } = req.params;
+  // app.get("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
+  //   try {
+  //     const { objectId } = req.params;
 
-      // Get variants from Nova backend
-      const variants = await callNovaBackend<FlagVariant[]>(`/api/v1/feature-flags/${objectId}/variants/`);
+  //     // Get variants from Nova backend
+  //     const variants = await callNovaBackend<FlagVariant[]>(`/api/v1/feature-flags/${objectId}/variants/`);
 
-      const variantsResponse = variants.map((variant) => {
-        return {
-          id: variant.pid,
-          objectId,
-          name: variant.name,
-          payload: variant.config,
-        }
-      })
+  //     const variantsResponse = variants.map((variant) => {
+  //       return {
+  //         id: variant.pid,
+  //         objectId,
+  //         name: variant.name,
+  //         payload: variant.config,
+  //       }
+  //     })
       
-      res.json(variantsResponse);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch variants" });
-    }
-  });
+  //     res.json(variantsResponse);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch variants" });
+  //   }
+  // });
 
-  app.post("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
-    try {
-      const { objectId } = req.params;
-      const variantData = req.body;
+  // app.post("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
+  //   try {
+  //     const { objectId } = req.params;
+  //     const variantData = req.body;
 
-      const variant = await callNovaBackend<GetFeatureFlagDetailsResponse>(
-        `/api/v1/feature-flags/${objectId}/variants/`,
-        { method: "POST", body: JSON.stringify(variantData) }
-      );
+  //     const variant = await callNovaBackend<GetFeatureFlagDetailsResponse>(
+  //       `/api/v1/feature-flags/${objectId}/variants/`,
+  //       { method: "POST", body: JSON.stringify(variantData) }
+  //     );
 
-      res.status(201).json(variant);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create variant" });
-    }
-  });
+  //     res.status(201).json(variant);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create variant" });
+  //   }
+  // });
 
   // app.patch("/api/variants/:id", authenticateToken, async (req: any, res) => {
   //   try {

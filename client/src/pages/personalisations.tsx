@@ -19,40 +19,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Search,
-  Plus,
-  Target,
-} from "lucide-react";
+import { Search, Plus, Target } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import ExperienceForm from "@/components/experience-form";
+import PersonalisationForm from "@/components/personalisation-form";
 
-interface Experience {
-  id: string;
+interface Personalisation {
+  pid: string;
   name: string;
   description: string;
-  status: "Draft" | "Active" | "Rolling out" | "Completed" | "Paused";
-  features: { pid: string; }[];
+  experience: { pid: string; name: string };
 }
 
-export default function Experiences() {
+export default function Personalisations() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showExperienceForm, setShowExperienceForm] = useState(false);
+  const [showPersonalisationForm, setShowPersonalisationForm] = useState(false);
 
-  const { data: experiences, isLoading } = useQuery<Experience[]>({
-    queryKey: ["/api/experiences"],
+  const { data: personalisations, isLoading } = useQuery<Personalisation[]>({
+    queryKey: ["/api/personalisations"],
   });
 
-  const filteredExperiences =
-    experiences?.filter((exp) => {
+  const filteredPersonalisations =
+    personalisations?.filter((exp) => {
       const matchesSearch =
         exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         exp.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" ||
-        exp.status.toLowerCase() === statusFilter.toLowerCase();
-      return matchesSearch && matchesStatus;
+
+      return matchesSearch;
     }) || [];
 
   const getStatusColor = (status: string) => {
@@ -80,12 +73,15 @@ export default function Experiences() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                Experiences
+                Personalisations
               </h1>
+              <p className="text-muted-foreground">
+                Manage and monitor your personalised experiences
+              </p>
             </div>
-            <Button onClick={() => setShowExperienceForm(true)}>
+            <Button onClick={() => setShowPersonalisationForm(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              New Experience
+              New Personalisation
             </Button>
           </div>
 
@@ -94,7 +90,7 @@ export default function Experiences() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Search experiences..."
+                placeholder="Search personalisations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -115,57 +111,46 @@ export default function Experiences() {
             </Select>
           </div>
 
-
-
-          {/* Experiences Table */}
+          {/* Personalisations Table */}
           <Card>
             <CardHeader>
-              <CardTitle>All Experiences</CardTitle>
+              <CardTitle>Personalised Experiences</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : filteredExperiences.length > 0 ? (
+              ) : filteredPersonalisations.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Objects</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Experience</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredExperiences.map((experience) => (
-                      <TableRow 
-                        key={experience.id}
+                    {filteredPersonalisations.map((personalisation) => (
+                      <TableRow
+                        key={personalisation.pid}
                         className="group hover:bg-accent/30 cursor-pointer transition-colors"
-                        onClick={() => window.location.href = `/experiences/${experience.id}`}
+                        onClick={() =>
+                          (window.location.href = `/experiences/${personalisation.experience.pid}/personalisations`)
+                        }
                       >
                         <TableCell>
-                          <div className="font-medium">
-                            {experience.name}
-                          </div>
+                          <div className="font-medium">{personalisation.name}</div>
                         </TableCell>
                         <TableCell>
                           <span className="text-muted-foreground">
-                            {experience.description || "No description"}
+                            {personalisation.description || "No description"}
                           </span>
                         </TableCell>
                         <TableCell>
                           <span className="text-muted-foreground">
-                            {experience.features.length || 0} objects
+                            {personalisation.experience.name || ""}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={getStatusColor(experience.status)}
-                          >
-                            {experience.status}
-                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -175,15 +160,14 @@ export default function Experiences() {
                 <div className="text-center py-12">
                   <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">
-                    No experiences found
+                    No personalised personalisations found
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    Create your first FTUE experience to start optimizing player
-                    onboarding
+                    Create your first personalisation to start optimizing conversion
                   </p>
-                  <Button onClick={() => setShowExperienceForm(true)}>
+                  <Button onClick={() => setShowPersonalisationForm(true)}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Create Experience
+                    Create Personalisation
                   </Button>
                 </div>
               )}
@@ -192,9 +176,12 @@ export default function Experiences() {
         </div>
       </ConsoleLayout>
 
-      <ExperienceForm
-        open={showExperienceForm}
-        onOpenChange={setShowExperienceForm}
+      <PersonalisationForm
+        open={showPersonalisationForm}
+        onOpenChange={setShowPersonalisationForm}
+        onSuccess={() => {
+            // queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
+        }}
       />
     </>
   );

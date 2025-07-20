@@ -1,30 +1,21 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   ChevronLeft, 
-  Copy, 
-  Plus, 
   Layers, 
   FileText, 
   Sliders,
   Clock,
   ExternalLink,
-  ChevronDown,
-  ChevronRight,
   Settings,
-  Package,
   CirclePlay
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import { apiRequest } from "@/lib/queryClient";
 
 interface ObjectDetails {
   id: string;
@@ -36,35 +27,25 @@ interface ObjectDetails {
     description: string;
     default: any;
   }>;
-  variants: Array<{
-    pid: string;
-    name: string;
-    config: Record<string, any>;
-  }>;
   createdAt: string;
   isActive: boolean;
   defaultVariant: Record<string, any>;
-  experience?: {
-    pid: string;
-    name: string;
-    description: string;
-    status: string;
-    created_at: string;
-    modified_at: string;
-  };
+  experiences: {
+    experience_id: string;
+    experience: {
+      pid: string;
+      name: string;
+      description: string;
+      status: string;
+    }
+  }[];
 }
 
-interface VariantFormData {
-  name: string;
-  config: Record<string, any>;
-}
+
 
 export default function ObjectDetails() {
-  const queryClient = useQueryClient();
   const [, params] = useRoute("/objects/:id");
   const objectId = params?.id;
-  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
-  const [showVariantForm, setShowVariantForm] = useState(false);
 
   const { data: objectDetails, isLoading } = useQuery<ObjectDetails>({
     queryKey: [`/api/objects/${objectId}`],
@@ -110,12 +91,7 @@ export default function ObjectDetails() {
     }
   };
 
-  const toggleVariantExpansion = (variantId: string) => {
-    setExpandedVariants(prev => ({
-      ...prev,
-      [variantId]: !prev[variantId]
-    }));
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -126,13 +102,6 @@ export default function ObjectDetails() {
       minute: "2-digit"
     });
   };
-
-  // Sort variants to show default first
-  const allVariants = objectDetails?.variants.sort((a, b) => {
-    if (a.name === "default") return -1;
-    if (b.name === "default") return 1;
-    return 0;
-  }) || [];
 
   if (isLoading) {
     return (
@@ -194,32 +163,6 @@ export default function ObjectDetails() {
               </p>
             </div>
           </div>
-          <Dialog open={showVariantForm} onOpenChange={(open) => {
-            setShowVariantForm(open);
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Variant
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-              <DialogHeader className="pb-4">
-                <DialogTitle>Create New Variant</DialogTitle>
-              </DialogHeader>
-              
-              <VariantForm 
-                objectId={objectDetails.id} 
-                object={objectDetails} 
-                open={showVariantForm}
-                onClose={() => setShowVariantForm(false)} 
-                onSuccess={() => {
-                  setShowVariantForm(false);
-                  queryClient.invalidateQueries({ queryKey: [`/api/objects/${objectDetails.id}`] });
-                }}
-              />
-            </DialogContent>
-          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
@@ -231,8 +174,8 @@ export default function ObjectDetails() {
                 <CardTitle>Object Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Connected Experience */}
-                {objectDetails.experience && (
+                Connected Experience
+                {/* {objectDetails.experience && (
                   <div>
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Connected Experience</Label>
@@ -255,7 +198,7 @@ export default function ObjectDetails() {
                       </div>
                     </Link>
                   </div>
-                )}
+                )} */}
 
                 {/* Object Schema */}
                 <div>
@@ -302,68 +245,62 @@ export default function ObjectDetails() {
               </CardContent>
             </Card>
 
-            {/* Variants */}
+            {/* Experiences */}
             <Card>
               <CardHeader>
-                <CardTitle>Variants ({objectDetails.variants.length})</CardTitle>
+                <CardTitle>Experiences ({objectDetails.experiences.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                {objectDetails.variants.length > 0 ? (
-                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
-                    {allVariants.map((variant) => {
-                      const isExpanded = expandedVariants[variant.pid];
-                      const hasConfig = variant.config && Object.keys(variant.config).length > 0;
-                      
-                      return (
-                        <div key={variant.pid} className="border rounded-lg overflow-hidden">
-                          <div 
-                            className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => toggleVariantExpansion(variant.pid)}
-                          >
-                            <div className="flex items-center space-x-3 w-full justify-between">
-                              <div className="flex items-center space-x-2">
-                                <Package className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                                <span className="font-medium text-foreground">{variant.name}</span>
-                                {variant.name === "default" && (
-                                  <Badge variant="secondary" className="text-xs">Default</Badge>
-                                )}
+                {objectDetails.experiences.length > 0 ? (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
+                    {objectDetails.experiences.map(({ experience_id, experience }) => (
+                      <Link key={experience.pid} href={`/experiences/${experience.pid}`}>
+                        <div className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors group">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <CirclePlay className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                              <div className="flex flex-1 space-x-2">
+                                <div>
+                                  <div className="flex items-start">
+                                    <h4 className="font-medium text-foreground transition-colors">
+                                      {experience.name}
+                                    </h4>
+                                  </div>
+                                  {experience.description && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                      {experience.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div>
+                                  <Badge variant="outline" className={`${getStatusColor(experience.status)} mt-2 ml-2`}>
+                                    {experience.status}
+                                  </Badge>
+                                </div>
                               </div>
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                              )}
+                            </div>
+                            <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+                              <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </div>
-                          
-                          {isExpanded && hasConfig && (
-                            <div className="border-t bg-muted/20 p-4">
-                              {/* Content */}
-                              <div className="space-y-3">
-                                {Object.entries(variant.config).map(([key, value]) => {
-                                  return (
-                                    <div key={key} className="flex items-center justify-between">
-                                      <code className="text-sm bg-muted px-2 py-1 rounded">{key}</code>
-                                      <span className="font-mono text-sm">{value?.toString()}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })}
+                      </Link>
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Settings className="w-6 h-6 text-muted-foreground" />
+                      <CirclePlay className="w-6 h-6 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">No variants created</h3>
+                    <h3 className="text-lg font-medium text-foreground mb-2">No experiences found</h3>
                     <p className="text-muted-foreground mb-4">
-                      Create variants to personalize this object for different user experiences.
+                      This object is not currently used in any experiences.
                     </p>
+                    <Link href="/experiences">
+                      <Button variant="outline">
+                        Browse Experiences
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </CardContent>
@@ -374,165 +311,3 @@ export default function ObjectDetails() {
     </ConsoleLayout>
   );
 }
-
-// Variant Form Component
-export function VariantForm({ objectId, object, open, onClose, onSuccess }: { objectId: string, object: any, open: boolean, onClose: () => void, onSuccess: () => void }) {
-  // Function to generate initial form data
-  const getInitialFormData = () => ({
-    name: '',
-    config: {} as Record<string, any>
-  });
-
-  const [formData, setFormData] = useState(() => getInitialFormData());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Reset form data when the form opens or closes
-  useEffect(() => {
-    setFormData(getInitialFormData());
-    setIsSubmitting(false);
-  }, [open]);
-
-  const handleConfigChange = (key: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      config: {
-        ...prev.config,
-        [key]: value
-      }
-    }));
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.name.trim()) {
-      alert('Please enter a variant name');
-      return;
-    }
-
-    // Check if variant name already exists for this object
-    const existingVariants = object?.variants || [];
-    const nameExists = existingVariants.some((variant: any) => 
-      variant.name.toLowerCase() === formData.name.trim().toLowerCase()
-    );
-    
-    if (nameExists) {
-      alert('A variant with this name already exists. Please choose a different name.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    
-    try {
-      const response = await apiRequest("POST", `/api/objects/${objectId}/variants`, {
-        name: formData.name,
-        config: formData.config
-      });
-
-      if (response.ok) {
-        onSuccess();
-      } else {
-        throw new Error('Failed to create variant');
-      }
-    } catch (error) {
-      console.error('Error creating variant:', error);
-      alert('Failed to create variant. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="name" className="text-sm font-medium">
-          Variant Name
-        </Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="Enter variant name"
-          className="mt-1"
-          disabled={isSubmitting}
-        />
-      </div>
-
-      <div>
-        <Label className="text-sm font-medium">Configuration</Label>
-        <div className="grid grid-cols-1 gap-4 mt-2">
-          {Object.entries(object?.keys_config || {}).map(([key, config]: [string, any]) => (
-            <div key={key} className="space-y-1">
-              <div className="grid grid-cols-3 gap-4 items-center">
-                <div className="space-y-1">
-                  <Label htmlFor={`config-${key}`} className="text-sm font-medium">
-                    {key}
-                  </Label>
-                  {config.description && (
-                    <p className="text-xs text-muted-foreground leading-tight">{config.description}</p>
-                  )}
-                </div>
-                
-                <div className="text-center">
-                  <Badge variant="outline" className="text-xs">
-                    {config.type}
-                  </Badge>
-                </div>
-                
-                <div>
-                  {config.type === "boolean" ? (
-                    <div className="flex items-center justify-start space-x-2">
-                      <input
-                        id={`config-${key}`}
-                        type="checkbox"
-                        checked={formData.config[key] === "true" || formData.config[key] === true}
-                        onChange={(e) => handleConfigChange(key, e.target.checked)}
-                        className="h-4 w-4 rounded border-border focus:ring-2 focus:ring-primary focus:ring-offset-0"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {formData.config[key] === "true" || formData.config[key] === true ? "True" : "False"}
-                      </span>
-                    </div>
-                  ) : (
-                    <Input
-                      id={`config-${key}`}
-                      type={config.type === "number" ? "number" : "text"}
-                      value={formData.config[key] || ""}
-                      onChange={(e) => handleConfigChange(key, e.target.value)}
-                      placeholder={config.default?.toString() || "Enter value"}
-                      className="focus:ring-1 focus:ring-primary focus:ring-offset-0 border-border"
-                      required
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4 border-t">
-        <Button 
-          variant="outline" 
-          onClick={onClose}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleSubmit}
-          disabled={isSubmitting || !formData.name.trim()}
-          className="min-w-[120px]"
-        >
-          {isSubmitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Creating...
-            </>
-          ) : (
-            'Create Variant'
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-

@@ -33,32 +33,31 @@ import { Separator } from "@/components/ui/separator";
 import ConsoleLayout from "@/components/console-layout";
 
 interface ExperienceDetails {
-  id: string;
+  pid: string;
   name: string;
-  status: string;
   description: string;
-  createdAt: string;
-  
+  status: string;
+
   // New structure based on updated API
-  feature_flags: Array<{
+  features: Array<{
     pid: string;
-    name: string;
-    description: string;
-    keys_config: Record<string, {
-      type: string;
+    feature_flag: {
+      pid: string;
+      name: string;
       description: string;
-      default: any;
-    }>;
-    default_variant: Record<string, any>;
-    type: string;
-    is_active: boolean;
-    created_at: string;
-    modified_at: string;
+      keys_config: Record<string, {
+        type: string;
+        description: string;
+        default: any;
+      }>;
+      default_variant: Record<string, any>;
+      type: string;
+      is_active: boolean;
+    };
     variants: Array<{
       pid: string;
       name: string;
       config: Record<string, any>;
-      created_at: string;
     }>;
   }>;
   
@@ -121,11 +120,6 @@ interface ExperienceDetails {
       target_percentage: number;
     }>;
   }>;
-  
-  // Counts
-  feature_flags_count: number;
-  personalisations_count: number;
-  segments_count: number;
 }
 
 export default function ExperienceDetails() {
@@ -274,564 +268,129 @@ export default function ExperienceDetails() {
           </div>
         </div>
 
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="inline-flex w-auto space-x-2">
-            <TabsTrigger className="px-6" value="objects">Objects ({experience.feature_flags_count})</TabsTrigger>
-            <TabsTrigger className="px-6" value="personalisations">Personalisations ({experience.personalisations_count})</TabsTrigger>
-            <TabsTrigger className="px-6" value="segments">Targeting ({experience.segments_count})</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Objects</h3>
+          </div>
 
-          {/* Objects Tab */}
-          <TabsContent value="objects" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Objects</h3>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-              {(experience.feature_flags || []).map((flag, index) => (
-                <Card key={index} className="overflow-hidden">
-                  <CardHeader className="pb-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <Package className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <CardTitle className="text-lg">{flag.name}</CardTitle>
-                            <Badge variant="outline" className="text-xs">
-                              {flag.type || 'Generic'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{flag.description || 'No description'}</p>
-                        </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
+            {(experience.features || []).map(({feature_flag: flag, variants}, index) => (
+              <Card key={index} className="overflow-hidden h-fit">
+                <CardHeader className="pb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <Package className="w-5 h-5 text-blue-600" />
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge variant={flag.is_active ? "default" : "secondary"}>
-                          {flag.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <CardTitle className="text-lg">{flag.name}</CardTitle>
+                          <Badge variant="outline" className="text-xs">
+                            {flag.type || 'Generic'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{flag.description || 'No description'}</p>
                       </div>
                     </div>
-                  </CardHeader>
+                    <div className="flex items-center space-x-3">
+                      <Badge variant={flag.is_active ? "default" : "secondary"}>
+                        {flag.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="pt-0 pb-3">
-                    {/* Variants */}
-                    <div>
-                      <Label className="text-sm font-medium mb-3 block">
-                        Variants ({flag.variants?.length || 0})
-                      </Label>
-                      
-                      {(flag.variants || []).length > 0 ? (
-                        <div className="space-y-2">
-                          {(flag.variants || []).map((variant, vIndex) => (
-                            <div 
-                              key={vIndex} 
-                              className="border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-                              onClick={() => toggleObjectExpansion(`${flag.pid}-${variant.pid}`)}
-                            >
-                              <div className="p-3 bg-muted/20">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                    <p className="font-medium text-sm truncate">{variant.name}</p>
-                                  </div>
-                                  <div className="flex-shrink-0 ml-2">
-                                    {expandedObjects[`${flag.pid}-${variant.pid}`] ? 
-                                      <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                    }
-                                  </div>
+                <CardContent className="pt-0 pb-3">
+                  {/* Variants */}
+                  <div>
+                    <Label className="text-sm font-medium mb-3 block">
+                      Variants ({variants?.length || 0})
+                    </Label>
+                    
+                    {(variants || []).length > 0 ? (
+                      <div className="space-y-2">
+                        {(variants || []).map((variant, vIndex) => (
+                          <div 
+                            key={vIndex} 
+                            className="border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                            onClick={() => toggleObjectExpansion(`${flag.pid}-${variant.pid}`)}
+                          >
+                            <div className="p-3 bg-muted/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                  <p className="font-medium text-sm truncate">{variant.name}</p>
+                                </div>
+                                <div className="flex-shrink-0 ml-2">
+                                  {expandedObjects[`${flag.pid}-${variant.pid}`] ? 
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                  }
                                 </div>
                               </div>
-                              
-                              {expandedObjects[`${flag.pid}-${variant.pid}`] && (
-                                <div className="p-3 border-t" onClick={(e) => e.stopPropagation()}>
-                                  {Object.keys(variant.config || {}).length > 0 ? (
-                                    <div className="space-y-2">
-                                      {Object.entries(variant.config || {}).map(([key, value]) => (
-                                        <div key={key} className="flex items-center justify-between py-2 bg-muted/30 rounded-lg">
-                                          <div className="flex items-center space-x-2">
-                                            <code className="text-sm bg-muted px-2 py-0.5 rounded">{key}</code>
-                                          </div>
-                                          <span className="text-sm font-mono text-muted-foreground" title={String(value)}>
-                                            {typeof value === 'string' ? value : String(value)}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-center py-2">
-                                      <p className="text-sm text-muted-foreground">No configuration set</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center border rounded-lg bg-muted/10">
-                          <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
-                            <Package className="w-4 h-4 text-muted-foreground" />
+                            
+                            {expandedObjects[`${flag.pid}-${variant.pid}`] && (
+                              <div className="p-3 border-t" onClick={(e) => e.stopPropagation()}>
+                                {Object.keys(variant.config || {}).length > 0 ? (
+                                  <div className="space-y-2">
+                                    {Object.entries(variant.config || {}).map(([key, value]) => (
+                                      <div key={key} className="flex items-center justify-between py-2 bg-muted/30 rounded-lg">
+                                        <div className="flex items-center space-x-2">
+                                          <code className="text-sm bg-muted px-2 py-0.5 rounded">{key}</code>
+                                        </div>
+                                        <span className="text-sm font-mono text-muted-foreground" title={String(value)}>
+                                          {typeof value === 'string' ? value : String(value)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-2">
+                                    <p className="text-sm text-muted-foreground">No configuration set</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <p className="text-sm font-medium text-muted-foreground">No variants configured</p>
-                          <p className="text-xs text-muted-foreground mt-1">Variants will appear here when created</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {(experience.feature_flags || []).length === 0 && (
-                <div className="col-span-full">
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
-                        <Package className="w-8 h-8 text-muted-foreground" />
+                        ))}
                       </div>
-                      <h3 className="text-lg font-semibold mb-2">No Objects Configured</h3>
-                      <p className="text-sm text-muted-foreground">Objects will appear here when configured.</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Personalisations Tab */}
-          <TabsContent value="personalisations" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <h3 className="text-xl font-semibold">Personalisations</h3>
-                {/* Only show toggle if default personalisations exist */}
-                {(experience?.personalisations || []).some(p => p.is_default) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDefaultPersonalisations(!showDefaultPersonalisations)}
-                    className="flex items-center space-x-2"
-                  >
-                    {showDefaultPersonalisations ? (
-                      <EyeOff className="w-4 h-4" />
                     ) : (
-                      <Eye className="w-4 h-4" />
+                      <div className="p-6 text-center border rounded-lg bg-muted/10">
+                        <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground">No variants configured</p>
+                        <p className="text-xs text-muted-foreground mt-1">Variants will appear here when created</p>
+                      </div>
                     )}
-                    <span>{showDefaultPersonalisations ? 'Hide' : 'Show'} Default</span>
-                  </Button>
-                )}
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setShowPersonalisationForm(true)}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Personalisation</span>
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-              {filteredPersonalisations.map((personalisation, index) => (
-                <Card key={index} className="overflow-hidden">
-                  <CardHeader className="pb-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-purple-50 rounded-lg">
-                          <Settings className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <CardTitle className="text-lg">{personalisation.name}</CardTitle>
-                            {personalisation.is_default && (
-                              <Badge variant="secondary" className="text-xs">Default</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{personalisation.description || 'No description'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-0 pb-3">
-                    <div>
-                      <Label className="text-sm font-medium mb-3 block">
-                        Object Variants
-                      </Label>
-
-                      {(personalisation.feature_variants || []).length > 0 ? (
-                        <div className="space-y-2">
-                          {(personalisation.feature_variants || []).map((variant, vIndex) => {
-                            const parentFeature = variantToFeatureMap.get(variant.feature_variant.pid);
-                            const variantKey = `${personalisation.pid}-${variant.feature_variant.pid}`;
-                            return (
-                              <div 
-                                key={vIndex} 
-                                className="border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-                                onClick={() => toggleVariantExpansion(variantKey)}
-                              >
-                                <div className="p-3 bg-muted/20">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                      <Package className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex items-center space-x-1">
-                                          <span className="text-sm font-medium text-blue-600 truncate">
-                                            {parentFeature?.name || 'Unknown'}
-                                          </span>
-                                          <span className="text-xs text-muted-foreground">→</span>
-                                          <span className="text-sm font-medium truncate">{variant.feature_variant.name}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="flex-shrink-0 ml-2">
-                                      {expandedVariants[variantKey] ? 
-                                        <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                      }
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                {expandedVariants[variantKey] && (
-                                  <div className="p-2 border-t" onClick={(e) => e.stopPropagation()}>
-                                    {Object.keys(variant.feature_variant.config || {}).length > 0 ? (
-                                      <div>
-                                        {Object.entries(variant.feature_variant.config || {}).map(([key, value]) => (
-                                          <div key={key} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
-                                            <div className="flex items-center space-x-2">
-                                              <code className="text-sm bg-muted px-2 py-0.5 rounded">{key}</code>
-                                            </div>
-                                            <span className="text-sm font-mono text-muted-foreground" title={String(value)}>
-                                              {typeof value === 'string' ? value : JSON.stringify(value)}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <div className="text-center py-2">
-                                        <p className="text-sm text-muted-foreground">No configuration set</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center border rounded-lg bg-muted/10">
-                          <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
-                            <Settings className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <p className="text-sm font-medium text-muted-foreground">No variants configured</p>
-                          <p className="text-xs text-muted-foreground mt-1">Variants will appear here when configured</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {filteredPersonalisations.length === 0 && (
-                <div className="col-span-full">
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
-                        <Settings className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">
-                        {showDefaultPersonalisations 
-                          ? "No Personalisations Yet" 
-                          : "No Custom Personalisations"
-                        }
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {showDefaultPersonalisations 
-                          ? "Personalisations will appear here when configured." 
-                          : "Custom personalisations will appear here. Click 'Show Default' to see auto-generated default personalisations."
-                        }
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Segments Tab */}
-          <TabsContent value="segments" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Targeting</h3>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setShowSegmentForm(true)}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Targeting Rule</span>
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {(experience.experience_segments || []).map((segment, index) => (
-                <Card key={index} className="overflow-hidden">
-                  <CardHeader className="pb-3 pt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-green-50 rounded-lg">
-                          <Target className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-3">
-                            <CardTitle className="text-lg">{segment.segment.name}</CardTitle>
-                            <span className="text-lg text-muted-foreground">•</span>
-                            <div className="flex items-center space-x-1">
-                              <div className="text-base font-bold text-green-600">{segment.target_percentage}%</div>
-                              <div className="text-xs text-muted-foreground">coverage</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline" className="text-xs">Priority #{segment.priority}</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-2 pb-4">
-                    {/* Personalisation Distribution */}
-                    <div className="mb-6">
-                      <Label className="text-sm font-medium mb-3 block">
-                        Personalisation Distribution
-                      </Label>
-                      
-                      {(segment.personalisations || []).length > 0 ? (
-                        <div>
-                          {/* Progress Bar */}
-                          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                            <div className="flex h-full">
-                              {(segment.personalisations || []).map((personalisation, pIndex) => {
-                                const bgColor = personalisation.personalisation.is_default ? 'bg-gray-500' : PERSONALISATION_COLORS[pIndex % PERSONALISATION_COLORS.length];
-
-                                if (!personalisation.target_percentage) return;
-
-                                return (
-                                  <div
-                                    key={pIndex}
-                                    className={`${bgColor} h-full flex flex-col items-center justify-center text-xs text-white font-medium px-1`}
-                                    style={{ width: `${personalisation.target_percentage}%` }}
-                                    title={`${personalisation.personalisation.name}: ${personalisation.target_percentage}%`}
-                                  >
-                                    <div>{personalisation.target_percentage}%</div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          
-                          {/* Compact horizontal list */}
-                          <div className="flex flex-wrap mt-4 gap-6 text-sm">
-                            {(segment.personalisations || []).map((personalisation, pIndex) => {
-                              const bgColor = personalisation.personalisation.is_default ? 'bg-gray-500' : PERSONALISATION_COLORS[pIndex % PERSONALISATION_COLORS.length];
-                              
-                              return (
-                                <div key={pIndex} className="flex items-center space-x-2">
-                                  <div className={`w-3 h-3 rounded-full ${bgColor}`}></div>
-                                  <span className="font-medium">{personalisation.personalisation.is_default ? "Default" : personalisation.personalisation.name}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center border rounded-lg bg-muted/10">
-                          <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
-                            <Settings className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <p className="text-sm font-medium text-muted-foreground">No personalisations assigned</p>
-                          <p className="text-xs text-muted-foreground mt-1">Personalisation distribution will appear here when configured</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Side by side layout for rules and metrics */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Targeting Rules */}
-                      <div className="border rounded-lg overflow-hidden">
-                        <div 
-                          className={`flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
-                            expandedObjects[`segment-rules-${segment.segment.pid}`] ? '' : 'rounded-lg'
-                          }`}
-                          onClick={() => toggleObjectExpansion(`segment-rules-${segment.segment.pid}`)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <Users className="w-4 h-4 text-blue-500" />
-                            <Label className="text-sm font-medium cursor-pointer">Targeting Rules</Label>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {expandedObjects[`segment-rules-${segment.segment.pid}`] ? 
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            }
-                          </div>
-                        </div>
-                        
-                        {expandedObjects[`segment-rules-${segment.segment.pid}`] && (
-                          <div className="p-3 border-t bg-muted/10">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <p className="text-sm font-semibold">Segment</p>
-                              <p className="text-sm font-medium">{segment.segment.name}</p>
-                            </div>
-                            {segment.segment.rule_config?.conditions && segment.segment.rule_config.conditions.length > 0 ? (
-                              <div className="space-y-2">
-                                {segment.segment.rule_config.conditions.map((condition: { field: string; operator: string; value: string | string[] | number | boolean }, condIndex: number) => (
-                                  <div key={condIndex} className="flex items-center space-x-3 py-2 px-3">
-                                    {condIndex > 0 && (
-                                      <Badge variant="outline" className="text-xs font-medium">
-                                        AND
-                                      </Badge>
-                                    )}
-                                    <div className="flex items-center space-x-2 text-sm">
-                                      <span className="font-medium text-foreground">{condition.field}</span>
-                                      <span className="text-muted-foreground">{condition.operator}</span>
-                                      <span className="font-medium text-foreground">
-                                        {Array.isArray(condition.value) ? condition.value.join(", ") : String(condition.value)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-4">
-                                <p className="text-sm text-muted-foreground">All Users</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Metrics */}
-                      <div className="border rounded-lg overflow-hidden">
-                        <div 
-                          className={`flex items-center justify-between p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
-                            expandedObjects[`metrics-${segment.segment.pid}`] ? '' : 'rounded-lg'
-                          }`}
-                          onClick={() => toggleObjectExpansion(`metrics-${segment.segment.pid}`)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <BarChart3 className="w-4 h-4 text-orange-500" />
-                            <Label className="text-sm font-medium cursor-pointer">Metrics</Label>
-                          </div>
-                          <div className="flex-shrink-0">
-                            {expandedObjects[`metrics-${segment.segment.pid}`] ? 
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            }
-                          </div>
-                        </div>
-                        
-                        {expandedObjects[`metrics-${segment.segment.pid}`] && (
-                          <div className="p-3 border-t bg-muted/10">
-                            <div className="space-y-3">
-                              {/* Metric cards */}
-                              <div className="space-y-3">
-                                {/* Example metric cards that would show when metrics exist */}
-                                {true && (
-                                  <>
-                                    <div className="border rounded-lg p-3 bg-muted">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex items-start space-x-2 min-w-0 flex-1">
-                                          <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 mt-1.5"></div>
-                                          <div className="min-w-0 flex-1">
-                                            <div className="text-sm font-medium text-white-900 mb-1">Conversion Rate</div>
-                                            <div className="flex items-center space-x-2">
-                                              <span className="text-xs text-white-500">Target:</span>
-                                              <span className="text-xs font-medium text-white-700">12%</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                          <div className="text-lg font-bold text-green-600">15.2%</div>
-                                          <div className="text-xs text-green-600">+3.2%</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="border rounded-lg p-3 bg-muted shadow-sm hover:shadow-md transition-shadow">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex items-start space-x-2 min-w-0 flex-1">
-                                          <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0 mt-1.5"></div>
-                                          <div className="min-w-0 flex-1">
-                                            <div className="text-sm font-medium text-white-900 mb-1">Session Duration</div>
-                                            <div className="flex items-center space-x-2">
-                                              <span className="text-xs text-white-500">Target:</span>
-                                              <span className="text-xs font-medium text-white-700">300s</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                          <div className="text-lg font-bold text-orange-600">245s</div>
-                                          <div className="text-xs text-orange-600">-55s</div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                                
-                                {/* Placeholder when no metrics exist */}
-                                {false && (
-                                  <div className="text-center py-4">
-                                    <p className="text-xs text-muted-foreground">No metrics configured yet</p>
-                                    <p className="text-xs text-muted-foreground mt-1">Track conversion rates, engagement, and custom events</p>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Add Metric Button */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowMetricsForm(true);
-                                }}
-                                className="w-full border-dashed hover:border-solid text-xs"
-                              >
-                                <Plus className="w-3 h-3 mr-1" />
-                                Add Metric
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {(experience.experience_segments || []).length === 0 && (
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {(experience.features || []).length === 0 && (
+              <div className="col-span-full">
                 <Card>
                   <CardContent className="p-12 text-center">
                     <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
-                      <Target className="w-8 h-8 text-muted-foreground" />
+                      <Package className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">No Targeting Rules</h3>
-                    <p className="text-sm text-muted-foreground">Create targeting rules to personalise experiences for specific user segments.</p>
+                    <h3 className="text-lg font-semibold mb-2">No Objects Configured</h3>
+                    <p className="text-sm text-muted-foreground">Objects will appear here when configured.</p>
                   </CardContent>
                 </Card>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Create Personalisation Side Panel */}
         <PersonalisationForm 
           open={showPersonalisationForm}
           onOpenChange={setShowPersonalisationForm}
-          objects={experience?.feature_flags || []} 
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
+          }}
         />
 
         {/* Create Segment Experience Side Panel */}

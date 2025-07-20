@@ -22,6 +22,8 @@ import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
 
 import NotFound from "@/pages/not-found";
+import Personalisations from "./pages/personalisations";
+import PersonalisationDetails from "./pages/experience-personalisation";
 
 function Router() {
   return (
@@ -37,6 +39,8 @@ function Router() {
       <Route path="/objects/:id" component={ObjectDetails} />
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/:experienceId" component={ExperienceDetails} />
+      <Route path="/personalisations" component={Personalisations} />
+      <Route path="/experiences/:experienceId/personalisations" component={PersonalisationDetails} />
       <Route path="/metrics" component={Metrics} />
       <Route path="/metrics/:id" component={MetricDetails} />
       <Route path="/settings" component={Settings} />

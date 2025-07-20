@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown } from "lucide-react";
+import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
@@ -30,26 +30,19 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   ];
 
   const navigationItems = [
+    // {
+    //   id: "dashboard",
+    //   label: "Dashboard",
+    //   icon: Shield,
+    //   path: "/dashboard",
+    //   description: "Overview and metrics"
+    // },
     {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: Shield,
-      path: "/dashboard",
-      description: "Overview and metrics"
-    },
-    {
-      id: "experiences",
-      label: "Experiences",
-      icon: Target,
-      path: "/experiences",
-      description: "FTUE experiences"
-    },
-    {
-      id: "objects",
-      label: "Objects",
-      icon: Layers,
-      path: "/objects",
-      description: "Flagged game elements"
+      id: "personalisations",
+      label: "Personalisations",
+      icon: Sparkles,
+      path: "/personalisations",
+      description: "Personalised Experiences"
     },
     {
       id: "segments",
@@ -58,21 +51,38 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       path: "/segments",
       description: "Player segments"
     },
-    {
-      id: "metrics",
-      label: "Metrics",
-      icon: Lightbulb,
-      path: "/metrics",
-      description: "Analytics and KPIs"
-    },
-    // {
+     // {
     //   id: "campaigns",
     //   label: "Campaigns",
     //   icon: UserCheck,
     //   path: "/campaigns",
     //   description: "Marketing campaigns"
     // },
-
+    {
+      id: "metrics",
+      label: "Metrics",
+      icon: ChartNoAxesColumn,
+      path: "/metrics",
+      description: "Analytics and KPIs"
+    },
+    {
+      id: "divider-1",
+      type: "divider",
+    },
+    {
+      id: "experiences",
+      label: "Experiences",
+      icon: Gamepad2,
+      path: "/experiences",
+      description: "In Game experiences"
+    },
+    {
+      id: "objects",
+      label: "Objects",
+      icon: Layers,
+      path: "/objects",
+      description: "Flagged game elements"
+    },
   ];
 
   return (
@@ -114,11 +124,17 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
           <SidebarContent className="p-4 flex flex-col h-full">
             <div className="flex-1">
               {/* Primary Navigation */}
-              <div className="space-y-2">
+              <div>
                 {navigationItems.map((item) => {
+                  if (item.type === "divider") {
+                    return <div className="h-px border-t border-border my-2" />;
+                  }
+                  
+                  if (!item.path) return null;
+                  
                   const Icon = item.icon;
                   const isActive = location === item.path;
-                  
+
                   return (
                     <Link key={item.id} href={item.path}>
                       <Button
@@ -127,7 +143,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                           isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        <Icon className="w-5 h-5 mr-3" />
+                        {Icon && <Icon className="w-5 h-5 mr-3" />}
                         <div className="flex flex-col items-start">
                           <span className="font-medium">{item.label}</span>
                           <span className="text-xs opacity-75">{item.description}</span>
