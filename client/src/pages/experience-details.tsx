@@ -65,8 +65,8 @@ interface ExperienceDetails {
     last_updated_at: string;
     feature_variants: Array<{
       experience_feature_id: string;
-      name: string;
-      config: Record<string, any>;
+            name: string;
+            config: Record<string, any>;
     }>;
   }>;
 }
@@ -148,7 +148,7 @@ export default function ExperienceDetails() {
 
   // Create a mapping from experience_feature_id to feature flag for variants display
   const experienceFeatureMap = new Map<string, { name: string; pid: string }>();
-  
+
   (experience?.features || []).forEach(feature => {
     experienceFeatureMap.set(feature.pid, { 
       name: feature.feature_flag.name, 
@@ -226,112 +226,112 @@ export default function ExperienceDetails() {
 
           {/* Objects Tab */}
           <TabsContent value="objects" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Objects</h3>
-            </div>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Objects</h3>
+          </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
               {(experience.features || []).map((feature, index) => (
-                <Card key={index} className="overflow-hidden h-fit">
-                  <CardHeader className="pb-6">
+              <Card key={index} className="overflow-hidden h-fit">
+                <CardHeader className="pb-6">
                     <div className="flex items-center justify-between space-x-2">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <Package className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <CardTitle className="text-lg">{feature.feature_flag.name}</CardTitle>
-                            <Badge variant="outline" className="text-xs">
-                              {feature.feature_flag.type || 'Generic'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{feature.feature_flag.description || 'No description'}</p>
-                        </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <Package className="w-5 h-5 text-blue-600" />
                       </div>
-                      <div className="flex items-center space-x-3">
-                        <Badge variant={feature.feature_flag.is_active ? "default" : "secondary"}>
-                          {feature.feature_flag.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                            <CardTitle className="text-lg">{feature.feature_flag.name}</CardTitle>
+                          <Badge variant="outline" className="text-xs">
+                              {feature.feature_flag.type || 'Generic'}
+                          </Badge>
+                        </div>
+                          <p className="text-sm text-muted-foreground">{feature.feature_flag.description || 'No description'}</p>
                       </div>
                     </div>
-                  </CardHeader>
+                    <div className="flex items-center space-x-3">
+                        <Badge variant={feature.feature_flag.is_active ? "default" : "secondary"}>
+                          {feature.feature_flag.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="pt-0 pb-3">
+                <CardContent className="pt-0 pb-3">
                     {/* Default Configuration */}
-                    <div>
+                  <div>
                       {/* <Label className="text-sm font-medium mb-3 block">
                         Default Configuration
                       </Label> */}
-                      
+                    
                       {Object.keys(feature.feature_flag.default_variant || {}).length > 0 ? (
                         <div 
-                          className="border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                            className="border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
                           onClick={() => toggleObjectExpansion(`default-${feature.pid}`)}
-                        >
-                          <div className="p-3 bg-muted/20">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2 min-w-0 flex-1">
+                          >
+                            <div className="p-3 bg-muted/20">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
                                 <Settings className="w-4 h-4 text-green-500 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <span className="text-sm font-medium">
                                   Default Configuration
                                   </span>
                                 </div>
-                              </div>
-                              <div className="flex-shrink-0 ml-2">
+                                </div>
+                                <div className="flex-shrink-0 ml-2">
                                 {expandedObjects[`default-${feature.pid}`] ? 
-                                  <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
-                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                }
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" /> : 
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                  }
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          
+                            
                           {expandedObjects[`default-${feature.pid}`] && (
-                            <div className="p-3 border-t" onClick={(e) => e.stopPropagation()}>
-                              <div className="space-y-2">
+                              <div className="p-3 border-t" onClick={(e) => e.stopPropagation()}>
+                                  <div className="space-y-2">
                                 {Object.entries(feature.feature_flag.default_variant || {}).map(([key, value]) => (
                                   <div key={key} className="flex items-center justify-between py-2 bg-muted/30 rounded-lg px-3">
-                                    <div className="flex items-center space-x-2">
-                                      <code className="text-sm bg-muted px-2 py-0.5 rounded">{key}</code>
-                                    </div>
-                                    <span className="text-sm font-mono text-muted-foreground" title={String(value)}>
+                                        <div className="flex items-center space-x-2">
+                                          <code className="text-sm bg-muted px-2 py-0.5 rounded">{key}</code>
+                                        </div>
+                                        <span className="text-sm font-mono text-muted-foreground" title={String(value)}>
                                       {typeof value === 'string' ? value : JSON.stringify(value)}
-                                    </span>
+                                        </span>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
                               </div>
-                            </div>
-                          )}
+                            )}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center border rounded-lg bg-muted/10">
+                        <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
+                          <Package className="w-4 h-4 text-muted-foreground" />
                         </div>
-                      ) : (
-                        <div className="p-6 text-center border rounded-lg bg-muted/10">
-                          <div className="w-8 h-8 mx-auto mb-2 bg-muted rounded-full flex items-center justify-center">
-                            <Package className="w-4 h-4 text-muted-foreground" />
-                          </div>
                           <p className="text-sm font-medium text-muted-foreground">No default configuration</p>
                           <p className="text-xs text-muted-foreground mt-1">Default values will appear here when configured</p>
-                        </div>
-                      )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {(experience.features || []).length === 0 && (
+              <div className="col-span-full">
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
+                      <Package className="w-8 h-8 text-muted-foreground" />
                     </div>
+                    <h3 className="text-lg font-semibold mb-2">No Objects Configured</h3>
+                    <p className="text-sm text-muted-foreground">Objects will appear here when configured.</p>
                   </CardContent>
                 </Card>
-              ))}
-              
-              {(experience.features || []).length === 0 && (
-                <div className="col-span-full">
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <div className="p-3 bg-muted rounded-full w-fit mx-auto mb-4">
-                        <Package className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="text-lg font-semibold mb-2">No Objects Configured</h3>
-                      <p className="text-sm text-muted-foreground">Objects will appear here when configured.</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+              </div>
+            )}
             </div>
           </TabsContent>
 
@@ -428,8 +428,8 @@ export default function ExperienceDetails() {
                                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                                       }
                                     </div>
-                                  </div>
-                                </div>
+          </div>
+        </div>
                                 
                                 {expandedVariants[variantKey] && (
                                   <div className="py-3 border-t" onClick={(e) => e.stopPropagation()}>

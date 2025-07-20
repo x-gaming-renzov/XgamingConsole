@@ -299,7 +299,7 @@ export default function CreatePersonalisation() {
 
   return (
     <ConsoleLayout>
-      <div className="flex-1 bg-gradient-to-br from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
+      <div className="flex-1">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-8 pr-12">

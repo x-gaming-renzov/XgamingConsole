@@ -142,7 +142,7 @@ export default function Personalisations() {
   return (
     <>
       <ConsoleLayout>
-        <div className="flex-1 bg-gradient-to-br from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
+        <div className="flex-1">
           {/* Hero Header */}
           <div className="relative overflow-hidden">
             <div className="relative p-6">
