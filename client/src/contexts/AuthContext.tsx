@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
-// Types for token payload (expand as needed)
+// JWT payload structure
 interface JWTPayload {
   exp: number;
   sub: string;
@@ -12,10 +12,11 @@ interface AuthContextType {
   token: string | null;
   selectedAppId: string | null;
   register: (email: string, password: string) => Promise<void>;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<any>;
+  fetchMe: () => Promise<{ user: any; projects: any[] }>;
   fetchOrgs: () => Promise<any[]>;
   fetchApps: () => Promise<any[]>;
-  selectApp: (appPid: string) => Promise<void>;
+  selectApp: (appPid: string) => void;
   logout: () => void;
 }
 
@@ -27,13 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('auth_token');
+    const savedToken = localStorage.getItem('auth_token');
     const savedApp = localStorage.getItem('selected_app');
-    if (saved) {
+    if (savedToken) {
       try {
-        const payload: JWTPayload = jwtDecode(saved);
+        const payload: JWTPayload = jwtDecode(savedToken);
         if (payload.exp * 1000 > Date.now()) {
-          setToken(saved);
+          setToken(savedToken);
           if (savedApp) setSelectedAppId(savedApp);
         } else {
           localStorage.removeItem('auth_token');
@@ -50,57 +51,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string) => {
-    await fetch(`/api/auth/register`, {
+    const res = await fetch(`/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    }).then(res => {
-      if (!res.ok) throw new Error('Registration failed');
     });
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || 'Registration failed');
+    }
   };
 
-  const login = async (username: string, password: string) => {
-    const res = await fetch(`/api/v1/auth/login`, {
+  const login = async (email: string, password: string) => {
+    const res = await fetch(`/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || 'Login failed');
+    }
     const data = await res.json();
-    persistToken(data.access_token);
+    // Nova returns { access_token, token_type }
+    const newToken = data.token ?? data.access_token;
+    if (!newToken) {
+      throw new Error('Authentication token not returned');
+    }
+    persistToken(newToken);
+    console.log('AuthContext: persisted token to localStorage:', newToken);
+    return data;
+  };
+
+  const fetchMe = async (): Promise<{ user: any; projects: any[] }> => {
+    if (!token) throw new Error('No token');
+    const res = await fetch(`/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || 'Fetch current user failed');
+    }
+    return res.json();
   };
 
   const fetchOrgs = async (): Promise<any[]> => {
     if (!token) throw new Error('No token');
-    const res = await fetch(`/api/v1/auth/organisations`, {
+    const res = await fetch(`/api/orgs`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Fetch orgs failed');
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || 'Fetch orgs failed');
+    }
     return res.json();
   };
 
   const fetchApps = async (): Promise<any[]> => {
     if (!token) throw new Error('No token');
-    const res = await fetch(`/api/v1/auth/apps`, {
+    const res = await fetch(`/api/apps`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Fetch apps failed');
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || 'Fetch projects failed');
+    }
     return res.json();
   };
 
-  const selectApp = async (appPid: string) => {
-    if (!token) throw new Error('No token');
-    const res = await fetch(`/api/v1/auth/token/app/${appPid}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error('Select app failed');
-    const data = await res.json();
-    persistToken(data.access_token);
-    setSelectedAppId(appPid);
-    localStorage.setItem('selected_app', appPid);
-    // redirect to dashboard after selecting app
-    window.location.href = '/dashboard';
+  const selectApp = (appId: string) => {
+    setSelectedAppId(appId);
+    localStorage.setItem('selected_app', appId);
   };
 
   const logout = () => {
@@ -108,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSelectedAppId(null);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('selected_app');
-    // redirect to landing (login/register) on logout
     window.location.href = '/';
   };
 
@@ -118,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     login,
     fetchOrgs,
+    fetchMe,
     fetchApps,
     selectApp,
     logout,

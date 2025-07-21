@@ -36,7 +36,7 @@ interface AuthModalProps {
 export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthModalProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { login: setUser } = useAuth();
+  // useAuth provides login and register
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
