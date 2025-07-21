@@ -1,19 +1,19 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Console() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { token } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!token) {
       setLocation("/");
     } else {
       // Redirect to dashboard by default
       setLocation("/dashboard");
     }
-  }, [user, setLocation]);
+  }, [token, setLocation]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
