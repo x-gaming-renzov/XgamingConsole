@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ConsoleLayoutProps {
   children: ReactNode;
@@ -14,20 +14,41 @@ interface ConsoleLayoutProps {
 
 export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
-  const { user, logout } = useAuth();
-  const [selectedProject, setSelectedProject] = useState("project-1");
+  const { token, logout, fetchOrgs, fetchApps, selectApp, selectedAppId } = useAuth();
+  const [orgs, setOrgs] = useState<any[]>([]);
+  const [apps, setApps] = useState<any[]>([]);
+  const [loadingApps, setLoadingApps] = useState(true);
+  const [appError, setAppError] = useState<string | null>(null);
+
 
   const handleLogout = () => {
     logout();
     setLocation("/");
   };
 
-  // Mock projects - in real app, this would come from API
-  const projects = [
-    { id: "project-1", name: "Mobile RPG", description: "Main game project" },
-    { id: "project-2", name: "Puzzle Quest", description: "Casual puzzle game" },
-    { id: "project-3", name: "Racing Elite", description: "Racing game project" }
-  ];
+  // Load organizations and apps for selector
+  useEffect(() => {
+    async function load() {
+      try {
+        const o = await fetchOrgs();
+        setOrgs(o);
+        const a = await fetchApps();
+        setApps(a);
+      } catch (e: any) {
+        setAppError(e.message);
+      } finally {
+        setLoadingApps(false);
+      }
+    }
+    load();
+  }, [fetchOrgs, fetchApps]);
+
+  // Redirect to landing if not authenticated
+  useEffect(() => {
+    if (!token) {
+      setLocation("/");
+    }
+  }, [token, setLocation]);
 
   const navigationItems = [
     // {
@@ -100,24 +121,30 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </div>
             </div>
             
-            {/* Project Selector */}
+            {/* Application Selector */}
             <div className="mb-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">PROJECT</p>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div>
-                        <div className="font-medium">{project.name}</div>
-                        <div className="text-xs text-muted-foreground">{project.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-xs font-medium text-muted-foreground mb-2">APPLICATION</p>
+              {loadingApps ? (
+                <p className="text-xs">Loading apps...</p>
+              ) : apps.length > 0 ? (
+                <Select value={selectedAppId || ''} onValueChange={selectApp}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an app" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apps.map((app) => (
+                      <SelectItem key={app.pid} value={app.pid}>
+                        <div>
+                          <div className="font-medium">{app.name}</div>
+                          {/* optional subtitle */}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs text-muted-foreground">No applications available.</p>
+              )}
             </div>
           </SidebarHeader>
           
@@ -233,16 +260,9 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
         <div className="flex-1 flex flex-col bg-gradient-to-tl from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
           {/* Top Bar */}
           <div className="h-16 border-b border-border flex items-center justify-between p-6 ml-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-lg font-semibold text-foreground">
-                {user?.name ? `Welcome back, ${user.name}` : "Console"}
-              </h1>
-            </div>
+            <h1 className="text-lg font-semibold text-foreground">Console</h1>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
-              <div className="text-sm text-muted-foreground">
-                {user?.email}
-              </div>
             </div>
           </div>
 

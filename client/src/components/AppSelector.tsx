@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function AppSelector() {
   const { fetchOrgs, fetchApps, selectApp } = useAuth();
+  const [, setLocation] = useLocation();
   const [orgs, setOrgs] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export default function AppSelector() {
                   <li key={app.id}>
                     <button
                       className="text-blue-600 hover:underline"
-                      onClick={() => selectApp(app.pid)}
+                      onClick={() => { selectApp(app.pid); setLocation('/dashboard'); }}
                     >
                       {app.name}
                     </button>

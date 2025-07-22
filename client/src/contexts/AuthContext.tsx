@@ -16,7 +16,7 @@ interface AuthContextType {
   fetchMe: () => Promise<{ user: any; projects: any[] }>;
   fetchOrgs: () => Promise<any[]>;
   fetchApps: () => Promise<any[]>;
-  selectApp: (appPid: string) => void;
+  selectApp: (appPid: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -119,9 +119,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.json();
   };
 
-  const selectApp = (appId: string) => {
-    setSelectedAppId(appId);
-    localStorage.setItem('selected_app', appId);
+  const selectApp = async (appId: string) => {
+    if (!token) throw new Error('No token');
+    try {
+      const res = await fetch(`/api/auth/token/app/${appId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Switch app failed');
+      }
+      const data = await res.json();
+      const newToken = data.token ?? data.access_token;
+      if (!newToken) throw new Error('No token returned on app switch');
+      // persist new app-scoped token
+      persistToken(newToken);
+      setSelectedAppId(appId);
+      localStorage.setItem('selected_app', appId);
+    } catch (e) {
+      console.error('Error switching app:', e);
+      throw e;
+    }
   };
 
   const logout = () => {
