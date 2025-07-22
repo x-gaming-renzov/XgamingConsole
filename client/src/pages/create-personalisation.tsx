@@ -1394,6 +1394,7 @@ export default function CreatePersonalisation() {
                       ]);
                       setShowAIModal(false);
                       setAIModalStep('prompt');
+                      setShowObjectsPanel(true);
                     } catch (err: any) {
                       alert(err.message || 'Failed to get AI suggestion');
                       setAIModalStep('prompt');
