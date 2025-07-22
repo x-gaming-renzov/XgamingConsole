@@ -66,14 +66,21 @@ export default function Personalisations() {
   >({});
   const [, setLocation] = useLocation();
 
-  // Fetch all personalisations
-  const { data: personalisations = [], isLoading: personalisationsLoading } =
+  // Fetch all personalisations for experience list
+  const { data: allPersonalisations = [], isLoading: experiencesLoading } =
     useQuery<Personalisation[]>({
       queryKey: ["/api/personalisations"],
     });
 
-  // Derive unique experiences from personalisations
-  const experiences = personalisations.reduce((acc, personalisation) => {
+  // Fetch detailed personalisations for active experience
+  const { data: detailedPersonalisations = [], isLoading: personalisationsLoading } =
+    useQuery<Personalisation[]>({
+      queryKey: [`/api/personalisations/personalised-experiences/${activeExperience}`],
+      enabled: !!activeExperience,
+    });
+
+  // Derive unique experiences from all personalisations
+  const experiences = allPersonalisations.reduce((acc, personalisation) => {
     const experience = personalisation.experience;
     if (!acc.find(e => e.pid === experience.pid)) {
       acc.push(experience);
@@ -88,9 +95,8 @@ export default function Personalisations() {
     }
   }, [experiences, activeExperience]);
 
-  // Filter personalisations for active experience and search
-  const filteredPersonalisations = personalisations
-    .filter(personalisation => personalisation.experience_id === activeExperience)
+  // Filter detailed personalisations by search
+  const filteredPersonalisations = detailedPersonalisations
     .sort((a, b) => (b.priority || 0) - (a.priority || 0))
     .filter(
       (personalisation) =>
@@ -307,7 +313,7 @@ export default function Personalisations() {
                     </div>
 
                     <div className="space-y-3">
-                      {personalisationsLoading ? (
+                      {experiencesLoading ? (
                         <div className="space-y-3">
                           {[1, 2, 3].map((i) => (
                             <div
