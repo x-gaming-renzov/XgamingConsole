@@ -237,9 +237,14 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                       Personal Settings
                     </DropdownMenuItem>
                   </Link>
-                  <Link href="/project-settings">
+                  <Link href="/app-settings">
                     <DropdownMenuItem>
-                      Project Settings
+                      App Settings
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/organization-settings">
+                    <DropdownMenuItem>
+                      Organization Settings
                     </DropdownMenuItem>
                   </Link>
                 </DropdownMenuContent>

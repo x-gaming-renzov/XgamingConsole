@@ -21,12 +21,13 @@ import Metrics from "@/pages/metrics";
 import MetricDetails from "@/pages/metric-details";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
-import ProjectSettings from "@/pages/project-settings";
+import AppSettings from "@/pages/app-settings";
+import OrganizationSettings from "@/pages/organization-settings";
 import CreatePersonalisation from "@/pages/create-personalisation";
 
 import NotFound from "@/pages/not-found";
-import Personalisations from "./pages/personalisations";
-import PersonalisationDetails from "./pages/experience-personalisation";
+import Personalisations from "@/pages/personalisations";
+import PersonalisationDetails from "@/pages/experience-personalisation";
 
 function Router() {
   return (
@@ -50,7 +51,8 @@ function Router() {
       <Route path="/metrics/:id" component={MetricDetails} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
-      <Route path="/project-settings" component={ProjectSettings} />
+      <Route path="/app-settings" component={AppSettings} />
+      <Route path="/organization-settings" component={OrganizationSettings} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>
