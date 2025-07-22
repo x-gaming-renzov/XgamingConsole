@@ -6,11 +6,15 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
+import { AsyncLocalStorage } from 'async_hooks';
 import { registerNovaRoutes } from './routes/novaRoutes';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
 const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://127.0.0.1:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+// AsyncLocalStorage to propagate the original Authorization header
+const authStorage = new AsyncLocalStorage<{ authHeader?: string }>();
 
 // Middleware to verify JWT token
 export function authenticateToken(req: any, res: any, next: any) {
@@ -33,12 +37,18 @@ export function authenticateToken(req: any, res: any, next: any) {
 // Helper function to call Nova backend
 export async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
   console.log(`callNovaBackend: forwarding request to Nova ${NOVA_BACKEND_URL}${endpoint}`, options);
+  // Retrieve auth header saved in AsyncLocalStorage
+  const store = authStorage.getStore();
+  const forwardedAuth = store?.authHeader;
+  // Merge headers: content-type, forwarded auth, and any custom headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(forwardedAuth ? { Authorization: forwardedAuth } : {}),
+    ...options.headers,
+  };
   const response = await fetch(`${NOVA_BACKEND_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -51,10 +61,13 @@ export async function callNovaBackend<T>(endpoint: string, options: any = {}): P
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Log all incoming API requests for debugging
+  // Log all incoming API requests and capture auth header for Nova calls
   app.use((req, res, next) => {
     console.log(`Incoming request: ${req.method} ${req.path}`);
-    next();
+    // Run with AsyncLocalStorage to forward auth header
+    authStorage.run({ authHeader: req.headers['authorization'] as string | undefined }, () => {
+      next();
+    });
   });
   // Auth routes
   // Proxy registration to Nova
