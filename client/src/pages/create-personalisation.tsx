@@ -415,7 +415,7 @@ export default function CreatePersonalisation() {
           </div>
 
           {/* Main Content */}
-          <div className="px-6 space-y-8">
+          <div className="p-6 pt-0 space-y-8">
             {currentStep === 1 && (
               <div className="space-y-8">
                 {/* Step 1: Experience Selection */}

@@ -96,7 +96,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </div>
               <div>
                 <h2 className="font-bold text-foreground">Xgaming Nova</h2>
-                <p className="text-xs text-muted-foreground">FTUE Console</p>
+                {/* <p className="text-xs text-muted-foreground">Personalize Experiences</p> */}
               </div>
             </div>
             

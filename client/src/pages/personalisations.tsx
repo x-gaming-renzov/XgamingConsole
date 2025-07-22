@@ -250,7 +250,7 @@ export default function Personalisations() {
                   {/* CTA Section */}
                   <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                                                                    <Button
+                      <Button
                          onClick={handleCreatePersonalisation}
                          size="lg"
                          className="relative overflow-hidden bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg hover:shadow-xl transform transition-all duration-300 px-8 py-3 text-lg font-semibold group"
@@ -788,28 +788,7 @@ export default function Personalisations() {
                                 </Card>
                               ))}
                             </div>
-                          ) : (
-                            <Card className="p-12 text-center border-dashed border-2 bg-card/50">
-                              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-full flex items-center justify-center">
-                                <Target className="w-10 h-10 text-primary" />
-                              </div>
-                              <h3 className="text-xl font-semibold mb-3">
-                                No Personalisations Found
-                              </h3>
-                              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                                {searchQuery
-                                  ? "No personalisations match your search. Try different keywords."
-                                  : "Create your first personalisation to start delivering tailored experiences to your players."}
-                              </p>
-                              <Button
-                                onClick={() => setShowPersonalisationForm(true)}
-                                className="bg-primary text-white shadow-lg"
-                              >
-                                <Zap className="w-4 h-4 mr-2" />
-                                Create Personalisation
-                              </Button>
-                            </Card>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
@@ -820,14 +799,6 @@ export default function Personalisations() {
           )}
         </div>
       </ConsoleLayout>
-
-      <PersonalisationForm
-        open={showPersonalisationForm}
-        onOpenChange={setShowPersonalisationForm}
-        onSuccess={() => {
-          // Refresh personalisations for the active experience
-        }}
-      />
     </>
   );
 }
