@@ -336,24 +336,19 @@ export default function CreatePersonalisation() {
 
   return (
     <ConsoleLayout>
-      <div className="flex-1">
-        <div className="p-6">
+      <div className="flex-1 p-6">
+        <div className="h-full max-h-[calc(80vh-16px)] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <Link href="/personalisations">
-                <Button variant="ghost" size="sm" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-              </Link>
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center">
+              <div className="flex items-center space-x-2">
                 <div className="w-14 h-14 bg-gradient-to-r from-primary/20 via-primary/10 to-blue-600/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
                   <div className="w-12 h-12 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center shadow-inner">
                     <Wand2 className="w-6 h-6 text-white" />
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground">
+                  <h1 className="text-2xl font-bold text-foreground">
                     Create Personalisation
                   </h1>
                   <p className="text-muted-foreground">Build magical experiences for your players</p>
@@ -362,9 +357,9 @@ export default function CreatePersonalisation() {
             </div>
             
             {/* Step Navigation moved to top right */}
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 1 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
@@ -373,14 +368,13 @@ export default function CreatePersonalisation() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Select Experience</p>
-                  <p className="text-xs text-muted-foreground">Choose experience & objects</p>
                 </div>
               </div>
               <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
                 currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'
               }`} />
               <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 2 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
@@ -389,14 +383,13 @@ export default function CreatePersonalisation() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Configure Variants</p>
-                  <p className="text-xs text-muted-foreground">Set up experience variants</p>
                 </div>
               </div>
               <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
                 currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'
               }`} />
               <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 3 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
@@ -405,7 +398,6 @@ export default function CreatePersonalisation() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Finalize Personalisation</p>
-                  <p className="text-xs text-muted-foreground">Name, target & distribute</p>
                 </div>
               </div>
             </div>
@@ -527,7 +519,7 @@ export default function CreatePersonalisation() {
                         <p className="text-sm text-muted-foreground">
                           {selectedObjects.length} of {objects.length} objects selected
                         </p>
-                        {selectedObjects.length > 0 && (
+                        <div className="flex space-x-2">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -536,7 +528,16 @@ export default function CreatePersonalisation() {
                           >
                             Clear All
                           </Button>
-                        )}
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedObjects(objects.map(({pid}: {pid: string}) => pid))}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            Select All
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Panel Content */}
@@ -1184,68 +1185,68 @@ export default function CreatePersonalisation() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-8 border-t border-white/20">
-              <div>
-                {(currentStep === 2 || currentStep === 3) && (
-                  <Button 
-                    variant="outline" 
-                    onClick={handlePrevious}
-                    className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Previous
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex space-x-3">
-                <Link href="/personalisations">
-                  <Button variant="ghost" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
-                    Cancel
-                  </Button>
-                </Link>
-                
-                {currentStep === 1 ? (
-                  <Button 
-                    onClick={handleNext}
-                    disabled={!validateStep1()}
-                    className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
-                  >
-                    Next Step
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : currentStep === 2 ? (
-                  <Button 
-                    onClick={handleNext}
-                    disabled={!validateStep2()}
-                    className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
-                  >
-                    Next Step
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-8 border-t border-white/20">
+          <div>
+            {(currentStep === 2 || currentStep === 3) && (
+              <Button 
+                variant="outline" 
+                onClick={handlePrevious}
+                className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+              >
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Previous
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex space-x-3">
+            <Link href="/personalisations">
+              <Button variant="ghost" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
+                Cancel
+              </Button>
+            </Link>
+            
+            {currentStep === 1 ? (
+              <Button 
+                onClick={handleNext}
+                disabled={!validateStep1()}
+                className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+              >
+                Next Step
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            ) : currentStep === 2 ? (
+              <Button 
+                onClick={handleNext}
+                disabled={!validateStep2()}
+                className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+              >
+                Next Step
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleSubmit}
+                disabled={isSubmitting || !validateStep3()}
+                className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
                 ) : (
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !validateStep3()}
-                    className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
-                        Create Magic
-                      </>
-                    )}
-                  </Button>
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
+                    Create Magic
+                  </>
                 )}
-              </div>
-            </div>
+              </Button>
+            )}
           </div>
         </div>
       </div>
