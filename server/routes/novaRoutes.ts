@@ -7,9 +7,7 @@ export function registerNovaRoutes(app: Express) {
   app.get('/api/orgs', async (req: any, res: Response) => {
     try {
       // forward orgs request to Nova, passing through auth header
-      const orgs = await callNovaBackend<any[]>('/api/v1/auth/organisations', {
-        headers: { Authorization: req.headers['authorization'] }
-      });
+      const orgs = await callNovaBackend<any[]>('/api/v1/auth/organisations');
       res.json(orgs);
     } catch (error: any) {
       console.error('Failed to fetch orgs:', error);
@@ -21,9 +19,7 @@ export function registerNovaRoutes(app: Express) {
   app.get('/api/apps', async (req: any, res: Response) => {
     try {
       // forward apps request to Nova, passing through auth header
-      const apps = await callNovaBackend<any[]>('/api/v1/auth/apps', {
-        headers: { Authorization: req.headers['authorization'] }
-      });
+      const apps = await callNovaBackend<any[]>('/api/v1/auth/apps');
       res.json(apps);
     } catch (error: any) {
       console.error('Failed to fetch apps:', error);
@@ -36,10 +32,7 @@ export function registerNovaRoutes(app: Express) {
     try {
       // forward switch app to Nova
       const endpoint = `/api/v1/auth/token/app/${req.params.appPid}`;
-      const result = await callNovaBackend<any>(endpoint, {
-        method: 'POST',
-        headers: { Authorization: req.headers['authorization'] }
-      });
+      const result = await callNovaBackend<any>(endpoint, { method: 'POST' });
       res.json(result);
     } catch (error: any) {
       console.error('Failed to switch app token:', error);
@@ -50,9 +43,7 @@ export function registerNovaRoutes(app: Express) {
   // Get app members
   app.get('/api/apps/:appPid/members', async (req: any, res: Response) => {
     try {
-      const members = await callNovaBackend<any[]>(`/api/v1/apps/${req.params.appPid}/members`, {
-        headers: { Authorization: req.headers['authorization'] }
-      });
+      const members = await callNovaBackend<any[]>(`/api/v1/apps/${req.params.appPid}/members`);
       res.json(members);
     } catch (error: any) {
       console.error('Failed to fetch app members:', error);
@@ -63,9 +54,7 @@ export function registerNovaRoutes(app: Express) {
   // Get organization members
   app.get('/api/orgs/:orgPid/members', async (req: any, res: Response) => {
     try {
-      const members = await callNovaBackend<any[]>(`/api/v1/orgs/${req.params.orgPid}/members`, {
-        headers: { Authorization: req.headers['authorization'] }
-      });
+      const members = await callNovaBackend<any[]>(`/api/v1/orgs/${req.params.orgPid}/members`);
       res.json(members);
     } catch (error: any) {
       console.error('Failed to fetch org members:', error);
