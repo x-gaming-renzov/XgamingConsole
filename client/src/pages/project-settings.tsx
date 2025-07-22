@@ -363,10 +363,7 @@ export default function AppSettings() {
                     <TableRow>
                       <TableHead>Member</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead>Invited By</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -403,17 +400,6 @@ export default function AppSettings() {
                               <SelectItem value="viewer">Analyst</SelectItem>
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(member.status) as any}>
-                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.lastActive}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.invitedBy}
                         </TableCell>
                         <TableCell>
                           <Button
