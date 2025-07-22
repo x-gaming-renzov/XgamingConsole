@@ -1387,7 +1387,7 @@ export default function CreatePersonalisation() {
                         {
                           name: data.experience_variant.name,
                           description: data.experience_variant.description,
-                          is_default: true,
+                          is_default: false,
                           target_percentage: 100,
                           feature_variants: featureVariants,
                         },
