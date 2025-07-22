@@ -94,10 +94,12 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-primary" />
               </div>
-              <div>
-                <h2 className="font-bold text-xl text-foreground">Xgaming Nova</h2>
-                {/* <p className="text-xs text-muted-foreground">Personalize Experiences</p> */}
-              </div>
+              <Link href="/personalisations" className="focus:outline-none">
+                <div className="cursor-pointer">
+                  <h2 className="font-bold text-xl text-foreground">Xgaming Nova</h2>
+                  {/* <p className="text-xs text-muted-foreground">Personalize Experiences</p> */}
+                </div>
+              </Link>
             </div>
             
             {/* Project Selector */}

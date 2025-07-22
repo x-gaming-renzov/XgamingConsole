@@ -68,7 +68,7 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
         description: "You have been successfully logged in.",
       });
       onClose();
-      setLocation("/console");
+      setLocation("/personalisations");
     },
     onError: (error) => {
       toast({
