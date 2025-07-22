@@ -117,6 +117,17 @@ export default function CreatePersonalisation() {
     },
   });
 
+  // Auto-open objects panel if experience is pre-selected
+  useEffect(() => {
+    if (preselectedExperienceId && experiences.length > 0) {
+      const preselectedExperience = experiences.find((exp: any) => exp.pid === preselectedExperienceId);
+      if (preselectedExperience) {
+        setSelectedExperience(preselectedExperience);
+        setShowObjectsPanel(true);
+      }
+    }
+  }, [preselectedExperienceId, experiences]);
+
   // Initialize experience variants when objects load
   useEffect(() => {
     if (objects.length > 0 && createdVariants.length === 0 && selectedObjects.length > 0) {
@@ -658,7 +669,10 @@ export default function CreatePersonalisation() {
                           Cancel
                         </Button>
                         <Button
-                          onClick={() => setShowObjectsPanel(false)}
+                          onClick={() => {
+                            setShowObjectsPanel(false);
+                            setCurrentStep(currentStep + 1);
+                          }}
                           disabled={selectedObjects.length === 0}
                           className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700 text-white"
                         >
