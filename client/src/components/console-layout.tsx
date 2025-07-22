@@ -95,7 +95,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                 <Shield className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="font-bold text-foreground">Xgaming Nova</h2>
+                <h2 className="font-bold text-xl text-foreground">Xgaming Nova</h2>
                 {/* <p className="text-xs text-muted-foreground">Personalize Experiences</p> */}
               </div>
             </div>

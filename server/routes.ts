@@ -623,6 +623,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Recommendations routes
+  app.post("/api/recommendations/get-ai-recommendations", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+
+      const userPrompt = req.body.userPrompt || "";
+
+      // Call Nova Manager to get personalisations
+      const novaPersonalisations = await callNovaBackend<any[]>(
+        `/api/v1/recommendations/get-ai-recommendations/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            organisation_id: organisationId,
+            app_id: appId,
+            user_prompt: userPrompt,
+          })
+        }
+      );
+
+      res.json(novaPersonalisations);
+    } catch (error) {
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get AI recommendations" });
+    }
+  });
+
 
 
   // Create experience targeting rules

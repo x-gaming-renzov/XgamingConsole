@@ -30,6 +30,7 @@ import {
 import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface ExperienceVariant {
   name: string;
@@ -64,6 +65,7 @@ export default function CreatePersonalisation() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSegments, setAvailableSegments] = useState<any[]>([]);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -91,6 +93,11 @@ export default function CreatePersonalisation() {
 
   // Separate state for experience variants created in step 2
   const [createdVariants, setCreatedVariants] = useState<ExperienceVariant[]>([]);
+
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiPrompt, setAIPrompt] = useState('');
+  const [aiModalStep, setAIModalStep] = useState<'prompt' | 'loading'>('prompt');
+
 
   // Query for experience objects when experience is selected
   const { data: objects = [], isLoading: isLoadingObjects } = useQuery({
@@ -173,12 +180,15 @@ export default function CreatePersonalisation() {
   }, []);
 
   const handleExperienceChange = (experienceId: string, experience: any) => {
+    setShowObjectsPanel(true);
+
+    if (experienceId === selectedExperience?.pid) return;
+
     setFormData(prev => ({ 
       ...prev, 
       experienceId
     }));
-    setSelectedExperience(experience);
-    setShowObjectsPanel(true);
+    setSelectedExperience(experience); // Set the full experience object
     setSelectedObjects([]); // Reset selected objects when experience changes
     setCreatedVariants([]); // Reset created variants when experience changes
   };
@@ -343,6 +353,12 @@ export default function CreatePersonalisation() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenAIModal = () => {
+    setAIPrompt('');
+    setAIModalStep('prompt');
+    setShowAIModal(true);
   };
 
   return (
@@ -1118,7 +1134,6 @@ export default function CreatePersonalisation() {
                         <div key={index} className="flex items-center space-x-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
                           <div className="flex-1">
                             <h4 className="text-sm font-semibold text-foreground">{variant.name || `Variant ${index + 1}`}</h4>
-                            <p className="text-xs text-muted-foreground">{variant.description || 'No description'}</p>
                           </div>
                           <div className="flex items-center space-x-3 w-32">
                             <Input
@@ -1204,7 +1219,44 @@ export default function CreatePersonalisation() {
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-8 border-t border-white/20">
-          <div>
+          <div className="flex items-center space-x-3">
+            {currentStep === 1 && (
+                <Button
+                type="button"
+                className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 text-white font-bold shadow-2xl hover:shadow-violet-500/25 transition-all duration-500 transform hover:scale-[1.05] active:scale-[1] overflow-hidden border border-violet-400/30"
+                onClick={handleOpenAIModal}
+                disabled={isLoadingAI}
+                style={{
+                  boxShadow: '0 20px 40px -12px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                {/* Animated orb background */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+                  <div className="absolute top-1/3 right-1/3 w-6 h-6 bg-pink-300/20 rounded-full blur-lg animate-pulse animation-delay-300"></div>
+                </div>
+                
+                {/* Premium shimmer effect */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 blur-sm"></div>
+                
+                {/* Magic sparkle trail */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute top-2 right-4 w-1 h-1 bg-white rounded-full animate-ping animation-delay-100"></div>
+                  <div className="absolute bottom-3 left-6 w-1.5 h-1.5 bg-pink-300 rounded-full animate-ping animation-delay-500"></div>
+                  <div className="absolute top-1/2 right-1/4 w-0.5 h-0.5 bg-white rounded-full animate-ping animation-delay-700"></div>
+                </div>
+                
+                <div className="relative flex items-center gap-3">
+                  <div className="relative">
+                    <Sparkles className="w-6 h-6 text-yellow-500 group-hover:animate-pulse transition-all duration-700 drop-shadow-sm" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 to-violet-400 rounded-full blur opacity-0 group-hover:opacity-30 group-hover:animate-pulse transition-all duration-300"></div>
+                  </div>
+                  <span className="text-base font-bold tracking-wide drop-shadow-sm">
+                    Get AI Suggestion
+                  </span>
+                </div>
+              </Button>
+            )}
             {(currentStep === 2 || currentStep === 3) && (
               <Button 
                 variant="outline" 
@@ -1264,6 +1316,108 @@ export default function CreatePersonalisation() {
           </div>
         </div>
       </div>
+
+      {/* AI Suggestion Modal */}
+      <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
+        <DialogContent className="max-w-lg">
+          {aiModalStep === 'prompt' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Describe your personalisation</DialogTitle>
+                <DialogDescription>
+                  Tell the AI what you want to personalize, for whom, and how. The more details you provide, the better the suggestion!
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                className="w-full mt-4 p-3 rounded-lg border border-muted bg-background text-foreground min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+                value={aiPrompt}
+                onChange={e => setAIPrompt(e.target.value)}
+                placeholder="e.g. Personalize onboarding for new players with a fun tutorial and rewards"
+                rows={4}
+                autoFocus
+              />
+              <DialogFooter className="mt-4">
+                <Button
+                  onClick={async () => {
+                    setAIModalStep('loading');
+                    setIsLoadingAI(true);
+                    try {
+                      const response = await apiRequest('POST', '/api/recommendations/get-ai-recommendations', { userPrompt: aiPrompt });
+                      if (!response.ok) throw new Error('Failed to fetch AI recommendation');
+                      const data = await response.json();
+                      // Find experience by name
+                      const exp = experiences.find((e: any) => e.name === data.experience_name);
+                      if (!exp) throw new Error('Experience not found');
+                      // Fetch objects for this experience if not already loaded
+                      let expObjects: any[] = [];
+                      if (exp.pid === formData.experienceId && objects.length > 0) {
+                        expObjects = objects;
+                      } else {
+                        const objectsResp = await apiRequest('GET', `/api/experiences/${exp.pid}/objects`);
+                        expObjects = objectsResp.ok ? await objectsResp.json() : [];
+                      }
+                      // Map feature_name to object pid
+                      const selectedObjectPids = data.experience_variant.feature_variants
+                        .map((fv: any) => {
+                          const obj = expObjects.find((o: any) => o.feature_flag?.name === fv.feature_name);
+                          return obj?.pid;
+                        })
+                        .filter(Boolean);
+                      // Build createdVariants
+                      const featureVariants: Record<string, { name: string; config: any }> = {};
+                      data.experience_variant.feature_variants.forEach((fv: any) => {
+                        const obj = expObjects.find((o: any) => o.feature_flag?.name === fv.feature_name);
+                        if (obj) {
+                          featureVariants[obj.pid] = {
+                            name: fv.variant_name,
+                            config: fv.config,
+                          };
+                        }
+                      });
+                      setFormData((prev) => ({
+                        ...prev,
+                        name: data.name,
+                        description: data.description,
+                        experienceId: exp.pid,
+                        rule_config: data.rule_config,
+                      }));
+                      setSelectedExperience(exp);
+                      setSelectedObjects(selectedObjectPids);
+                      setCreatedVariants([
+                        {
+                          name: data.experience_variant.name,
+                          description: data.experience_variant.description,
+                          is_default: true,
+                          target_percentage: 100,
+                          feature_variants: featureVariants,
+                        },
+                      ]);
+                      setShowAIModal(false);
+                      setAIModalStep('prompt');
+                    } catch (err: any) {
+                      alert(err.message || 'Failed to get AI suggestion');
+                      setAIModalStep('prompt');
+                    } finally {
+                      setIsLoadingAI(false);
+                    }
+                  }}
+                  disabled={!aiPrompt.trim() || isLoadingAI}
+                >
+                  Next
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="mb-4 animate-spin-slow">
+                <Sparkles className="w-12 h-12 text-yellow-400 animate-pulse" />
+              </div>
+              <div className="text-lg font-semibold text-center">AI is thinking...<br />Generating your magical personalisation</div>
+              <div className="mt-4 animate-pulse text-muted-foreground">This may take a few seconds</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </ConsoleLayout>
   );
 }
