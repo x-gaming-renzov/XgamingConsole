@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
-  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail
+  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail,
+  Eye
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +43,7 @@ interface TeamMember {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "collaborator" | "developer" | "viewer";
+  role: "admin" | "developer" | "analyst" | "viewer";
   status: "active" | "pending" | "inactive";
   lastActive: string;
   invitedBy: string;
@@ -96,7 +97,7 @@ export default function AppSettings() {
   // Team members state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer" | "viewer">("collaborator");
+  const [inviteRole, setInviteRole] = useState<"admin" | "developer" | "analyst" | "viewer">("viewer");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Load members when app selected
@@ -168,7 +169,7 @@ export default function AppSettings() {
     .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json(); })
     .then(() => {
       toast({ description: `Invitation sent to ${inviteEmail}` });
-      setInviteEmail(""); setInviteRole("collaborator"); setInviteDialogOpen(false);
+      setInviteEmail(""); setInviteRole("viewer"); setInviteDialogOpen(false);
       // reload
       return fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } });
     })
@@ -208,7 +209,7 @@ export default function AppSettings() {
     });
   };
 
-  const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer" | "viewer") => {
+  const handleRoleChange = (memberId: number, newRole: "admin" | "developer" | "analyst" | "viewer") => {
     if (!selectedAppId) return;
     fetch(`/api/apps/${selectedAppId}/members/${memberId}/role`, {
       method: 'PATCH',
@@ -229,10 +230,9 @@ export default function AppSettings() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "admin": return <Crown className="w-4 h-4" />;
-      case "collaborator": return <UserCheck className="w-4 h-4" />;
-      case "developer": return <Shield className="w-4 h-4" />;
+      case "developer": return <UserCheck className="w-4 h-4" />;
+      case "analyst": return <Shield className="w-4 h-4" />;
       case "viewer": return <Eye className="w-4 h-4" />;
-      default: return <User className="w-4 h-4" />;
     }
   };
 
@@ -337,9 +337,9 @@ export default function AppSettings() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin - Full access</SelectItem>
-                              <SelectItem value="collaborator">Product - Create and Edit experiments</SelectItem>
                               <SelectItem value="developer">Developer - Manage integrations</SelectItem>
-                              <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
+                              <SelectItem value="analyst">Analyst - Create and edit experiments and campaigns</SelectItem>
+                              <SelectItem value="viewer">Viewer - View insights</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -395,8 +395,8 @@ export default function AppSettings() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="collaborator">Product</SelectItem>
-                              <SelectItem value="developer">Developer</SelectItem>
+                              <SelectItem value="developer">Product</SelectItem>
+                              <SelectItem value="analyst">Developer</SelectItem>
                               <SelectItem value="viewer">Analyst</SelectItem>
                             </SelectContent>
                           </Select>
