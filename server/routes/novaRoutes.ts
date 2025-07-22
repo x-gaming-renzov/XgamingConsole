@@ -4,24 +4,46 @@ import { authenticateToken, callNovaBackend } from '../routes';
 // Register proxy routes for Nova backend: orgs and apps
 export function registerNovaRoutes(app: Express) {
   // List organizations
-  app.get('/api/orgs', authenticateToken, async (req: any, res: Response) => {
+  app.get('/api/orgs', async (req: any, res: Response) => {
     try {
-      const orgs = await callNovaBackend<any[]>('/api/v1/organisations/');
+      // forward orgs request to Nova, passing through auth header
+      const orgs = await callNovaBackend<any[]>('/api/v1/auth/organisations', {
+        headers: { Authorization: req.headers['authorization'] }
+      });
       res.json(orgs);
     } catch (error: any) {
       console.error('Failed to fetch orgs:', error);
-      res.status(500).json({ message: error.message || 'Failed to fetch orgs' });
+      res.status(502).json({ message: error.message || 'Failed to fetch orgs' });
     }
   });
 
   // List applications
-  app.get('/api/apps', authenticateToken, async (req: any, res: Response) => {
+  app.get('/api/apps', async (req: any, res: Response) => {
     try {
-      const apps = await callNovaBackend<any[]>('/api/v1/apps/');
+      // forward apps request to Nova, passing through auth header
+      const apps = await callNovaBackend<any[]>('/api/v1/auth/apps', {
+        headers: { Authorization: req.headers['authorization'] }
+      });
       res.json(apps);
     } catch (error: any) {
       console.error('Failed to fetch apps:', error);
-      res.status(500).json({ message: error.message || 'Failed to fetch apps' });
+      res.status(502).json({ message: error.message || 'Failed to fetch apps' });
+    }
+  });
+  
+  // Switch app token
+  app.post('/api/auth/token/app/:appPid', async (req: any, res: Response) => {
+    try {
+      // forward switch app to Nova
+      const endpoint = `/api/v1/auth/token/app/${req.params.appPid}`;
+      const result = await callNovaBackend<any>(endpoint, {
+        method: 'POST',
+        headers: { Authorization: req.headers['authorization'] }
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error('Failed to switch app token:', error);
+      res.status(502).json({ message: error.message || 'Failed to switch app' });
     }
   });
 }
