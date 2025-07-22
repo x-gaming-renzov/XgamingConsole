@@ -486,7 +486,7 @@ export default function Personalisations() {
                                             </div>
                                             <Badge
                                               variant="outline"
-                                              className="text-xs"
+                                              className="text-xs text-nowrap"
                                             >
                                               Priority #{personalisation.priority}
                                             </Badge>
