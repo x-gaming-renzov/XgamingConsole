@@ -84,7 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchMe = async (): Promise<{ user: any; projects: any[] }> => {
-    if (!token) throw new Error('No token');
+    if (!token) {
+      logout();
+      throw new Error('Session expired. Please login again.');
+    }
     const res = await fetch(`/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -96,7 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchOrgs = async (): Promise<any[]> => {
-    if (!token) throw new Error('No token');
+    if (!token) {
+      logout();
+      throw new Error('Session expired. Please login again.');
+    }
     const res = await fetch(`/api/orgs`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -108,7 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchApps = async (): Promise<any[]> => {
-    if (!token) throw new Error('No token');
+    if (!token) {
+      logout();
+      throw new Error('Session expired. Please login again.');
+    }
     const res = await fetch(`/api/apps`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -120,7 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const selectApp = async (appId: string) => {
-    if (!token) throw new Error('No token');
+    if (!token) {
+      logout();
+      throw new Error('Session expired. Please login again.');
+    }
     try {
       const res = await fetch(`/api/auth/token/app/${appId}`, {
         method: 'POST',
