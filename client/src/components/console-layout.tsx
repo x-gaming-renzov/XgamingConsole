@@ -230,7 +230,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
         </Sidebar>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col bg-gradient-to-tl from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
+        <div className="flex-1 flex flex-col bg-gradient-to-br from-background via-primary/5 to-blue-50/50 dark:from-background dark:via-primary/10 dark:to-blue-950/20">
           {/* Top Bar */}
           <div className="h-16 border-b border-border flex items-center justify-between p-6 ml-4">
             <div className="flex items-center space-x-4">

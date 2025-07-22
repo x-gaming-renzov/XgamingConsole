@@ -24,10 +24,12 @@ import {
   Trash2,
   Wand2,
   Zap,
-  ArrowRight
+  ArrowRight,
+  X
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 
 interface ExperienceVariant {
   name: string;
@@ -80,7 +82,14 @@ export default function CreatePersonalisation() {
     experience_variants: [],
   });
 
-  // Separate state for experience variants created in step 1
+  // New state for Step 1: selected objects
+  const [selectedObjects, setSelectedObjects] = useState<string[]>([]);
+
+  // New state for right panel and selected experience
+  const [showObjectsPanel, setShowObjectsPanel] = useState(false);
+  const [selectedExperience, setSelectedExperience] = useState<any>(null);
+
+  // Separate state for experience variants created in step 2
   const [createdVariants, setCreatedVariants] = useState<ExperienceVariant[]>([]);
 
   // Query for experience objects when experience is selected
@@ -96,11 +105,24 @@ export default function CreatePersonalisation() {
     enabled: !!formData.experienceId,
   });
 
+  // Query for all experiences
+  const { data: experiences = [], isLoading: isLoadingExperiences } = useQuery({
+    queryKey: ['/api/experiences'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/experiences');
+      if (response.ok) {
+        return await response.json();
+      }
+      return [];
+    },
+  });
+
   // Initialize experience variants when objects load
   useEffect(() => {
-    if (objects.length > 0 && createdVariants.length === 0) {
+    if (objects.length > 0 && createdVariants.length === 0 && selectedObjects.length > 0) {
       const initialFeatureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
-      objects.forEach((object: any) => {
+      // Only include selected objects
+      objects.filter((object: any) => selectedObjects.includes(object.pid)).forEach((object: any) => {
         initialFeatureVariants[object.pid] = {
           name: '',
           config: {}
@@ -118,7 +140,7 @@ export default function CreatePersonalisation() {
       
       setCreatedVariants([defaultVariant]);
     }
-  }, [objects]);
+  }, [objects, selectedObjects]);
 
   // Load available segments on component mount
   useEffect(() => {
@@ -144,14 +166,18 @@ export default function CreatePersonalisation() {
       ...prev, 
       experienceId
     }));
+    setSelectedExperience(experience);
+    setShowObjectsPanel(true);
+    setSelectedObjects([]); // Reset selected objects when experience changes
     setCreatedVariants([]); // Reset created variants when experience changes
   };
 
   const addExperienceVariant = () => {
-    if (objects.length === 0) return;
+    if (objects.length === 0 || selectedObjects.length === 0) return;
     
     const initialFeatureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
-    objects.forEach((object: any) => {
+    // Only include selected objects
+    objects.filter((object: any) => selectedObjects.includes(object.pid)).forEach((object: any) => {
       initialFeatureVariants[object.pid] = {
         name: '',
         config: {}
@@ -213,17 +239,20 @@ export default function CreatePersonalisation() {
   };
 
   const validateStep1 = () => {
-    if (!formData.name.trim()) return false;
-    if (!formData.experienceId) return false;
-    if (objects.length === 0) return false;
+    return formData.experienceId && selectedObjects.length > 0;
+  };
+
+  const validateStep2 = () => {
+    if (selectedObjects.length === 0) return false;
     if (createdVariants.length === 0) return false;
     
     // Check if all created variants have names
     const invalidVariants = createdVariants.filter((variant) => {
       if (!variant.name.trim()) return true;
       
-      // Check if all feature variants have names
+      // Check if all feature variants have names (only for selected objects)
       const missingFeatureVariants = objects.filter((object: any) => {
+        if (!selectedObjects.includes(object.pid)) return false; // Skip non-selected objects
         const featureVariant = variant.feature_variants[object.pid];
         return !featureVariant || !featureVariant.name?.trim();
       });
@@ -234,22 +263,28 @@ export default function CreatePersonalisation() {
     return invalidVariants.length === 0;
   };
 
+  const validateStep3 = () => {
+    if (!formData.name.trim()) return false;
+
+    // Check if total target percentage equals 100%
+    const totalPercentage = createdVariants.reduce((sum, variant) => sum + variant.target_percentage, 0);
+    return totalPercentage === 100;
+  };
+
   const handleNext = () => {
     if (currentStep === 1 && validateStep1()) {
       setCurrentStep(2);
+    } else if (currentStep === 2 && validateStep2()) {
+      setCurrentStep(3);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep === 2) {
       setCurrentStep(1);
+    } else if (currentStep === 3) {
+      setCurrentStep(2);
     }
-  };
-
-  const validateStep2 = () => {
-    // Check if total target percentage equals 100%
-    const totalPercentage = createdVariants.reduce((sum, variant) => sum + variant.target_percentage, 0);
-    return totalPercentage === 100;
   };
 
   const handleSubmit = async () => {
@@ -262,11 +297,13 @@ export default function CreatePersonalisation() {
           name: variant.name,
           description: variant.description,
           is_default: variant.is_default,
-          feature_variants: objects.map((object: any) => ({
-            experience_feature_id: object.pid,
-            name: variant.feature_variants[object.pid]?.name || '',
-            config: variant.feature_variants[object.pid]?.config || {}
-          }))
+          feature_variants: objects
+            .filter((object: any) => selectedObjects.includes(object.pid)) // Only include selected objects
+            .map((object: any) => ({
+              experience_feature_id: object.pid,
+              name: variant.feature_variants[object.pid]?.name || '',
+              config: variant.feature_variants[object.pid]?.config || {}
+            }))
         },
         target_percentage: variant.target_percentage
       }));
@@ -302,7 +339,7 @@ export default function CreatePersonalisation() {
       <div className="flex-1">
         <div className="p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 pr-12">
+          <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-4">
               <Link href="/personalisations">
                 <Button variant="ghost" size="sm" className="hover:bg-white/50 dark:hover:bg-gray-800/50 backdrop-blur-sm">
@@ -335,8 +372,8 @@ export default function CreatePersonalisation() {
                   {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Configuration</p>
-                  <p className="text-xs text-muted-foreground">Setup variants</p>
+                  <p className="text-sm font-medium">Select Experience</p>
+                  <p className="text-xs text-muted-foreground">Choose experience & objects</p>
                 </div>
               </div>
               <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
@@ -348,11 +385,27 @@ export default function CreatePersonalisation() {
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
                 }`}>
-                  2
+                  {currentStep > 2 ? <Check className="w-4 h-4" /> : '2'}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Targeting</p>
-                  <p className="text-xs text-muted-foreground">Define rules</p>
+                  <p className="text-sm font-medium">Configure Variants</p>
+                  <p className="text-xs text-muted-foreground">Set up experience variants</p>
+                </div>
+              </div>
+              <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
+                currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'
+              }`} />
+              <div className="flex items-center space-x-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-md ${
+                  currentStep >= 3 
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
+                    : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
+                }`}>
+                  3
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Finalize Personalisation</p>
+                  <p className="text-xs text-muted-foreground">Name, target & distribute</p>
                 </div>
               </div>
             </div>
@@ -362,51 +415,263 @@ export default function CreatePersonalisation() {
           <div className="px-6 space-y-8">
             {currentStep === 1 && (
               <div className="space-y-8">
-                {/* Experience Selection and Personalisation Name in same row */}
-                <div className="grid grid-cols-2 gap-6 w-2/3">
-                  <div>
-                    <ExperienceSelector
-                      value={formData.experienceId}
-                      onValueChange={handleExperienceChange}
-                      disabled={isSubmitting}
-                      required={true}
-                      label="Select Experience"
-                      placeholder="Search and select an experience..."
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="name" className="text-sm font-medium">
-                      Personalisation Name
-                      <span className="text-red-500 ml-1">*</span>
-                    </Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter personalisation name"
-                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-                
-                {/* Description spanning both columns */}
-                <div className="w-2/3">
-                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Description"
-                    className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
-                    disabled={isSubmitting}
-                  />
+                {/* Step 1: Experience Selection */}
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">
+                    Choose Your Experience
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Select an experience and choose which objects you want to personalize
+                  </p>
                 </div>
 
+                {/* Experience Cards Grid */}
+                <div className="mb-8">
+                  {isLoadingExperiences ? (
+                    <div className="text-center py-12">
+                      <div className="relative">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+                        <div className="absolute inset-0 animate-pulse">
+                          <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-full mx-auto"></div>
+                        </div>
+                      </div>
+                      <p className="text-muted-foreground">Loading experiences...</p>
+                    </div>
+                  ) : experiences.length === 0 ? (
+                    <div className="text-center py-12 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                      <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="w-8 h-8 text-primary/70" />
+                      </div>
+                      <p className="text-muted-foreground text-lg">No experiences found</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {experiences.map((experience: any) => (
+                        <Card 
+                          key={experience.pid}
+                          className={`cursor-pointer transition-all duration-300 ${
+                            formData.experienceId === experience.pid
+                              ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-green-400 shadow-lg'
+                              : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
+                          } backdrop-blur-sm`}
+                          onClick={() => handleExperienceChange(experience.pid, experience)}
+                        >
+                          <CardHeader className="pb-4">
+                            <div className="flex items-start space-x-3">
+                              <div className={`p-2 rounded-lg ${
+                                formData.experienceId === experience.pid
+                                  ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                  : 'bg-green-100 dark:bg-green-900/30'
+                              }`}>
+                                <Package className={`w-5 h-5 ${
+                                  formData.experienceId === experience.pid
+                                    ? 'text-white'
+                                    : 'text-green-600 dark:text-green-400'
+                                }`} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className={`text-base mb-1 line-clamp-1 ${
+                                  formData.experienceId === experience.pid
+                                    ? 'text-green-800 dark:text-green-200'
+                                    : 'text-foreground'
+                                }`}>
+                                  {experience.name}
+                                </CardTitle>
+                                <p className={`text-xs line-clamp-2 ${
+                                  formData.experienceId === experience.pid
+                                    ? 'text-green-600 dark:text-green-300'
+                                    : 'text-muted-foreground'
+                                }`}>
+                                  {experience.description || 'No description'}
+                                </p>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                formData.experienceId === experience.pid
+                                  ? 'bg-green-500 border-green-500 shadow-lg'
+                                  : 'border-gray-300 dark:border-gray-600'
+                              }`}>
+                                {formData.experienceId === experience.pid && (
+                                  <Check className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                
+                {/* Right Side Panel for Object Selection */}
+                {showObjectsPanel && formData.experienceId && (
+                  <Sheet open={!!(showObjectsPanel && formData.experienceId)} onOpenChange={setShowObjectsPanel}>
+                    <SheetContent side="right" className="w-[45vw] min-w-[700px] overflow-y-auto">
+                      {/* Panel Header */}
+                      <SheetHeader className="p-6">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center">
+                            <Target className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Select Objects to Personalize
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Choose which objects within "{selectedExperience?.name}" you want to personalize
+                            </p>
+                          </div>
+                        </div>
+                      </SheetHeader>
+
+                      <div className="flex items-center justify-between mb-4 h-9">
+                        <p className="text-sm text-muted-foreground">
+                          {selectedObjects.length} of {objects.length} objects selected
+                        </p>
+                        {selectedObjects.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedObjects([])}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            Clear All
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Panel Content */}
+                      <div className="pb-6 h-full -mr-2 overflow-y-auto max-h-[calc(90vh-170px)]">
+                        {isLoadingObjects ? (
+                          <div className="text-center py-12">
+                            <div className="relative">
+                              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+                              <div className="absolute inset-0 animate-pulse">
+                                <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-full mx-auto"></div>
+                              </div>
+                            </div>
+                            <p className="text-muted-foreground">Loading objects...</p>
+                          </div>
+                        ) : objects.length === 0 ? (
+                          <div className="text-center py-12 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                            <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Package className="w-8 h-8 text-primary/70" />
+                            </div>
+                            <p className="text-muted-foreground text-lg">No objects found in this experience</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {objects.map(({pid: objectId, feature_flag: object}: {pid: string, feature_flag: any}) => (
+                                <Card 
+                                  key={objectId} 
+                                  className={`p-4 h-fit cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                                    selectedObjects.includes(objectId)
+                                      ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-green-400'
+                                      : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-700/95'
+                                  } backdrop-blur-sm`}
+                                  onClick={() => {
+                                    setSelectedObjects(prev => 
+                                      prev.includes(objectId)
+                                        ? prev.filter(id => id !== objectId)
+                                        : [...prev, objectId]
+                                    );
+                                  }}
+                                >
+                                  <CardHeader className="p-0 mb-4">
+                                    <div className="flex items-start space-x-3">
+                                      <div className={`p-2 rounded-lg ${
+                                        selectedObjects.includes(objectId)
+                                          ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                          : 'bg-green-100 dark:bg-green-900/30'
+                                      }`}>
+                                        <Package className={`w-5 h-5 ${
+                                          selectedObjects.includes(objectId)
+                                            ? 'text-white'
+                                            : 'text-green-600 dark:text-green-400'
+                                        }`} />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <CardTitle className={`text-base mb-1 line-clamp-1 ${
+                                          selectedObjects.includes(objectId)
+                                            ? 'text-green-800 dark:text-green-200'
+                                            : 'text-foreground'
+                                        }`}>
+                                          {object.name}
+                                        </CardTitle>
+                                        <p className={`text-xs line-clamp-2 ${
+                                          selectedObjects.includes(objectId)
+                                            ? 'text-green-600 dark:text-green-300'
+                                            : 'text-muted-foreground'
+                                        }`}>
+                                          {object.description || 'No description'}
+                                        </p>
+                                      </div>
+                                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        selectedObjects.includes(objectId)
+                                          ? 'bg-green-500 border-green-500 shadow-lg'
+                                          : 'border-gray-300 dark:border-gray-600'
+                                      }`}>
+                                        {selectedObjects.includes(objectId) && (
+                                          <Check className="w-3 h-3 text-white" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </CardHeader>
+                                  
+                                  <CardContent className="p-0">
+                                    <div className="bg-gradient-to-br from-primary/5 to-blue-600/5 rounded-lg p-3 border border-primary/10">
+                                      <div className="space-y-2">
+                                        {Object.keys(object.keys_config || {}).length > 0 ? (
+                                          Object.keys(object.keys_config || {}).slice(0, 4).map((key) => (
+                                            <div key={key} className="flex items-center justify-between">
+                                              <span className="text-xs text-muted-foreground truncate">{key}</span>
+                                              <Badge variant="outline" className="text-xs px-2 py-0.5">
+                                                {object.keys_config[key].type}
+                                              </Badge>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <div className="text-xs text-muted-foreground">No configuration keys</div>
+                                        )}
+                                        {Object.keys(object.keys_config || {}).length > 4 && (
+                                          <div className="text-xs text-muted-foreground">
+                                            +{Object.keys(object.keys_config || {}).length - 4} more
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Panel Footer */}
+                      <div className="flex space-x-3 justify-end pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowObjectsPanel(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => setShowObjectsPanel(false)}
+                          disabled={selectedObjects.length === 0}
+                          className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700 text-white"
+                        >
+                          Confirm Selection
+                        </Button>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                )}
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-8">
                 {/* Experience Variants */}
                 <div>
                   <div className="flex items-center justify-between mb-6">
@@ -420,38 +685,20 @@ export default function CreatePersonalisation() {
                       onClick={addExperienceVariant}
                       variant="outline"
                       className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
-                      disabled={!formData.experienceId || objects.length === 0 || isSubmitting}
+                      disabled={selectedObjects.length === 0 || isSubmitting}
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Add Variant
                     </Button>
                   </div>
                   
-                  {!formData.experienceId ? (
+                  {selectedObjects.length === 0 ? (
                     <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
                       <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Package className="w-8 h-8 text-primary/70" />
                       </div>
-                      <p className="text-muted-foreground text-lg">
-                        Please select an experience to configure variants
-                      </p>
-                    </div>
-                  ) : isLoadingObjects ? (
-                    <div className="text-center py-16">
-                      <div className="relative">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
-                        <div className="absolute inset-0 animate-pulse">
-                          <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-full mx-auto"></div>
-                        </div>
-                      </div>
-                      <p className="text-muted-foreground">Loading objects...</p>
-                    </div>
-                  ) : objects.length === 0 ? (
-                    <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
-                      <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Package className="w-8 h-8 text-primary/70" />
-                      </div>
-                      <p className="text-muted-foreground text-lg">No objects found in this experience</p>
+                      <p className="text-muted-foreground text-lg">No objects selected for personalization</p>
+                      <p className="text-sm text-muted-foreground mt-2">Please go back to Step 1 and select objects to personalize</p>
                     </div>
                   ) : createdVariants.length === 0 ? (
                     <div className="text-center py-16 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
@@ -489,7 +736,7 @@ export default function CreatePersonalisation() {
                           : null}
 
                           {/* Variant Details */}
-                          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
+                          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                             <div>
                               <Label className="text-sm font-medium">Variant Name *</Label>
                               <Input
@@ -512,17 +759,19 @@ export default function CreatePersonalisation() {
                             </div>
                           </div>
 
-                          {/* Object Configurations */}
-                            <div>
-                              <div className="flex items-center space-x-2 mb-6">
-                                <div className="h-px bg-gradient-to-r from-primary/20 to-blue-600/20 flex-1"></div>
-                                <Label className="text-sm font-semibold text-foreground px-3 bg-white/50 dark:bg-gray-800/50 rounded-full">Object Configurations</Label>
-                                <div className="h-px bg-gradient-to-r from-blue-600/20 to-primary/20 flex-1"></div>
-                              </div>
-                              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-                              {objects.map(({pid: objectId, feature_flag: object}: {pid: string, feature_flag: any}) => (
+                          {/* Object Configurations - Only for selected objects */}
+                          <div>
+                            <div className="flex items-center space-x-2 mb-6">
+                              <div className="h-px bg-gradient-to-r from-primary/20 to-blue-600/20 flex-1"></div>
+                              <Label className="text-sm font-semibold text-foreground px-3 bg-white/50 dark:bg-gray-800/50 rounded-full">Object Configurations</Label>
+                              <div className="h-px bg-gradient-to-r from-blue-600/20 to-primary/20 flex-1"></div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {objects
+                                .filter(({pid: objectId}: {pid: string}) => selectedObjects.includes(objectId))
+                                .map(({pid: objectId, feature_flag: object}: {pid: string, feature_flag: any}) => (
                                 <Card key={objectId} className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-white/30">
-                                  <CardHeader className="pb-4">
+                                  <CardHeader className="pb-6">
                                     <div className="flex items-start space-x-3">
                                       <div className="p-1.5 bg-primary/10 rounded-lg">
                                         <Package className="w-6 h-6 text-primary" />
@@ -539,7 +788,7 @@ export default function CreatePersonalisation() {
                                   <CardContent className="space-y-4">
                                     {/* Feature Variant Name */}
                                     <div>
-                                      <Label className="text-xs font-medium">Feature Name *</Label>
+                                      <Label className="text-xs font-medium">Feature Variant Name *</Label>
                                       <Input
                                         value={variant.feature_variants[objectId]?.name || ''}
                                         onChange={(e) => handleFeatureVariantNameChange(variantIndex, objectId, e.target.value)}
@@ -548,23 +797,16 @@ export default function CreatePersonalisation() {
                                         disabled={isSubmitting}
                                       />
                                     </div>
-                                    
+
                                     {/* Configuration */}
                                     {Object.keys(object.keys_config || {}).length > 0 && (
-                                      <div className="space-y-3">
-                                        <div className="flex items-center space-x-2">
-                                          <div className="h-px bg-border flex-1"></div>
-                                          <Label className="text-xs font-medium text-foreground px-2">Config</Label>
-                                          <div className="h-px bg-border flex-1"></div>
-                                        </div>
-                                        
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         {Object.entries(object.keys_config || {}).map(([key, config]: [string, any]) => (
                                           <div key={key} className="space-y-1">
                                             <Label className="text-xs font-medium text-foreground">{key}</Label>
                                             {config.description && (
                                               <p className="text-xs text-muted-foreground">{config.description}</p>
                                             )}
-                                            
                                             {config.type === 'boolean' ? (
                                               <Select
                                                 value={variant.feature_variants[objectId]?.config?.[key]?.toString() || ''}
@@ -614,14 +856,44 @@ export default function CreatePersonalisation() {
               </div>
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 3 && (
               <div className="space-y-8">
                 {/* Header Section */}
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">
-                    Configure Targeting & Distribution
+                    Finalize Personalisation
                   </h2>
-                  <p className="text-sm text-muted-foreground">Set up targeting rules, variant distribution, and rollout percentage</p>
+                  <p className="text-sm text-muted-foreground">Set your personalisation details, targeting rules, and rollout configuration</p>
+                </div>
+
+                {/* Personalisation Name and Description */}
+                <div className="grid grid-cols-2 gap-6 w-2/3">
+                  <div>
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Personalisation Name
+                      <span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter personalisation name"
+                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Description"
+                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
 
                 {/* Targeting Rules */}
@@ -910,15 +1182,13 @@ export default function CreatePersonalisation() {
                     </div>
                   </div>
                 </div>
-
-
               </div>
             )}
 
             {/* Action Buttons */}
             <div className="flex items-center justify-between pt-8 border-t border-white/20">
               <div>
-                {currentStep === 2 && (
+                {(currentStep === 2 || currentStep === 3) && (
                   <Button 
                     variant="outline" 
                     onClick={handlePrevious}
@@ -946,12 +1216,21 @@ export default function CreatePersonalisation() {
                     Next Step
                     <ChevronRight className="w-4 h-4 ml-2" />
                   </Button>
-                                  ) : (
-                    <Button 
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || !validateStep2()}
-                      className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
-                    >
+                ) : currentStep === 2 ? (
+                  <Button 
+                    onClick={handleNext}
+                    disabled={!validateStep2()}
+                    className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+                  >
+                    Next Step
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !validateStep3()}
+                    className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
+                  >
                     {isSubmitting ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -972,4 +1251,4 @@ export default function CreatePersonalisation() {
       </div>
     </ConsoleLayout>
   );
-} 
+}
