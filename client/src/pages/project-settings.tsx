@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import ConsoleLayout from "@/components/console-layout";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface KnowledgeBaseFile {
   id: number;
@@ -47,8 +48,9 @@ interface TeamMember {
   invitedBy: string;
 }
 
-export default function ProjectSettings() {
+export default function AppSettings() {
   const { toast } = useToast();
+  const { token, selectedAppId } = useAuth();
 
   // Billing state
   const [billing] = useState({
@@ -92,39 +94,39 @@ export default function ProjectSettings() {
   });
 
   // Team members state
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah@company.com",
-      role: "admin",
-      status: "active",
-      lastActive: "2 hours ago",
-      invitedBy: "You"
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      email: "mike@company.com",
-      role: "collaborator",
-      status: "active",
-      lastActive: "1 day ago",
-      invitedBy: "Sarah Chen"
-    },
-    {
-      id: 3,
-      name: "Alex Rodriguez",
-      email: "alex@company.com",
-      role: "developer",
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    }
-  ]);
-
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer" | "viewer">("collaborator");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  // Load members when app selected
+  useEffect(() => {
+    async function loadMembers() {
+      if (!selectedAppId) return;
+      try {
+        const res = await fetch(`/api/apps/${selectedAppId}/members`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        // Map Nova response to TeamMember shape
+        const raw = await res.json();
+        const mapped = raw.map((m: any) => ({
+          id: m.user_id,
+          name: m.full_name ?? m.name ?? m.email,
+          email: m.email,
+          role: m.role,
+          status: m.status ?? 'active',
+          lastActive: m.last_active ?? 'Never',
+          invitedBy: m.invited_by ?? ''
+        }));
+        setTeamMembers(mapped);
+      } catch (err: any) {
+        console.error('Load members error:', err);
+        toast({ description: err.message || 'Failed to load members', variant: 'destructive' });
+      }
+    }
+    loadMembers();
+  }, [selectedAppId]);
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
@@ -157,39 +159,71 @@ export default function ProjectSettings() {
   };
 
   const handleInviteMember = () => {
-    if (!inviteEmail) {
-      toast({ description: "Please enter an email address", variant: "destructive" });
-      return;
-    }
-
-    const newMember: TeamMember = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: inviteRole,
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    };
-
-    setTeamMembers(prev => [...prev, newMember]);
-    setInviteEmail("");
-    setInviteRole("collaborator");
-    setInviteDialogOpen(false);
-    
-    toast({ description: `Invitation sent to ${inviteEmail}` });
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email: inviteEmail })
+    })
+    .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json(); })
+    .then(() => {
+      toast({ description: `Invitation sent to ${inviteEmail}` });
+      setInviteEmail(""); setInviteRole("collaborator"); setInviteDialogOpen(false);
+      // reload
+      return fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } });
+    })
+    .then(res => res.json())
+    .then((raw: any[]) => {
+      const mapped = raw.map(m => ({
+        id: m.user_id,
+        name: m.full_name ?? m.name ?? m.email,
+        email: m.email,
+        role: m.role,
+        status: m.status ?? 'active',
+        lastActive: m.last_active ?? 'Never',
+        invitedBy: m.invited_by ?? ''
+      }));
+      setTeamMembers(mapped);
+    })
+    .catch(err => {
+      console.error('Invite error:', err);
+      toast({ description: err.message, variant: 'destructive' });
+    });
   };
 
   const handleRemoveMember = (memberId: number) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== memberId));
-    toast({ description: "Team member removed" });
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/members/${memberId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => { if (!res.ok) throw new Error('Remove failed'); })
+    .then(() => {
+      toast({ description: "Team member removed" });
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+    })
+    .catch(err => {
+      console.error('Remove member error:', err);
+      toast({ description: err.message, variant: 'destructive' });
+    });
   };
 
   const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer" | "viewer") => {
-    setTeamMembers(prev => 
-      prev.map(m => m.id === memberId ? { ...m, role: newRole } : m)
-    );
-    toast({ description: "Role updated successfully" });
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/members/${memberId}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role: newRole })
+    })
+    .then(res => { if (!res.ok) throw new Error('Role update failed'); return res.json(); })
+    .then(() => {
+      setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      toast({ description: "Role updated successfully" });
+    })
+    .catch(err => {
+      console.error('Role change error:', err);
+      toast({ description: err.message, variant: 'destructive' });
+    });
   };
 
   const getRoleIcon = (role: string) => {
@@ -241,14 +275,14 @@ export default function ProjectSettings() {
       <div className="p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center text-sm text-muted-foreground mb-2">
+        <div className="flex items-center text-sm text-muted-foreground mb-2">
             <span>Settings</span>
             <span className="mx-2">/</span>
-            <span className="text-foreground">Project Settings</span>
+            <span className="text-foreground">App Settings</span>
           </div>
-          <h1 className="text-2xl font-semibold">Project Settings</h1>
+          <h1 className="text-2xl font-semibold">App Settings</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage project-specific settings and integrations.
+            Manage app-specific settings and integrations.
           </p>
         </div>
 

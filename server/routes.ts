@@ -8,6 +8,7 @@ import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
 import { AsyncLocalStorage } from 'async_hooks';
 import { registerNovaRoutes } from './routes/novaRoutes';
+import { registerMembershipRoutes } from './routes/membershipRoutes';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
 const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://127.0.0.1:8000";
@@ -127,6 +128,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Nova proxy routes (orgs & apps)
   registerNovaRoutes(app);
+  // Nova membership and invitation routes
+  registerMembershipRoutes(app);
 
   // Legacy Project routes
   app.get("/api/projects", authenticateToken, async (req, res) => {

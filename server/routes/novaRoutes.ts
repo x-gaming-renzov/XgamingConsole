@@ -46,4 +46,30 @@ export function registerNovaRoutes(app: Express) {
       res.status(502).json({ message: error.message || 'Failed to switch app' });
     }
   });
+  
+  // Get app members
+  app.get('/api/apps/:appPid/members', async (req: any, res: Response) => {
+    try {
+      const members = await callNovaBackend<any[]>(`/api/v1/apps/${req.params.appPid}/members`, {
+        headers: { Authorization: req.headers['authorization'] }
+      });
+      res.json(members);
+    } catch (error: any) {
+      console.error('Failed to fetch app members:', error);
+      res.status(502).json({ message: error.message || 'Failed to fetch app members' });
+    }
+  });
+  
+  // Get organization members
+  app.get('/api/orgs/:orgPid/members', async (req: any, res: Response) => {
+    try {
+      const members = await callNovaBackend<any[]>(`/api/v1/orgs/${req.params.orgPid}/members`, {
+        headers: { Authorization: req.headers['authorization'] }
+      });
+      res.json(members);
+    } catch (error: any) {
+      console.error('Failed to fetch org members:', error);
+      res.status(502).json({ message: error.message || 'Failed to fetch org members' });
+    }
+  });
 }

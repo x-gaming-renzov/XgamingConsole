@@ -21,7 +21,7 @@ import Metrics from "@/pages/metrics";
 import MetricDetails from "@/pages/metric-details";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
-import AppSettings from "@/pages/app-settings";
+import AppSettings from "@/pages/project-settings";
 import OrganizationSettings from "@/pages/organization-settings";
 import CreatePersonalisation from "@/pages/create-personalisation";
 
