@@ -43,7 +43,7 @@ interface TeamMember {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "developer" | "analyst" | "viewer";
+  role: "admin" | "developer" | "analyst" | "viewer" | "owner";
   status: "active" | "pending" | "inactive";
   lastActive: string;
   invitedBy: string;
@@ -97,7 +97,7 @@ export default function AppSettings() {
   // Team members state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "developer" | "analyst" | "viewer">("viewer");
+  const [inviteRole, setInviteRole] = useState<"admin" | "developer" | "analyst" | "viewer" | "owner">("viewer");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Load members when app selected
@@ -164,7 +164,7 @@ export default function AppSettings() {
     fetch(`/api/apps/${selectedAppId}/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email: inviteEmail })
+      body: JSON.stringify({ email: inviteEmail, role: inviteRole })
     })
     .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json(); })
     .then(() => {
@@ -209,7 +209,7 @@ export default function AppSettings() {
     });
   };
 
-  const handleRoleChange = (memberId: number, newRole: "admin" | "developer" | "analyst" | "viewer") => {
+  const handleRoleChange = (memberId: number, newRole: "admin" | "developer" | "analyst" | "viewer" | "owner") => {
     if (!selectedAppId) return;
     fetch(`/api/apps/${selectedAppId}/members/${memberId}/role`, {
       method: 'PATCH',
@@ -336,6 +336,7 @@ export default function AppSettings() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="owner">Owner - Full access</SelectItem>
                               <SelectItem value="admin">Admin - Full access</SelectItem>
                               <SelectItem value="developer">Developer - Manage integrations</SelectItem>
                               <SelectItem value="analyst">Analyst - Create and edit experiments and campaigns</SelectItem>
@@ -394,10 +395,11 @@ export default function AppSettings() {
                               </div>
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="owner">Owner</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="developer">Product</SelectItem>
-                              <SelectItem value="analyst">Developer</SelectItem>
-                              <SelectItem value="viewer">Analyst</SelectItem>
+                              <SelectItem value="developer">Developer</SelectItem>
+                              <SelectItem value="analyst">Analyst</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
