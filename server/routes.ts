@@ -1532,31 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const organisationId = "org123";
       const appId = "app123";
 
-      const { type, config, timeRange = "7d", granularity = "daily" } = req.body;
-
-      // Calculate date range based on timeRange parameter
-      const endDate = new Date();
-      const startDate = new Date();
-      
-      switch (timeRange) {
-        case "24h":
-          startDate.setDate(endDate.getDate() - 1);
-          break;
-        case "7d":
-          startDate.setDate(endDate.getDate() - 7);
-          break;
-        case "30d":
-          startDate.setDate(endDate.getDate() - 30);
-          break;
-        case "90d":
-          startDate.setDate(endDate.getDate() - 90);
-          break;
-        default:
-          startDate.setDate(endDate.getDate() - 7);
-      }
-
-      const start = startDate.toISOString();
-      const end = endDate.toISOString();
+      const { type, config } = req.body;
 
       // Call Nova Manager to run the metric query
       const queryData = await callNovaBackend<any>(
@@ -1568,8 +1544,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             app_id: appId,
             type,
             config,
-            time_range: { start, end },
-            granularity
           })
         }
       );
