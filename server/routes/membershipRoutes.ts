@@ -1,14 +1,13 @@
 import type { Express, Request, Response } from 'express';
-import { callNovaBackend, authenticateToken } from '../routes';
+import { callNovaBackend } from '../routes';
 
 // Register membership and invitation endpoints proxying to Nova
 export function registerMembershipRoutes(app: Express) {
   // Invite user to organization
-  app.post('/api/orgs/:orgPid/invite', authenticateToken, async (req: any, res: Response) => {
+  app.post('/api/orgs/:orgPid/invite', async (req: any, res: Response) => {
     try {
       const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/invite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
         body: JSON.stringify(req.body),
       });
       res.status(201).json(result);
@@ -19,11 +18,10 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Invite user to application
-  app.post('/api/apps/:appPid/invite', authenticateToken, async (req: any, res: Response) => {
+  app.post('/api/apps/:appPid/invite', async (req: any, res: Response) => {
     try {
       const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/invite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
         body: JSON.stringify(req.body),
       });
       res.status(201).json(result);
@@ -34,11 +32,10 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Respond to invitation
-  app.post('/api/invitations/:invitationPid/respond', authenticateToken, async (req: any, res: Response) => {
+  app.post('/api/invitations/:invitationPid/respond', async (req: any, res: Response) => {
     try {
       const result = await callNovaBackend<any>(`/api/v1/invitations/${req.params.invitationPid}/respond`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
         body: JSON.stringify(req.body),
       });
       res.json(result);
@@ -49,11 +46,10 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Change organization member role
-  app.patch('/api/orgs/:orgPid/members/:userId/role', authenticateToken, async (req: any, res: Response) => {
+  app.patch('/api/orgs/:orgPid/members/:userId/role', async (req: any, res: Response) => {
     try {
       const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/members/${req.params.userId}/role`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
         body: JSON.stringify(req.body),
       });
       res.json(result);
@@ -64,11 +60,10 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Change application member role
-  app.patch('/api/apps/:appPid/members/:userId/role', authenticateToken, async (req: any, res: Response) => {
+  app.patch('/api/apps/:appPid/members/:userId/role', async (req: any, res: Response) => {
     try {
       const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/members/${req.params.userId}/role`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
         body: JSON.stringify(req.body),
       });
       res.json(result);
@@ -79,12 +74,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Remove organization member
-  app.delete('/api/orgs/:orgPid/members/:userId', authenticateToken, async (req: any, res: Response) => {
+  app.delete('/api/orgs/:orgPid/members/:userId', async (req: any, res: Response) => {
     try {
-      await callNovaBackend<void>(`/api/v1/orgs/${req.params.orgPid}/members/${req.params.userId}`, {
-        method: 'DELETE',
-        headers: { Authorization: req.headers['authorization'] },
-      });
+      await callNovaBackend<void>(`/api/v1/orgs/${req.params.orgPid}/members/${req.params.userId}`, { method: 'DELETE' });
       res.sendStatus(204);
     } catch (err: any) {
       console.error('Failed to remove org member:', err);
@@ -93,12 +85,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Remove application member
-  app.delete('/api/apps/:appPid/members/:userId', authenticateToken, async (req: any, res: Response) => {
+  app.delete('/api/apps/:appPid/members/:userId', async (req: any, res: Response) => {
     try {
-      await callNovaBackend<void>(`/api/v1/apps/${req.params.appPid}/members/${req.params.userId}`, {
-        method: 'DELETE',
-        headers: { Authorization: req.headers['authorization'] },
-      });
+      await callNovaBackend<void>(`/api/v1/apps/${req.params.appPid}/members/${req.params.userId}`, { method: 'DELETE' });
       res.sendStatus(204);
     } catch (err: any) {
       console.error('Failed to remove app member:', err);
@@ -107,12 +96,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Self-service leave organization
-  app.delete('/api/orgs/:orgPid/members/me', authenticateToken, async (req: any, res: Response) => {
+  app.delete('/api/orgs/:orgPid/members/me', async (req: any, res: Response) => {
     try {
-      await callNovaBackend<void>(`/api/v1/orgs/${req.params.orgPid}/members/me`, {
-        method: 'DELETE',
-        headers: { Authorization: req.headers['authorization'] },
-      });
+      await callNovaBackend<void>(`/api/v1/orgs/${req.params.orgPid}/members/me`, { method: 'DELETE' });
       res.sendStatus(204);
     } catch (err: any) {
       console.error('Failed to leave org:', err);
@@ -121,12 +107,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Self-service leave application
-  app.delete('/api/apps/:appPid/members/me', authenticateToken, async (req: any, res: Response) => {
+  app.delete('/api/apps/:appPid/members/me', async (req: any, res: Response) => {
     try {
-      await callNovaBackend<void>(`/api/v1/apps/${req.params.appPid}/members/me`, {
-        method: 'DELETE',
-        headers: { Authorization: req.headers['authorization'] },
-      });
+      await callNovaBackend<void>(`/api/v1/apps/${req.params.appPid}/members/me`, { method: 'DELETE' });
       res.sendStatus(204);
     } catch (err: any) {
       console.error('Failed to leave app:', err);
@@ -135,13 +118,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Transfer organization ownership
-  app.post('/api/orgs/:orgPid/transfer-ownership', authenticateToken, async (req: any, res: Response) => {
+  app.post('/api/orgs/:orgPid/transfer-ownership', async (req: any, res: Response) => {
     try {
-      const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/transfer-ownership`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
-        body: JSON.stringify(req.body),
-      });
+      const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/transfer-ownership`, { method: 'POST', body: JSON.stringify(req.body) });
       res.json(result);
     } catch (err: any) {
       console.error('Failed to transfer org ownership:', err);
@@ -150,13 +129,9 @@ export function registerMembershipRoutes(app: Express) {
   });
 
   // Transfer application ownership
-  app.post('/api/apps/:appPid/transfer-ownership', authenticateToken, async (req: any, res: Response) => {
+  app.post('/api/apps/:appPid/transfer-ownership', async (req: any, res: Response) => {
     try {
-      const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/transfer-ownership`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: req.headers['authorization'] },
-        body: JSON.stringify(req.body),
-      });
+      const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/transfer-ownership`, { method: 'POST', body: JSON.stringify(req.body) });
       res.json(result);
     } catch (err: any) {
       console.error('Failed to transfer app ownership:', err);
