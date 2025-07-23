@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -66,7 +65,7 @@ export default function OrganizationSettings() {
       const res = await fetch(`/api/orgs/${selectedOrg}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: inviteEmail })
+        body: JSON.stringify({ email: inviteEmail, role: 'member' })
       });
       if (!res.ok) throw new Error(await res.text());
       toast({ description: `Invited ${inviteEmail}` }); setInviteOpen(false); setInviteEmail('');
@@ -155,9 +154,6 @@ export default function OrganizationSettings() {
                 <TableRow>
                   <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Invited By</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -187,9 +183,6 @@ export default function OrganizationSettings() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell><Badge>{m.status}</Badge></TableCell>
-                    <TableCell>{m.lastActive}</TableCell>
-                    <TableCell>{m.invitedBy}</TableCell>
                     <TableCell><Button variant="ghost" onClick={()=>handleRemove(m.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></TableCell>
                   </TableRow>
                 ))}
