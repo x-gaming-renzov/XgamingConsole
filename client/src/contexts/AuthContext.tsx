@@ -11,7 +11,7 @@ interface JWTPayload {
 interface AuthContextType {
   token: string | null;
   selectedAppId: string | null;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, full_name: string, company_name: string) => Promise<void>;
   login: (username: string, password: string) => Promise<any>;
   fetchMe: () => Promise<{ user: any; projects: any[] }>;
   fetchOrgs: () => Promise<any[]>;
@@ -50,11 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('auth_token', newToken);
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, full_name: string, company_name: string) => {
     const res = await fetch(`/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, full_name, company_name }),
     });
     if (!res.ok) {
       const msg = await res.text();

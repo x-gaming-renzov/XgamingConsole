@@ -79,7 +79,8 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
 
   const handleSignup = async (data: z.infer<typeof signupSchema>) => {
     try {
-      await register(data.email, data.password);
+      // Include full name and company/game name
+      await register(data.email, data.password, data.name, data.company);
       // automatically log in after signup
       await login(data.email, data.password);
       toast({
