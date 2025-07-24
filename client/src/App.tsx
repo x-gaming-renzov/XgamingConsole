@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "@/pages/landing";
 import Console from "@/pages/console";
+import ResetPassword from "@/pages/reset-password";
 import AppSelector from "@/components/AppSelector";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
@@ -33,6 +34,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/console" component={Console} />
       <Route path="/selector" component={AppSelector} />
       <Route path="/dashboard" component={Dashboard} />

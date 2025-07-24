@@ -13,6 +13,7 @@ import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient"; // keep for potential raw calls
 import { useAuth } from "@/contexts/AuthContext";
+import ForgotPasswordModal from "./forgot-password-modal";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,6 +37,7 @@ interface AuthModalProps {
 export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthModalProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   // useAuth provides login and register
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
@@ -99,7 +101,8 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -150,6 +153,15 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
                   </FormItem>
                 )}
               />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <Button 
                 type="submit" 
                 className="w-full"
@@ -251,6 +263,16 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
           </p>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ForgotPasswordModal
+        open={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onBackToLogin={() => {
+          setShowForgotPassword(false);
+          onSwitchMode('login');
+        }}
+      />
+    </>
   );
 }

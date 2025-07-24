@@ -260,4 +260,74 @@ export function registerMembershipRoutes(app: Express) {
       res.status(502).json({ message: err.message || 'Failed to revoke app invite' });
     }
   });
+
+  // Forgot password - request password reset
+  app.post('/api/auth/forgot-password', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      });
+      res.status(202).json(result);
+    } catch (err: any) {
+      console.error('Failed to process forgot password request:', err);
+      
+      // Extract original status code and error details from Nova backend error
+      const statusMatch = err.message?.match(/Nova backend error: (\d{3})/);
+      const originalStatus = statusMatch ? parseInt(statusMatch[1]) : 502;
+      
+      // Try to extract the JSON error details
+      let errorDetails = null;
+      try {
+        const jsonMatch = err.message?.match(/- (\{.*\})$/);
+        if (jsonMatch) {
+          errorDetails = JSON.parse(jsonMatch[1]);
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse Nova error details:', parseError);
+      }
+      
+      // Forward the original error structure
+      if (errorDetails) {
+        res.status(originalStatus).json(errorDetails);
+      } else {
+        res.status(originalStatus).json({ message: err.message || 'Failed to process forgot password request' });
+      }
+    }
+  });
+
+  // Reset password with token
+  app.post('/api/auth/reset-password', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>('/api/v1/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to reset password:', err);
+      
+      // Extract original status code and error details from Nova backend error
+      const statusMatch = err.message?.match(/Nova backend error: (\d{3})/);
+      const originalStatus = statusMatch ? parseInt(statusMatch[1]) : 502;
+      
+      // Try to extract the JSON error details
+      let errorDetails = null;
+      try {
+        const jsonMatch = err.message?.match(/- (\{.*\})$/);
+        if (jsonMatch) {
+          errorDetails = JSON.parse(jsonMatch[1]);
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse Nova error details:', parseError);
+      }
+      
+      // Forward the original error structure
+      if (errorDetails) {
+        res.status(originalStatus).json(errorDetails);
+      } else {
+        res.status(originalStatus).json({ message: err.message || 'Failed to reset password' });
+      }
+    }
+  });
 }
