@@ -5,7 +5,7 @@ import { handleError, showSuccess } from "@/lib/errorHandler";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Clock, X } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -22,11 +22,24 @@ interface TeamMember {
   invitedBy: string;
 }
 
+interface PendingInvite {
+  pid: string;
+  target_type: string;
+  target_id: string;
+  email: string;
+  role: string;
+  token: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export default function OrganizationSettings() {
   const { token, fetchOrgs } = useAuth();
   const [orgs, setOrgs] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -57,7 +70,43 @@ export default function OrganizationSettings() {
         handleError(e, "load organization members");
       }
     }
+
+    async function loadPendingInvites() {
+      if (!selectedOrg) return;
+      try {
+        const res = await fetch(`/api/orgs/${selectedOrg}/pending-invites`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) {
+          // If it's a 404 or other error that might indicate no pending invites endpoint, just set empty array
+          if (res.status === 404) {
+            setPendingInvites([]);
+            return;
+          }
+          throw new Error(await res.text());
+        }
+        
+        const text = await res.text();
+        if (!text.trim()) {
+          // Handle empty response
+          setPendingInvites([]);
+          return;
+        }
+        
+        try {
+          const invites = JSON.parse(text);
+          setPendingInvites(Array.isArray(invites) ? invites : []);
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites JSON:', text);
+          setPendingInvites([]);
+        }
+      } catch (e: any) {
+        console.error('Load pending invites error:', e);
+        // Don't show error for pending invites - just set empty array and continue
+        setPendingInvites([]);
+      }
+    }
+
     loadMembers();
+    loadPendingInvites();
   }, [selectedOrg]);
 
   const handleInvite = async () => {
@@ -73,11 +122,49 @@ export default function OrganizationSettings() {
       setInviteOpen(false); 
       setInviteEmail('');
       setInviteRole('member');
-      // reload
-      const memb = await (await fetch(`/api/orgs/${selectedOrg}/members`, { headers: { Authorization: `Bearer ${token}` } })).json();
-      setMembers(memb.map((m: any) => ({ id: m.user_id, name: m.full_name ?? m.email, email: m.email, role: m.role })));
+      
+      // Reload both members and pending invites
+      const [membersRes, invitesRes] = await Promise.all([
+        fetch(`/api/orgs/${selectedOrg}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/orgs/${selectedOrg}/pending-invites`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      if (membersRes.ok) {
+        const memberData = await membersRes.json();
+        setMembers(memberData.map((m: any) => ({ id: m.user_id, name: m.full_name ?? m.email, email: m.email, role: m.role })));
+      }
+      
+      if (invitesRes.ok) {
+        try {
+          const text = await invitesRes.text();
+          if (text.trim()) {
+            const inviteData = JSON.parse(text);
+            setPendingInvites(Array.isArray(inviteData) ? inviteData : []);
+          } else {
+            setPendingInvites([]);
+          }
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites after invite:', jsonError);
+          setPendingInvites([]);
+        }
+      }
     } catch (e: any) {
       handleError(e, "send invitation");
+    }
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    if (!selectedOrg) return;
+    try {
+      const res = await fetch(`/api/orgs/${selectedOrg}/pending-invites/${inviteId}`, { 
+        method: 'DELETE', 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (!res.ok) throw new Error('Cancel invite failed');
+      setPendingInvites(prevInvites => prevInvites.filter(invite => invite.pid !== inviteId));
+      showSuccess("Invitation Cancelled", "Pending invitation has been cancelled");
+    } catch (e: any) {
+      handleError(e, "cancel invitation");
     }
   };
 
@@ -208,6 +295,77 @@ export default function OrganizationSettings() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Pending Invites Section - Only show if there are pending invites */}
+        {pendingInvites.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Pending Invitations ({pendingInvites.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Invited</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingInvites.map(invite => {
+                    const createdDate = new Date(invite.created_at).toLocaleDateString();
+                    const expiresDate = new Date(invite.expires_at).toLocaleDateString();
+                    const isExpiringSoon = new Date(invite.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000; // Less than 24 hours
+                    
+                    return (
+                      <TableRow key={invite.pid}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback>{invite.email.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{invite.email}</span>
+                              <span className="text-sm text-muted-foreground">Status: {invite.status}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="capitalize">{invite.role}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">{createdDate}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-sm ${isExpiringSoon ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                            {expiresDate}
+                            {isExpiringSoon && ' (Soon)'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleCancelInvite(invite.pid)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </ConsoleLayout>
   );

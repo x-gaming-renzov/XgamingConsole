@@ -138,4 +138,56 @@ export function registerMembershipRoutes(app: Express) {
       res.status(502).json({ message: err.message || 'Failed to transfer app ownership' });
     }
   });
+
+  // Get pending invites for organization
+  app.get('/api/orgs/:orgPid/pending-invites', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/pending-invites`, {
+        method: 'GET',
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to get org pending invites:', err);
+      res.status(502).json({ message: err.message || 'Failed to get org pending invites' });
+    }
+  });
+
+  // Get pending invites for application
+  app.get('/api/apps/:appPid/pending-invites', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/pending-invites`, {
+        method: 'GET',
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to get app pending invites:', err);
+      res.status(502).json({ message: err.message || 'Failed to get app pending invites' });
+    }
+  });
+
+  // Cancel/delete pending invite for organization
+  app.delete('/api/orgs/:orgPid/pending-invites/:inviteId', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/pending-invites/${req.params.inviteId}`, {
+        method: 'DELETE',
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to cancel org pending invite:', err);
+      res.status(502).json({ message: err.message || 'Failed to cancel org pending invite' });
+    }
+  });
+
+  // Cancel/delete pending invite for application
+  app.delete('/api/apps/:appPid/pending-invites/:inviteId', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/pending-invites/${req.params.inviteId}`, {
+        method: 'DELETE',
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to cancel app pending invite:', err);
+      res.status(502).json({ message: err.message || 'Failed to cancel app pending invite' });
+    }
+  });
 }

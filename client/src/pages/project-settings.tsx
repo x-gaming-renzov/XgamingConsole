@@ -15,7 +15,7 @@ import {
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
   TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail,
-  Eye
+  Eye, Clock, X
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { handleError, showSuccess } from "@/lib/errorHandler";
@@ -47,6 +47,18 @@ interface TeamMember {
   status: "active" | "pending" | "inactive";
   lastActive: string;
   invitedBy: string;
+}
+
+interface PendingInvite {
+  pid: string;
+  target_type: string;
+  target_id: string;
+  email: string;
+  role: string;
+  token: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
 }
 
 export default function AppSettings() {
@@ -95,6 +107,7 @@ export default function AppSettings() {
 
   // Team members state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "developer" | "analyst" | "viewer" | "owner">("viewer");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
@@ -125,7 +138,45 @@ export default function AppSettings() {
         handleError(err, 'load team members');
       }
     }
+
+    async function loadPendingInvites() {
+      if (!selectedAppId) return;
+      try {
+        const res = await fetch(`/api/apps/${selectedAppId}/pending-invites`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (!res.ok) {
+          // If it's a 404 or other error that might indicate no pending invites endpoint, just set empty array
+          if (res.status === 404) {
+            setPendingInvites([]);
+            return;
+          }
+          throw new Error(await res.text());
+        }
+        
+        const text = await res.text();
+        if (!text.trim()) {
+          // Handle empty response
+          setPendingInvites([]);
+          return;
+        }
+        
+        try {
+          const invites = JSON.parse(text);
+          setPendingInvites(Array.isArray(invites) ? invites : []);
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites JSON:', text);
+          setPendingInvites([]);
+        }
+      } catch (err: any) {
+        console.error('Load pending invites error:', err);
+        // Don't show error for pending invites - just set empty array and continue
+        setPendingInvites([]);
+      }
+    }
+
     loadMembers();
+    loadPendingInvites();
   }, [selectedAppId]);
 
   const handleFileUpload = (files: FileList | null) => {
@@ -169,12 +220,19 @@ export default function AppSettings() {
     .then(() => {
       showSuccess("Invitation Sent", `Invitation sent to ${inviteEmail}`);
       setInviteEmail(""); setInviteRole("viewer"); setInviteDialogOpen(false);
-      // reload
-      return fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } });
+      
+      // Reload both members and pending invites
+      return Promise.all([
+        fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/apps/${selectedAppId}/pending-invites`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
     })
-    .then(res => res.json())
-    .then((raw: any[]) => {
-      const mapped = raw.map(m => ({
+    .then(([membersRes, invitesRes]) => Promise.all([
+      membersRes.json(), 
+      invitesRes.ok ? invitesRes.text() : Promise.resolve('')
+    ]))
+    .then(([membersData, invitesText]) => {
+      const mapped = membersData.map((m: any) => ({
         id: m.user_id,
         name: m.full_name ?? m.name ?? m.email,
         email: m.email,
@@ -184,11 +242,39 @@ export default function AppSettings() {
         invitedBy: m.invited_by ?? ''
       }));
       setTeamMembers(mapped);
+      
+      // Handle pending invites response safely
+      if (invitesText.trim()) {
+        try {
+          const invitesData = JSON.parse(invitesText);
+          setPendingInvites(Array.isArray(invitesData) ? invitesData : []);
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites after invite:', jsonError);
+          setPendingInvites([]);
+        }
+      } else {
+        setPendingInvites([]);
+      }
     })
     .catch(err => {
       console.error('Invite error:', err);
       handleError(err, 'send invitation');
     });
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    if (!selectedAppId) return;
+    try {
+      const res = await fetch(`/api/apps/${selectedAppId}/pending-invites/${inviteId}`, { 
+        method: 'DELETE', 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      if (!res.ok) throw new Error('Cancel invite failed');
+      setPendingInvites(prevInvites => prevInvites.filter(invite => invite.pid !== inviteId));
+      showSuccess("Invitation Cancelled", "Pending invitation has been cancelled");
+    } catch (err: any) {
+      handleError(err, "cancel invitation");
+    }
   };
 
   const handleRemoveMember = (memberId: number) => {
@@ -418,6 +504,77 @@ export default function AppSettings() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Pending Invites Section - Only show if there are pending invites */}
+            {pendingInvites.length > 0 && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Pending Invitations ({pendingInvites.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Invited</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingInvites.map(invite => {
+                        const createdDate = new Date(invite.created_at).toLocaleDateString();
+                        const expiresDate = new Date(invite.expires_at).toLocaleDateString();
+                        const isExpiringSoon = new Date(invite.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000; // Less than 24 hours
+                        
+                        return (
+                          <TableRow key={invite.pid}>
+                            <TableCell>
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback>{invite.email.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{invite.email}</span>
+                                  <span className="text-sm text-muted-foreground">Status: {invite.status}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="capitalize">{invite.role}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">{createdDate}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-sm ${isExpiringSoon ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                                {expiresDate}
+                                {isExpiringSoon && ' (Soon)'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleCancelInvite(invite.pid)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="billing" className="space-y-6">
