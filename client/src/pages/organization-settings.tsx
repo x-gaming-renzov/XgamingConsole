@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface TeamMember {
   id: string | number;
@@ -28,6 +29,7 @@ export default function OrganizationSettings() {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
   const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
@@ -65,10 +67,11 @@ export default function OrganizationSettings() {
       const res = await fetch(`/api/orgs/${selectedOrg}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: inviteEmail, role: 'member' })
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole })
       });
       if (!res.ok) throw new Error(await res.text());
       toast({ description: `Invited ${inviteEmail}` }); setInviteOpen(false); setInviteEmail('');
+      setInviteRole('member');
       // reload
       const memb = await (await fetch(`/api/orgs/${selectedOrg}/members`, { headers: { Authorization: `Bearer ${token}` } })).json();
       setMembers(memb.map((m: any) => ({ id: m.user_id, name: m.full_name ?? m.email, email: m.email, role: m.role })));
@@ -139,8 +142,22 @@ export default function OrganizationSettings() {
                   <DialogHeader>
                     <DialogTitle>Invite to Organization</DialogTitle>
                   </DialogHeader>
-                  <DialogDescription>Enter email to invite</DialogDescription>
-                  <Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" />
+                  <DialogDescription>Enter email and select role to invite</DialogDescription>
+                  <div className="space-y-4">
+                    <Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" />
+                    <div className="space-y-2">
+                      <Label>Role</Label>
+                      <Select value={inviteRole} onValueChange={(val: 'admin' | 'member') => setInviteRole(val)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="member">Member</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <DialogFooter>
                     <Button onClick={handleInvite}>Send Invite</Button>
                   </DialogFooter>
