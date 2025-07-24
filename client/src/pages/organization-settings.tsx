@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import ConsoleLayout from "@/components/console-layout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { handleError, showSuccess } from "@/lib/errorHandler";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,7 +24,6 @@ interface TeamMember {
 
 export default function OrganizationSettings() {
   const { token, fetchOrgs } = useAuth();
-  const { toast } = useToast();
   const [orgs, setOrgs] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -39,7 +38,7 @@ export default function OrganizationSettings() {
         setOrgs(data);
         if (data.length) setSelectedOrg(data[0].pid);
       } catch (e: any) {
-        toast({ description: e.message, variant: 'destructive' });
+        handleError(e, "load organizations");
       }
     }
     loadOrgs();
@@ -55,7 +54,7 @@ export default function OrganizationSettings() {
         const mapped = raw.map((m: any) => ({ id: m.user_id, name: m.full_name ?? m.email, email: m.email, role: m.role, status: m.status ?? 'active', lastActive: m.last_active ?? 'Never', invitedBy: m.invited_by ?? '' }));
         setMembers(mapped);
       } catch (e: any) {
-        toast({ description: e.message, variant: 'destructive' });
+        handleError(e, "load organization members");
       }
     }
     loadMembers();
@@ -70,13 +69,15 @@ export default function OrganizationSettings() {
         body: JSON.stringify({ email: inviteEmail, role: inviteRole })
       });
       if (!res.ok) throw new Error(await res.text());
-      toast({ description: `Invited ${inviteEmail}` }); setInviteOpen(false); setInviteEmail('');
+      showSuccess("Invitation Sent", `Successfully invited ${inviteEmail} to the organization`);
+      setInviteOpen(false); 
+      setInviteEmail('');
       setInviteRole('member');
       // reload
       const memb = await (await fetch(`/api/orgs/${selectedOrg}/members`, { headers: { Authorization: `Bearer ${token}` } })).json();
       setMembers(memb.map((m: any) => ({ id: m.user_id, name: m.full_name ?? m.email, email: m.email, role: m.role })));
     } catch (e: any) {
-      toast({ description: e.message, variant: 'destructive' });
+      handleError(e, "send invitation");
     }
   };
 
@@ -86,9 +87,9 @@ export default function OrganizationSettings() {
       const res = await fetch(`/api/orgs/${selectedOrg}/members/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('Remove failed');
       setMembers(members.filter(m => m.id !== id));
-      toast({ description: 'Member removed' });
+      showSuccess("Member Removed", "Member successfully removed from organization");
     } catch (e: any) {
-      toast({ description: e.message, variant: 'destructive' });
+      handleError(e, "remove member");
     }
   };
   // Change member role
@@ -102,9 +103,9 @@ export default function OrganizationSettings() {
       });
       if (!res.ok) throw new Error(await res.text());
       setMembers(members.map(m => m.id === id ? { ...m, role } : m));
-      toast({ description: 'Role updated', });
+      showSuccess("Role Updated", "Member role successfully updated");
     } catch (e: any) {
-      toast({ description: e.message, variant: 'destructive' });
+      handleError(e, "update member role");
     }
   };
 

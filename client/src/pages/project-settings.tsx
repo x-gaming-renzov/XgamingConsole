@@ -18,7 +18,7 @@ import {
   Eye
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
+import { handleError, showSuccess } from "@/lib/errorHandler";
 import ConsoleLayout from "@/components/console-layout";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -50,7 +50,6 @@ interface TeamMember {
 }
 
 export default function AppSettings() {
-  const { toast } = useToast();
   const { token, selectedAppId } = useAuth();
 
   // Billing state
@@ -123,7 +122,7 @@ export default function AppSettings() {
         setTeamMembers(mapped);
       } catch (err: any) {
         console.error('Load members error:', err);
-        toast({ description: err.message || 'Failed to load members', variant: 'destructive' });
+        handleError(err, 'load team members');
       }
     }
     loadMembers();
@@ -141,7 +140,7 @@ export default function AppSettings() {
         if (prev >= 100) {
           clearInterval(interval);
           setUploading(false);
-          toast({ description: "File uploaded successfully" });
+          showSuccess("File Uploaded", "File uploaded successfully");
           return 100;
         }
         return prev + 10;
@@ -151,12 +150,12 @@ export default function AppSettings() {
 
   const handleFileDelete = (fileId: number) => {
     setKbFiles(prev => prev.filter(f => f.id !== fileId));
-    toast({ description: "File deleted successfully" });
+    showSuccess("File Deleted", "File deleted successfully");
   };
 
   const handleSlackConnect = () => {
     setSlackConnected(true);
-    toast({ description: "Slack integration connected successfully" });
+    showSuccess("Slack Connected", "Slack integration connected successfully");
   };
 
   const handleInviteMember = () => {
@@ -168,7 +167,7 @@ export default function AppSettings() {
     })
     .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json(); })
     .then(() => {
-      toast({ description: `Invitation sent to ${inviteEmail}` });
+      showSuccess("Invitation Sent", `Invitation sent to ${inviteEmail}`);
       setInviteEmail(""); setInviteRole("viewer"); setInviteDialogOpen(false);
       // reload
       return fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } });
@@ -188,7 +187,7 @@ export default function AppSettings() {
     })
     .catch(err => {
       console.error('Invite error:', err);
-      toast({ description: err.message, variant: 'destructive' });
+      handleError(err, 'send invitation');
     });
   };
 
@@ -200,12 +199,12 @@ export default function AppSettings() {
     })
     .then(res => { if (!res.ok) throw new Error('Remove failed'); })
     .then(() => {
-      toast({ description: "Team member removed" });
+      showSuccess("Member Removed", "Team member removed successfully");
       setTeamMembers(prev => prev.filter(m => m.id !== memberId));
     })
     .catch(err => {
       console.error('Remove member error:', err);
-      toast({ description: err.message, variant: 'destructive' });
+      handleError(err, 'remove team member');
     });
   };
 
@@ -219,11 +218,11 @@ export default function AppSettings() {
     .then(res => { if (!res.ok) throw new Error('Role update failed'); return res.json(); })
     .then(() => {
       setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
-      toast({ description: "Role updated successfully" });
+      showSuccess("Role Updated", "Role updated successfully");
     })
     .catch(err => {
       console.error('Role change error:', err);
-      toast({ description: err.message, variant: 'destructive' });
+      handleError(err, 'update member role');
     });
   };
 

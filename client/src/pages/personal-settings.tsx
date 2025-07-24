@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, EyeOff, Copy } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { showSuccess, showInfo } from "@/lib/errorHandler";
 import { useAuth } from "@/lib/auth";
 import ConsoleLayout from "@/components/console-layout";
 
@@ -16,7 +16,6 @@ import ConsoleLayout from "@/components/console-layout";
 
 export default function PersonalSettings() {
   const { user } = useAuth();
-  const { toast } = useToast();
 
   // Profile state
   const [profile, setProfile] = useState({
@@ -34,19 +33,16 @@ export default function PersonalSettings() {
 
   const handleProfileSave = (field: string, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
-    toast({ description: "Profile updated successfully" });
+    showSuccess("Profile Updated", "Profile updated successfully");
   };
 
   const handleApiKeyRotate = () => {
-    toast({ 
-      description: "API key rotated successfully. Update your SDK integration.",
-      variant: "default"
-    });
+    showSuccess("API Key Rotated", "API key rotated successfully. Update your SDK integration.");
   };
 
   const handleApiKeyCopy = () => {
     navigator.clipboard.writeText(apiKey);
-    toast({ description: "API key copied to clipboard" });
+    showInfo("Copied", "API key copied to clipboard");
   };
 
 
