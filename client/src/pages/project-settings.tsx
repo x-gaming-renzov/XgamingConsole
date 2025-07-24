@@ -265,15 +265,19 @@ export default function AppSettings() {
   const handleCancelInvite = async (inviteId: string) => {
     if (!selectedAppId) return;
     try {
-      const res = await fetch(`/api/apps/${selectedAppId}/pending-invites/${inviteId}`, { 
-        method: 'DELETE', 
-        headers: { Authorization: `Bearer ${token}` } 
+      const res = await fetch(`/api/apps/${selectedAppId}/revoke-invite/${inviteId}`, { 
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({})
       });
-      if (!res.ok) throw new Error('Cancel invite failed');
+      if (!res.ok) throw new Error('Revoke invite failed');
       setPendingInvites(prevInvites => prevInvites.filter(invite => invite.pid !== inviteId));
-      showSuccess("Invitation Cancelled", "Pending invitation has been cancelled");
+      showSuccess("Invitation Revoked", "Pending invitation has been revoked");
     } catch (err: any) {
-      handleError(err, "cancel invitation");
+      handleError(err, "revoke invitation");
     }
   };
 
@@ -564,7 +568,7 @@ export default function AppSettings() {
                                 className="text-destructive hover:text-destructive"
                               >
                                 <X className="w-4 h-4" />
-                                Cancel
+                                Revoke
                               </Button>
                             </TableCell>
                           </TableRow>

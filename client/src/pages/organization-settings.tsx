@@ -156,15 +156,19 @@ export default function OrganizationSettings() {
   const handleCancelInvite = async (inviteId: string) => {
     if (!selectedOrg) return;
     try {
-      const res = await fetch(`/api/orgs/${selectedOrg}/pending-invites/${inviteId}`, { 
-        method: 'DELETE', 
-        headers: { Authorization: `Bearer ${token}` } 
+      const res = await fetch(`/api/orgs/${selectedOrg}/revoke-invite/${inviteId}`, { 
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({})
       });
-      if (!res.ok) throw new Error('Cancel invite failed');
+      if (!res.ok) throw new Error('Revoke invite failed');
       setPendingInvites(prevInvites => prevInvites.filter(invite => invite.pid !== inviteId));
-      showSuccess("Invitation Cancelled", "Pending invitation has been cancelled");
+      showSuccess("Invitation Revoked", "Pending invitation has been revoked");
     } catch (e: any) {
-      handleError(e, "cancel invitation");
+      handleError(e, "revoke invitation");
     }
   };
 
@@ -355,7 +359,7 @@ export default function OrganizationSettings() {
                             className="text-destructive hover:text-destructive"
                           >
                             <X className="w-4 h-4" />
-                            Cancel
+                            Revoke
                           </Button>
                         </TableCell>
                       </TableRow>

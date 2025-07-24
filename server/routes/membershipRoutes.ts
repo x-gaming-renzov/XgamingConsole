@@ -190,4 +190,32 @@ export function registerMembershipRoutes(app: Express) {
       res.status(502).json({ message: err.message || 'Failed to cancel app pending invite' });
     }
   });
+
+  // Revoke invite for organization
+  app.post('/api/orgs/:orgPid/revoke-invite/:inviteId', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/orgs/${req.params.orgPid}/revoke-invite/${req.params.inviteId}`, {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to revoke org invite:', err);
+      res.status(502).json({ message: err.message || 'Failed to revoke org invite' });
+    }
+  });
+
+  // Revoke invite for application
+  app.post('/api/apps/:appPid/revoke-invite/:inviteId', async (req: any, res: Response) => {
+    try {
+      const result = await callNovaBackend<any>(`/api/v1/apps/${req.params.appPid}/revoke-invite/${req.params.inviteId}`, {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      });
+      res.json(result);
+    } catch (err: any) {
+      console.error('Failed to revoke app invite:', err);
+      res.status(502).json({ message: err.message || 'Failed to revoke app invite' });
+    }
+  });
 }
