@@ -126,6 +126,14 @@ function getErrorDetails(error: any): ErrorDetails {
           actionable: true,
         };
       }
+      if (errorDetail?.includes('application permissions') || 
+          errorDetail?.includes('Insufficient application permissions')) {
+        return {
+          title: "🛡️ Insufficient Permissions",
+          description: "You don't have the required permissions to perform this action in this application. Please contact an application administrator.",
+          actionable: true,
+        };
+      }
       return {
         title: "🚫 Access Denied",
         description: "You don't have permission to access this resource.",

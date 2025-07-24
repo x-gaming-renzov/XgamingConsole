@@ -308,7 +308,7 @@ export default function AppSettings() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ role: newRole })
     })
-    .then(res => { if (!res.ok) throw new Error('Role update failed'); return res.json(); })
+    .then(async res => { if (!res.ok) throw new Error(await res.text()); return res.json(); })
     .then(() => {
       setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
       showSuccess("Role Updated", "Role updated successfully");
