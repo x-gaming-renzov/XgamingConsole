@@ -216,7 +216,10 @@ export default function AppSettings() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ email: inviteEmail, role: inviteRole })
     })
-    .then(res => { if (!res.ok) throw new Error(res.statusText); return res.json(); })
+    .then(async res => { 
+      if (!res.ok) throw new Error(await res.text());
+      return res.json(); 
+    })
     .then(() => {
       showSuccess("Invitation Sent", `Invitation sent to ${inviteEmail}`);
       setInviteEmail(""); setInviteRole("viewer"); setInviteDialogOpen(false);

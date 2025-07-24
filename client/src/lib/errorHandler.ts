@@ -42,14 +42,76 @@ function getErrorDetails(error: any): ErrorDetails {
 
   // Try to parse JSON error details from Nova backend errors
   let errorDetail = null;
+  let validationErrors = null;
   try {
     const jsonMatch = errorMessage.match(/\{.*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       errorDetail = parsed.detail || parsed.message;
+      
+      // Handle Nova backend validation errors specifically
+      if (parsed.detail && parsed.detail.error_code === 'REQUEST_VALIDATION_ERROR') {
+        try {
+          // Parse the errors string which contains Python-style validation errors
+          const errorsString = parsed.detail.errors;
+          if (errorsString) {
+            // Extract user-friendly validation messages
+            const reasonMatch = errorsString.match(/'reason': '([^']+)'/);
+            const msgMatch = errorsString.match(/'msg': '([^']+)'/);
+            const locMatch = errorsString.match(/'loc': \([^,]+, '([^']+)'\)/);
+            
+            if (reasonMatch && reasonMatch[1]) {
+              validationErrors = reasonMatch[1];
+            } else if (msgMatch && msgMatch[1]) {
+              // Extract the user-friendly part after the colon
+              const msg = msgMatch[1];
+              const colonIndex = msg.indexOf(':');
+              validationErrors = colonIndex > -1 ? msg.substring(colonIndex + 1).trim() : msg;
+            }
+            
+            // Add field context if available
+            if (locMatch && locMatch[1] && validationErrors) {
+              const fieldName = locMatch[1].charAt(0).toUpperCase() + locMatch[1].slice(1);
+              validationErrors = `${fieldName}: ${validationErrors}`;
+            }
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse validation errors:', parseError);
+        }
+      }
     }
   } catch {
-    // Ignore JSON parsing errors
+    // Check if error is a fetch response with Nova error structure
+    if (error && typeof error === 'object' && error.detail) {
+      errorDetail = error.detail.message || error.detail;
+      
+      // Handle direct Nova validation error objects
+      if (error.detail.error_code === 'REQUEST_VALIDATION_ERROR') {
+        try {
+          const errorsString = error.detail.errors;
+          if (errorsString) {
+            const reasonMatch = errorsString.match(/'reason': '([^']+)'/);
+            const msgMatch = errorsString.match(/'msg': '([^']+)'/);
+            const locMatch = errorsString.match(/'loc': \([^,]+, '([^']+)'\)/);
+            
+            if (reasonMatch && reasonMatch[1]) {
+              validationErrors = reasonMatch[1];
+            } else if (msgMatch && msgMatch[1]) {
+              const msg = msgMatch[1];
+              const colonIndex = msg.indexOf(':');
+              validationErrors = colonIndex > -1 ? msg.substring(colonIndex + 1).trim() : msg;
+            }
+            
+            if (locMatch && locMatch[1] && validationErrors) {
+              const fieldName = locMatch[1].charAt(0).toUpperCase() + locMatch[1].slice(1);
+              validationErrors = `${fieldName}: ${validationErrors}`;
+            }
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse direct validation errors:', parseError);
+        }
+      }
+    }
   }
 
   // Handle specific error cases
@@ -71,6 +133,13 @@ function getErrorDetails(error: any): ErrorDetails {
       };
 
     case ResponseCode.BAD_REQUEST:
+      if (validationErrors) {
+        return {
+          title: "⚠️ Invalid Input",
+          description: validationErrors,
+          actionable: true,
+        };
+      }
       if (errorDetail?.includes('validation') || errorMessage.includes('validation')) {
         return {
           title: "⚠️ Invalid Input",
@@ -99,6 +168,13 @@ function getErrorDetails(error: any): ErrorDetails {
       };
 
     case ResponseCode.VALIDATION_ERROR:
+      if (validationErrors) {
+        return {
+          title: "📝 Validation Error",
+          description: validationErrors,
+          actionable: true,
+        };
+      }
       return {
         title: "📝 Validation Error",
         description: errorDetail || "Please check your input and correct any errors.",
@@ -120,6 +196,15 @@ function getErrorDetails(error: any): ErrorDetails {
       };
 
     default:
+      // Handle Nova validation errors that might not have the expected status code
+      if (validationErrors) {
+        return {
+          title: "📝 Validation Error",
+          description: validationErrors,
+          actionable: true,
+        };
+      }
+      
       // Handle specific error messages without status codes
       if (errorMessage.includes('rate limit') || errorMessage.includes('Rate limit')) {
         return {

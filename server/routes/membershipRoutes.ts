@@ -13,7 +13,28 @@ export function registerMembershipRoutes(app: Express) {
       res.status(201).json(result);
     } catch (err: any) {
       console.error('Failed to invite to org:', err);
-      res.status(502).json({ message: err.message || 'Failed to invite to org' });
+      
+      // Extract original status code and error details from Nova backend error
+      const statusMatch = err.message?.match(/Nova backend error: (\d{3})/);
+      const originalStatus = statusMatch ? parseInt(statusMatch[1]) : 502;
+      
+      // Try to extract the JSON error details
+      let errorDetails = null;
+      try {
+        const jsonMatch = err.message?.match(/- (\{.*\})$/);
+        if (jsonMatch) {
+          errorDetails = JSON.parse(jsonMatch[1]);
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse Nova error details:', parseError);
+      }
+      
+      // Forward the original error structure
+      if (errorDetails) {
+        res.status(originalStatus).json(errorDetails);
+      } else {
+        res.status(originalStatus).json({ message: err.message || 'Failed to invite to org' });
+      }
     }
   });
 
@@ -27,7 +48,28 @@ export function registerMembershipRoutes(app: Express) {
       res.status(201).json(result);
     } catch (err: any) {
       console.error('Failed to invite to app:', err);
-      res.status(502).json({ message: err.message || 'Failed to invite to app' });
+      
+      // Extract original status code and error details from Nova backend error
+      const statusMatch = err.message?.match(/Nova backend error: (\d{3})/);
+      const originalStatus = statusMatch ? parseInt(statusMatch[1]) : 502;
+      
+      // Try to extract the JSON error details
+      let errorDetails = null;
+      try {
+        const jsonMatch = err.message?.match(/- (\{.*\})$/);
+        if (jsonMatch) {
+          errorDetails = JSON.parse(jsonMatch[1]);
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse Nova error details:', parseError);
+      }
+      
+      // Forward the original error structure
+      if (errorDetails) {
+        res.status(originalStatus).json(errorDetails);
+      } else {
+        res.status(originalStatus).json({ message: err.message || 'Failed to invite to app' });
+      }
     }
   });
 
