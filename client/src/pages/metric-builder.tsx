@@ -389,7 +389,11 @@ export default function MetricBuilder() {
 
     console.log("Sending request:", requestBody);
 
+    setLoading(true);
+
     const response = await apiRequest("POST", "/api/metrics/compute", requestBody);
+
+    setLoading(false);
 
     if (!response.ok) {
       throw new Error(`Failed to compute metric: ${response.statusText}`);
