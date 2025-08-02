@@ -194,8 +194,10 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </div> */}
             </div>
 
+            <div className="h-px border-t border-border ml-4" />
+
             {/* Bottom Actions - Positioned at bottom */}
-            <div className="pt-4 border-t border-border space-y-2 mt-auto">
+            <div className="pt-4 space-y-2 mt-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start text-muted-foreground">
