@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import PersonalisationForm from "@/components/personalisation-form";
 import SegmentExperienceForm from "@/components/segment-experience-form";
-import MetricForm from "@/components/metric-form";
 import { 
   ChevronLeft, 
   Plus,
@@ -90,7 +89,6 @@ export default function ExperiencePersonalisations() {
   const [showDefaultPersonalisations, setShowDefaultPersonalisations] = useState(false);
   const [expandedObjects, setExpandedObjects] = useState<Record<string, boolean>>({});
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
-  const [showMetricsForm, setShowMetricsForm] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
   const { data: experience, isLoading } = useQuery<ExperiencePersonalisations>({
@@ -663,12 +661,6 @@ export default function ExperiencePersonalisations() {
           open={showSegmentForm}
           onOpenChange={setShowSegmentForm}
           personalisations={experience?.personalisations || []} 
-        />
-
-        {/* Metrics Form */}
-        <MetricForm 
-          open={showMetricsForm}
-          onClose={() => setShowMetricsForm(false)}
         />
       </div>
     </ConsoleLayout>

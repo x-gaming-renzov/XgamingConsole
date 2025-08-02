@@ -1589,6 +1589,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/metrics/:id", authenticateToken, async (req, res) => {
+    try {
+      const metricId = req.params.id;
+      const metricData = req.body;
+
+      // Transform frontend data to Nova Manager format
+      const novaMetricData = {
+        name: metricData.name,
+        description: metricData.description || "",
+        type: metricData.type,
+        config: metricData.config,
+      };
+
+      // Call Nova Manager to update metric
+      const novaMetric = await callNovaBackend<any>(
+        `/api/v1/metrics/${metricId}/`,
+        {
+          method: "PUT",
+          body: JSON.stringify(novaMetricData),
+        }
+      );
+
+      res.json(novaMetric);
+    } catch (error) {
+      console.error("Failed to update metric:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update metric" });
+    }
+  });
+
   // Insights endpoints
   app.get("/api/insights/top-experiences", authenticateToken, async (req, res) => {
     try {

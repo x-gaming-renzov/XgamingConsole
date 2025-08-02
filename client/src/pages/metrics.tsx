@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ConsoleLayout from "@/components/console-layout";
-import MetricForm from "@/components/metric-form";
 import { 
   Plus, 
   BarChart3, 
@@ -74,7 +73,6 @@ const formatMetricType = (type: string) => {
 
 export default function Metrics() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showMetricForm, setShowMetricForm] = useState(false);
 
   const { data: metrics, isLoading } = useQuery<Metric[]>({
     queryKey: ["/api/metrics"],
@@ -97,7 +95,7 @@ export default function Metrics() {
               <h1 className="text-2xl font-bold text-foreground">Metrics</h1>
               <p className="text-muted-foreground">Track and analyze key performance indicators</p>
             </div>
-            <Button onClick={() => setShowMetricForm(true)} className="text-white">
+            <Button onClick={() => window.location.href = '/metrics/builder'} className="text-white">
               <Plus className="w-4 h-4 mr-2" />
               New Metric
             </Button>
@@ -137,7 +135,7 @@ export default function Metrics() {
                       <TableRow 
                         key={metric.pid} 
                         className="group hover:bg-accent/30 cursor-pointer transition-colors"
-                        onClick={() => window.location.href = `/metrics/${metric.pid}`}
+                        onClick={() => window.location.href = `/metrics/builder?id=${metric.pid}`}
                       >
                         <TableCell>
                           <div className="flex items-center">
@@ -174,7 +172,7 @@ export default function Metrics() {
                     }
                   </p>
                   {!searchQuery && (
-                    <Button onClick={() => setShowMetricForm(true)} className="text-white">
+                    <Button onClick={() => window.location.href = '/metrics/builder'} className="text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Metric
                     </Button>
@@ -185,11 +183,6 @@ export default function Metrics() {
           </Card>
         </div>
       </ConsoleLayout>
-
-      <MetricForm 
-        open={showMetricForm}
-        onClose={() => setShowMetricForm(false)}
-      />
     </>
   );
 } 

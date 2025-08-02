@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardHeader,
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, XIcon, PlayIcon, BarChart3Icon } from "lucide-react";
+import { PlusIcon, XIcon, PlayIcon, BarChart3Icon, ChevronLeft } from "lucide-react";
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
@@ -112,6 +113,11 @@ const RETENTION_WINDOWS = [
 ];
 
 export default function MetricBuilder() {
+  // Get metric ID from URL params if editing
+  const urlParams = new URLSearchParams(window.location.search);
+  const metricId = urlParams.get('id');
+  const isEditing = !!metricId;
+
   const [metricType, setMetricType] = useState<MetricType>("count");
   const [timeRange, setTimeRange] = useState("30d");
   const [granularity, setGranularity] = useState("daily");
@@ -124,6 +130,12 @@ export default function MetricBuilder() {
   const [metricDescription, setMetricDescription] = useState("");
   
   const { toast } = useToast();
+
+  // Fetch existing metric data if editing
+  const { data: existingMetric, isLoading: metricLoading } = useQuery({
+    queryKey: [`/api/metrics/${metricId}`],
+    enabled: isEditing,
+  });
   
   // Auto re-run queries when time range or granularity changes
   useEffect(() => {
@@ -131,6 +143,70 @@ export default function MetricBuilder() {
       onSubmit();
     }
   }, [timeRange, granularity]);
+
+  // Populate form when editing existing metric
+  useEffect(() => {
+    if (existingMetric && isEditing && typeof existingMetric === 'object') {
+      const metric = existingMetric as any; // Type assertion for API response
+      setMetricName(metric.name || "");
+      setMetricDescription(metric.description || "");
+      setMetricType(metric.type || "count");
+      
+      // Populate form data based on metric type and config
+      const config = metric.config || {};
+      
+      // Set time range and granularity from config if available
+      if (config.time_range) setTimeRange(config.time_range);
+      if (config.granularity) setGranularity(config.granularity);
+      
+      // Populate filters
+      if (config.filters) {
+        const filterArray = Object.entries(config.filters).map(([key, value]) => ({
+          key,
+          op: "=" as const,
+          value: value as string,
+        }));
+        setFilters(filterArray);
+      }
+      
+      // Populate group by
+      if (config.group_by && Array.isArray(config.group_by)) {
+        const groupByArray = config.group_by.map((key: string) => ({ key }));
+        setGroupByItems(groupByArray);
+      }
+      
+      // Populate metric-specific form data
+      const newFormData = { ...formData };
+      
+      switch (metric.type) {
+        case "count":
+          newFormData.event_name = config.event_name || EVENT_NAMES[0].value;
+          newFormData.distinct = config.distinct || false;
+          break;
+        case "aggregation":
+          newFormData.event_name = config.event_name || EVENT_NAMES[0].value;
+          newFormData.property = config.property || PROPERTY_OPTIONS[0].value;
+          newFormData.aggregation = config.aggregation || "sum";
+          break;
+        case "ratio":
+          newFormData.numerator_event = config.numerator?.event_name || EVENT_NAMES[0].value;
+          newFormData.denominator_event = config.denominator?.event_name || EVENT_NAMES[1].value;
+          break;
+        case "retention":
+          newFormData.initial_event = config.initial_event?.event_name || EVENT_NAMES[3].value;
+          newFormData.return_event = config.return_event?.event_name || EVENT_NAMES[0].value;
+          newFormData.retention_window = config.retention_window || "7d";
+          break;
+      }
+      
+      setFormData(newFormData);
+      
+      // Auto-run query for existing metrics
+      setTimeout(() => {
+        onSubmit();
+      }, 100); // Small delay to ensure form state is updated
+    }
+  }, [existingMetric, isEditing]);
 
   // Function to generate full date range for chart
   const generateFullDateRange = (data: any[]) => {
@@ -380,12 +456,123 @@ export default function MetricBuilder() {
     }
   }
 
+  // Save metric function
+  async function saveMetric() {
+    if (!metricName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a metric name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Prepare config based on metric type
+      let config: any = {
+          time_range: timeRange,
+          granularity,
+        group_by: getGroupByArray(),
+        filters: getFiltersObject(),
+      };
+
+      // Add metric-specific fields
+      switch (metricType) {
+        case "count":
+          config.event_name = formData.event_name;
+          config.distinct = formData.distinct || false;
+          break;
+        case "aggregation":
+          config.event_name = formData.event_name;
+          config.property = formData.property;
+          config.aggregation = formData.aggregation;
+          break;
+        case "ratio":
+          config.numerator = {
+            event_name: formData.numerator_event,
+            filters: {},
+          };
+          config.denominator = {
+            event_name: formData.denominator_event,
+            filters: {},
+          };
+          break;
+        case "retention":
+          config.initial_event = {
+            event_name: formData.initial_event,
+            filters: {},
+          };
+          config.return_event = {
+            event_name: formData.return_event,
+            filters: {},
+          };
+          config.retention_window = formData.retention_window;
+          break;
+      }
+
+      const metricData = {
+        name: metricName,
+        description: metricDescription,
+        type: metricType,
+        config,
+      };
+
+      console.log("Saving metric:", metricData);
+
+      let response;
+      if (isEditing) {
+        // Update existing metric
+        response = await apiRequest("PUT", `/api/metrics/${metricId}`, metricData);
+      } else {
+        // Create new metric
+        response = await apiRequest("POST", "/api/metrics", metricData);
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEditing ? 'update' : 'save'} metric: ${response.statusText}`);
+      }
+
+      toast({
+        title: "Success",
+        description: `Metric ${isEditing ? 'updated' : 'saved'} successfully`,
+      });
+
+      // Navigate back to metrics page
+      window.location.href = '/metrics';
+    } catch (error: any) {
+      console.error("Save metric error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save metric",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const chartConfig = {
     value: {
       label: "Metric Value",
       color: "hsl(var(--chart-1))",
     },
   } satisfies ChartConfig;
+
+  // Show loading state while fetching existing metric
+  if (isEditing && metricLoading) {
+    return (
+      <ConsoleLayout>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground">Loading metric data...</p>
+          </div>
+        </div>
+      </ConsoleLayout>
+    );
+  }
 
   return (
     <ConsoleLayout>
@@ -394,29 +581,34 @@ export default function MetricBuilder() {
         <div className="flex-none bg-background px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.location.href = '/metrics'}
+                className="mr-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <BarChart3Icon className="w-4 h-4 text-primary-foreground" />
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-foreground">
-                  Metric Builder
+                  {isEditing ? 'Edit Metric' : 'Metric Builder'}
                 </h1>
-                <p className="text-sm text-muted-foreground">Build and analyze custom metrics</p>
+                <p className="text-sm text-muted-foreground">
+                  {isEditing ? 'Update and analyze your metric' : 'Build and analyze custom metrics'}
+                </p>
               </div>
             </div>
             
             {/* Save Metric Button */}
               <Button
               className="px-6 py-2 bg-primary text-white hover:bg-primary/90 font-medium"
-              onClick={() => {
-                // TODO: Implement save metric functionality
-                toast({
-                  title: "Metric Saved",
-                  description: "Your metric has been saved successfully",
-                });
-              }}
+              onClick={saveMetric}
+              disabled={loading || metricLoading}
             >
-              Save Metric
+              {isEditing ? 'Update Metric' : 'Save Metric'}
             </Button>
           </div>
         </div>
