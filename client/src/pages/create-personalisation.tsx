@@ -25,7 +25,10 @@ import {
   Wand2,
   Zap,
   ArrowRight,
-  X
+  X,
+  BarChart3,
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
@@ -57,6 +60,7 @@ interface PersonalisationFormData {
     }>;
   };
   experience_variants: ExperienceVariant[];
+  selected_metrics: string[];
 }
 
 export default function CreatePersonalisation() {
@@ -82,6 +86,7 @@ export default function CreatePersonalisation() {
       conditions: []
     },
     experience_variants: [],
+    selected_metrics: [],
   });
 
   // New state for Step 1: selected objects
@@ -117,6 +122,18 @@ export default function CreatePersonalisation() {
     queryKey: ['/api/experiences'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/experiences');
+      if (response.ok) {
+        return await response.json();
+      }
+      return [];
+    },
+  });
+
+  // Query for all metrics
+  const { data: metrics = [], isLoading: isLoadingMetrics } = useQuery({
+    queryKey: ['/api/metrics'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/metrics');
       if (response.ok) {
         return await response.json();
       }
@@ -264,6 +281,7 @@ export default function CreatePersonalisation() {
   };
 
   const validateStep2 = () => {
+    return true;
     if (selectedObjects.length === 0) return false;
     if (createdVariants.length === 0) return false;
     
@@ -285,11 +303,19 @@ export default function CreatePersonalisation() {
   };
 
   const validateStep3 = () => {
-    if (!formData.name.trim()) return false;
-
+    return true;
     // Check if total target percentage equals 100%
     const totalPercentage = createdVariants.reduce((sum, variant) => sum + variant.target_percentage, 0);
     return totalPercentage === 100;
+  };
+
+  const validateStep4 = () => {
+    // At least one metric should be selected or user can proceed without metrics
+    return true; // Optional step
+  };
+
+  const validateStep5 = () => {
+    return formData.name.trim() !== '';
   };
 
   const handleNext = () => {
@@ -297,6 +323,10 @@ export default function CreatePersonalisation() {
       setCurrentStep(2);
     } else if (currentStep === 2 && validateStep2()) {
       setCurrentStep(3);
+    } else if (currentStep === 3 && validateStep3()) {
+      setCurrentStep(4);
+    } else if (currentStep === 4 && validateStep4()) {
+      setCurrentStep(5);
     }
   };
 
@@ -305,6 +335,10 @@ export default function CreatePersonalisation() {
       setCurrentStep(1);
     } else if (currentStep === 3) {
       setCurrentStep(2);
+    } else if (currentStep === 4) {
+      setCurrentStep(3);
+    } else if (currentStep === 5) {
+      setCurrentStep(4);
     }
   };
 
@@ -361,6 +395,10 @@ export default function CreatePersonalisation() {
     setShowAIModal(true);
   };
 
+  const handleReloadMetrics = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
+  };
+
   return (
     <ConsoleLayout>
       <div className="flex-1 p-6 pb-0">
@@ -384,47 +422,77 @@ export default function CreatePersonalisation() {
             </div>
             
             {/* Step Navigation moved to top right */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 1 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
                 }`}>
-                  {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
+                  {currentStep > 1 ? <Check className="w-3 h-3" /> : '1'}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Select Experience</p>
+                  <p className="text-xs font-medium">Experience</p>
                 </div>
               </div>
-              <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
+              <ArrowRight className={`w-3 h-3 transition-colors duration-300 ${
                 currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'
               }`} />
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 2 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
                 }`}>
-                  {currentStep > 2 ? <Check className="w-4 h-4" /> : '2'}
+                  {currentStep > 2 ? <Check className="w-3 h-3" /> : '2'}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Configure Variants</p>
+                  <p className="text-xs font-medium">Variants</p>
                 </div>
               </div>
-              <ArrowRight className={`w-4 h-4 transition-colors duration-300 ${
+              <ArrowRight className={`w-3 h-3 transition-colors duration-300 ${
                 currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'
               }`} />
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
                   currentStep >= 3 
                     ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
                     : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
                 }`}>
-                  3
+                  {currentStep > 3 ? <Check className="w-3 h-3" /> : '3'}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Finalize Personalisation</p>
+                  <p className="text-xs font-medium">Target Users</p>
+                </div>
+              </div>
+              <ArrowRight className={`w-3 h-3 transition-colors duration-300 ${
+                currentStep >= 4 ? 'text-primary' : 'text-muted-foreground'
+              }`} />
+              <div className="flex items-center space-x-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
+                  currentStep >= 4 
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
+                    : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
+                }`}>
+                  {currentStep > 4 ? <Check className="w-3 h-3" /> : '4'}
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Metrics</p>
+                </div>
+              </div>
+              <ArrowRight className={`w-3 h-3 transition-colors duration-300 ${
+                currentStep >= 5 ? 'text-primary' : 'text-muted-foreground'
+              }`} />
+              <div className="flex items-center space-x-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm transition-all duration-500 shadow-md ${
+                  currentStep >= 5 
+                    ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-primary/25' 
+                    : 'bg-white/70 dark:bg-gray-800/70 text-muted-foreground backdrop-blur-sm'
+                }`}>
+                  5
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Finalize</p>
                 </div>
               </div>
             </div>
@@ -892,39 +960,9 @@ export default function CreatePersonalisation() {
                 {/* Header Section */}
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">
-                    Finalize Personalisation
+                    Target Users
                   </h2>
-                  <p className="text-sm text-muted-foreground">Set your personalisation details, targeting rules, and rollout configuration</p>
-                </div>
-
-                {/* Personalisation Name and Description */}
-                <div className="grid grid-cols-2 gap-6 w-2/3">
-                  <div>
-                    <Label htmlFor="name" className="text-sm font-medium">
-                      Personalisation Name
-                      <span className="text-red-500 ml-1">*</span>
-                    </Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter personalisation name"
-                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                    <Input
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Description"
-                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                  <p className="text-sm text-muted-foreground">Define targeting rules and configure variant distribution</p>
                 </div>
 
                 {/* Targeting Rules */}
@@ -1214,6 +1252,231 @@ export default function CreatePersonalisation() {
                 </div>
               </div>
             )}
+
+            {currentStep === 4 && (
+              <div className="space-y-8">
+                {/* Header Section */}
+                                 <div className="flex items-center justify-between">
+                   <div>
+                     <h2 className="text-2xl font-bold text-foreground">
+                       Configure Metrics
+                     </h2>
+                     <p className="text-sm text-muted-foreground">Select metrics to track the success of your personalisation</p>
+                   </div>
+                   <div className="flex space-x-3">
+                     <Button
+                       variant="ghost"
+                       onClick={handleReloadMetrics}
+                       disabled={isLoadingMetrics}
+                       className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                     >
+                       <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingMetrics ? 'animate-spin' : ''}`} />
+                       Reload
+                     </Button>
+                     <Button
+                       variant="outline"
+                       onClick={() => window.open('/metrics/builder', '_blank')}
+                       className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                     >
+                       <Plus className="w-4 h-4 mr-2" />
+                       Create New
+                     </Button>
+                   </div>
+                 </div>
+
+                {/* Metrics Selection */}
+                {isLoadingMetrics ? (
+                  <div className="text-center py-12">
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+                      <div className="absolute inset-0 animate-pulse">
+                        <div className="w-12 h-12 bg-gradient-to-r from-primary/20 to-blue-600/20 rounded-full mx-auto"></div>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground">Loading metrics...</p>
+                  </div>
+                ) : metrics.length === 0 ? (
+                                     <div className="text-center py-12 bg-gradient-to-br from-white/60 to-gray-50/60 dark:from-gray-800/60 dark:to-gray-900/60 rounded-xl border-2 border-dashed border-primary/20 backdrop-blur-sm">
+                     <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                       <BarChart3 className="w-8 h-8 text-primary/70" />
+                     </div>
+                     <h3 className="text-lg font-medium mb-2">No metrics found</h3>
+                     <p className="text-muted-foreground mb-4">
+                       Create your first metric to track personalisation performance or try reloading if you expect to see metrics
+                     </p>
+                     <div className="flex justify-center space-x-3">
+                       <Button
+                         variant="ghost"
+                         onClick={handleReloadMetrics}
+                         disabled={isLoadingMetrics}
+                         className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                       >
+                         <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingMetrics ? 'animate-spin' : ''}`} />
+                         Reload
+                       </Button>
+                       <Button
+                         variant="outline"
+                         onClick={() => window.open('/metrics/builder', '_blank')}
+                         className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20 hover:bg-white/90 dark:hover:bg-gray-700/90"
+                       >
+                         <Plus className="w-4 h-4 mr-2" />
+                         Create First Metric
+                       </Button>
+                     </div>
+                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {metrics.map((metric: any) => (
+                                             <Card 
+                         key={metric.pid}
+                         className={`group cursor-pointer transition-all duration-300 ${
+                           formData.selected_metrics.includes(metric.pid)
+                             ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-green-400 shadow-lg'
+                             : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
+                         } backdrop-blur-sm`}
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            selected_metrics: prev.selected_metrics.includes(metric.pid)
+                              ? prev.selected_metrics.filter(id => id !== metric.pid)
+                              : [...prev.selected_metrics, metric.pid]
+                          }));
+                        }}
+                      >
+                                                 <CardHeader className="pb-4">
+                           <div className="flex items-start space-x-3">
+                             <div className={`p-2 rounded-lg ${
+                               formData.selected_metrics.includes(metric.pid)
+                                 ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                 : 'bg-blue-100 dark:bg-blue-900/30'
+                             }`}>
+                               <BarChart3 className={`w-5 h-5 ${
+                                 formData.selected_metrics.includes(metric.pid)
+                                   ? 'text-white'
+                                   : 'text-blue-600 dark:text-blue-400'
+                               }`} />
+                             </div>
+                             <div className="min-w-0 flex-1">
+                               <div className="flex items-center gap-2">
+                                 <CardTitle className={`text-base mb-1 line-clamp-1 ${
+                                   formData.selected_metrics.includes(metric.pid)
+                                     ? 'text-green-800 dark:text-green-200'
+                                     : 'text-foreground'
+                                 }`}>
+                                   {metric.name}
+                                 </CardTitle>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     window.open(`/metrics/builder?id=${metric.pid}`, '_blank');
+                                   }}
+                                   className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6 hover:bg-white/50 dark:hover:bg-gray-700/50"
+                                 >
+                                   <ExternalLink className="w-3 h-3" />
+                                 </Button>
+                               </div>
+                               <p className={`text-xs line-clamp-2 ${
+                                 formData.selected_metrics.includes(metric.pid)
+                                   ? 'text-green-600 dark:text-green-300'
+                                   : 'text-muted-foreground'
+                               }`}>
+                                 {metric.description || 'No description'}
+                               </p>
+                             </div>
+                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                               formData.selected_metrics.includes(metric.pid)
+                                 ? 'bg-green-500 border-green-500 shadow-lg'
+                                 : 'border-gray-300 dark:border-gray-600'
+                             }`}>
+                               {formData.selected_metrics.includes(metric.pid) && (
+                                 <Check className="w-3 h-3 text-white" />
+                               )}
+                             </div>
+                           </div>
+                         </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 5 && (
+              <div className="space-y-8">
+                {/* Header Section */}
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Review & Finalize
+                  </h2>
+                  <p className="text-sm text-muted-foreground">Name your personalisation and review all settings before creating</p>
+                </div>
+
+                {/* Personalisation Name and Description */}
+                <div className="grid grid-cols-2 gap-6 w-2/3">
+                  <div>
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Personalisation Name
+                      <span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter personalisation name"
+                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Description"
+                      className="mt-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-white/20"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Experience Summary */}
+                  <Card className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Experience Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p className="text-sm"><span className="font-medium">Experience:</span> {selectedExperience?.name}</p>
+                        <p className="text-sm"><span className="font-medium">Objects:</span> {selectedObjects.length} selected</p>
+                        <p className="text-sm"><span className="font-medium">Variants:</span> {createdVariants.length} configured</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Metrics Summary */}
+                  <Card className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Metrics Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">Selected:</span> {formData.selected_metrics.length} metric{formData.selected_metrics.length !== 1 ? 's' : ''}
+                        </p>
+                        <p className="text-sm"><span className="font-medium">Rollout:</span> {formData.rollout_percentage}% of users</p>
+                        <p className="text-sm"><span className="font-medium">Conditions:</span> {formData.rule_config.conditions.length} targeting rule{formData.rule_config.conditions.length !== 1 ? 's' : ''}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1257,7 +1520,7 @@ export default function CreatePersonalisation() {
                 </div>
               </Button>
             )}
-            {(currentStep === 2 || currentStep === 3) && (
+            {(currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) && (
               <Button 
                 variant="outline" 
                 onClick={handlePrevious}
@@ -1294,10 +1557,28 @@ export default function CreatePersonalisation() {
                 Next Step
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
+            ) : currentStep === 3 ? (
+              <Button 
+                onClick={handleNext}
+                disabled={!validateStep3()}
+                className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+              >
+                Next Step
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            ) : currentStep === 4 ? (
+              <Button 
+                onClick={handleNext}
+                disabled={!validateStep4()}
+                className="bg-gradient-to-r from-primary via-primary to-blue-600 hover:from-primary/90 hover:via-primary/90 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[120px]"
+              >
+                Next Step
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
             ) : (
               <Button 
                 onClick={handleSubmit}
-                disabled={isSubmitting || !validateStep3()}
+                disabled={isSubmitting || !validateStep5()}
                 className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 hover:from-green-700 hover:via-teal-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 min-w-[140px] group"
               >
                 {isSubmitting ? (
