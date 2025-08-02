@@ -363,8 +363,8 @@ export default function CreatePersonalisation() {
 
   return (
     <ConsoleLayout>
-      <div className="flex-1 p-6">
-        <div className="h-full max-h-[calc(80vh-16px)] overflow-y-auto">
+      <div className="flex-1 p-6 pb-0">
+        <div className="h-full max-h-[calc(80vh+8px)] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center">
@@ -1218,7 +1218,7 @@ export default function CreatePersonalisation() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-8 border-t border-white/20">
+        <div className="flex items-center justify-between pt-4 border-t border-white/20">
           <div className="flex items-center space-x-3">
             {currentStep === 1 && (
                 <Button
