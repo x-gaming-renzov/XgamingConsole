@@ -1442,34 +1442,200 @@ export default function CreatePersonalisation() {
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Experience Summary */}
+                <div className="space-y-6">
+                  {/* Experience Card */}
                   <Card className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30">
                     <CardHeader>
-                      <CardTitle className="text-lg">Experience Summary</CardTitle>
+                      <CardTitle className="flex items-center gap-3 text-xl font-semibold">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <Package className="w-5 h-5 text-white" />
+                        </div>
+                        Experience Configuration
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <p className="text-sm"><span className="font-medium">Experience:</span> {selectedExperience?.name}</p>
-                        <p className="text-sm"><span className="font-medium">Objects:</span> {selectedObjects.length} selected</p>
-                        <p className="text-sm"><span className="font-medium">Variants:</span> {createdVariants.length} configured</p>
+                      <div className="space-y-6">
+                        {/* Selected Experience - Minimal */}
+                        <div className="flex items-center gap-3 pb-4 border-b border-white/20">
+                          <span className="text-sm text-muted-foreground">Selected Experience:</span>
+                          <span className="font-semibold text-foreground">{selectedExperience?.name}</span>
+                        </div>
+
+                        {/* Experience Variants */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-4">Experience Variants</h3>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {createdVariants.map((variant, variantIndex) => (
+                              <div key={variantIndex} className="p-4 bg-white/70 dark:bg-gray-800/70 rounded-xl border border-white/50">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-semibold text-foreground">{variant.name || `Variant ${variantIndex + 1}`}</h4>
+                                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+                                    {variant.target_percentage}%
+                                  </Badge>
+                                </div>
+                                
+                                {variant.description && (
+                                  <p className="text-sm text-muted-foreground mb-4">{variant.description}</p>
+                                )}
+
+                                {/* Object Variants for this Experience Variant */}
+                                <div className="space-y-3">
+                                  {objects
+                                    .filter((obj: any) => selectedObjects.includes(obj.pid))
+                                    .map((obj: any) => {
+                                      const featureVariant = variant.feature_variants[obj.pid];
+                                      return (
+                                        <div key={obj.pid} className="p-3 bg-gray-50/70 dark:bg-gray-700/50 rounded-lg border border-gray-200/50 dark:border-gray-600/50">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-4 h-4 bg-indigo-500 rounded-sm"></div>
+                                            <span className="text-sm font-medium text-foreground">{obj.feature_flag?.name}</span>
+                                          </div>
+                                          <div className="ml-6">
+                                            <p className="text-xs text-muted-foreground mb-1">Variant: <span className="font-medium">{featureVariant?.name || 'Default'}</span></p>
+                                            {featureVariant?.config && Object.keys(featureVariant.config).length > 0 && (
+                                              <div className="space-y-1">
+                                                {Object.entries(featureVariant.config).map(([key, value]) => (
+                                                  <div key={key} className="flex items-center gap-2 text-xs">
+                                                    <span className="text-muted-foreground">{key}:</span>
+                                                    <code className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-foreground font-mono">
+                                                      {String(value)}
+                                                    </code>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Metrics Summary */}
+                  {/* Audience Card */}
                   <Card className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30">
                     <CardHeader>
-                      <CardTitle className="text-lg">Metrics Summary</CardTitle>
+                      <CardTitle className="flex items-center gap-3 text-xl font-semibold">
+                        <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <Target className="w-5 h-5 text-white" />
+                        </div>
+                        Audience Targeting
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <p className="text-sm">
-                          <span className="font-medium">Selected:</span> {formData.selected_metrics.length} metric{formData.selected_metrics.length !== 1 ? 's' : ''}
-                        </p>
-                        <p className="text-sm"><span className="font-medium">Rollout:</span> {formData.rollout_percentage}% of users</p>
-                        <p className="text-sm"><span className="font-medium">Conditions:</span> {formData.rule_config.conditions.length} targeting rule{formData.rule_config.conditions.length !== 1 ? 's' : ''}</p>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200/50 dark:border-orange-800/50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                              <Users className="w-4 h-4 text-white" />
+                            </div>
+                            <h3 className="font-semibold text-orange-900 dark:text-orange-100">Rollout Percentage</h3>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-foreground">Percentage</span>
+                              <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formData.rollout_percentage}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                              <div 
+                                className="bg-gradient-to-r from-orange-500 to-red-600 h-3 rounded-full transition-all duration-300"
+                                style={{ width: `${formData.rollout_percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200/50 dark:border-purple-800/50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                              <Zap className="w-4 h-4 text-white" />
+                            </div>
+                            <h3 className="font-semibold text-purple-900 dark:text-purple-100">Targeting Rules</h3>
+                          </div>
+                          {formData.rule_config.conditions.length === 0 ? (
+                            <div className="text-center py-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                              <p className="text-sm text-muted-foreground">No targeting conditions</p>
+                              <p className="text-xs text-muted-foreground mt-1">All users will be eligible</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {formData.rule_config.conditions.map((condition, index) => (
+                                <div key={index} className="p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/20">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-foreground">{condition.field}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-muted-foreground">{condition.operator}</span>
+                                      <span className="font-medium text-foreground">{condition.value}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Metrics Card */}
+                  <Card className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-3 text-xl font-semibold">
+                        <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <BarChart3 className="w-5 h-5 text-white" />
+                        </div>
+                        Success Metrics
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {formData.selected_metrics.length === 0 ? (
+                        <div className="text-center py-8 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-800">
+                          <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <BarChart3 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">No metrics selected</p>
+                          <p className="text-xs text-muted-foreground mt-1">You can track performance by adding metrics in step 4</p>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                              <BarChart3 className="w-4 h-4 text-white" />
+                            </div>
+                            <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Selected Metrics</h3>
+                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100">
+                              {formData.selected_metrics.length}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {metrics
+                              .filter((metric: any) => formData.selected_metrics.includes(metric.pid))
+                              .map((metric: any) => (
+                                <div key={metric.pid} className="p-4 bg-white/60 dark:bg-gray-800/60 rounded-lg border border-white/50">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <BarChart3 className="w-3 h-3 text-white" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-foreground">{metric.name}</p>
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                        {metric.description || 'No description available'}
+                                      </p>
+                                      <Badge variant="outline" className="mt-2 text-xs bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300">
+                                        {metric.type || 'Metric'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
