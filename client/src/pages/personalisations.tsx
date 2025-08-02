@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import PersonalisationForm from "@/components/personalisation-form";
 import { useLocation } from "wouter";
 
 interface Experience {
@@ -71,10 +71,11 @@ interface Personalisation {
 export default function Personalisations() {
   const [activeExperience, setActiveExperience] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showPersonalisationForm, setShowPersonalisationForm] = useState(false);
   const [expandedPersonalisations, setExpandedPersonalisations] = useState<
     Record<string, boolean>
   >({});
+  const [metricValues, setMetricValues] = useState<Record<string, any>>({});
+  const [loadingMetrics, setLoadingMetrics] = useState<Record<string, boolean>>({});
   const [, setLocation] = useLocation();
 
   // Fetch all personalisations for experience list
@@ -142,11 +143,141 @@ export default function Personalisations() {
     });
   };
 
-  const togglePersonalisationExpansion = (personalisationId: string) => {
+  // Helper function to compute a single metric value
+  const computeMetricValue = async (metric: any) => {
+    try {
+      const requestBody = {
+        type: metric.type,
+        config: {
+          ...metric.config,
+          granularity: "none" // Get only current aggregated value
+        }
+      };
+
+      const response = await apiRequest("POST", "/api/metrics/compute", requestBody);
+      if (!response.ok) {
+        throw new Error(`Failed to compute metric: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Handle single value response for granularity "none"
+      let value = null;
+      let hasData = false;
+      
+      if (Array.isArray(result) && result.length > 0) {
+        // Expect single entry for granularity "none"
+        const entry = result[0];
+        if (entry && typeof entry.value !== 'undefined' && entry.value !== null) {
+          value = entry.value;
+          hasData = true;
+        }
+      } else if (result.result && Array.isArray(result.result) && result.result.length > 0) {
+        const entry = result.result[0];
+        if (entry && typeof entry.value !== 'undefined' && entry.value !== null) {
+          value = entry.value;
+          hasData = true;
+        }
+      } else if (typeof result === 'number') {
+        value = result;
+        hasData = true;
+      }
+
+      return {
+        metricId: metric.pid,
+        value: value,
+        hasData: hasData,
+        error: null
+      };
+    } catch (error) {
+      return {
+        metricId: metric.pid,
+        value: null,
+        hasData: false,
+        error: error instanceof Error ? error.message : 'Failed to compute'
+      };
+    }
+  };
+
+  const computeMetrics = async (personalisation: Personalisation) => {
+    if (!personalisation.metrics || personalisation.metrics.length === 0) return;
+
+    const personalisationKey = `metrics-${personalisation.pid}`;
+    
+    // Set loading state
+    setLoadingMetrics(prev => ({
+      ...prev,
+      [personalisationKey]: true
+    }));
+
+    try {
+      const metricComputations = await Promise.all(
+        personalisation.metrics.map(({ metric }) => computeMetricValue(metric))
+      );
+
+      // Store the computed values
+      setMetricValues(prev => ({
+        ...prev,
+        [personalisationKey]: metricComputations.reduce((acc, result) => {
+          acc[result.metricId] = result;
+          return acc;
+        }, {} as Record<string, any>)
+      }));
+
+    } catch (error) {
+      console.error('Error computing metrics:', error);
+    } finally {
+      setLoadingMetrics(prev => ({
+        ...prev,
+        [personalisationKey]: false
+      }));
+    }
+  };
+
+  const computeSingleMetric = async (personalisation: Personalisation, metric: any) => {
+    const personalisationKey = `metrics-${personalisation.pid}`;
+    const metricKey = `${personalisationKey}-${metric.pid}`;
+    
+    // Set loading state for this specific metric
+    setLoadingMetrics(prev => ({
+      ...prev,
+      [metricKey]: true
+    }));
+
+    try {
+      const result = await computeMetricValue(metric);
+
+      // Store the computed value for this specific metric
+      setMetricValues(prev => ({
+        ...prev,
+        [personalisationKey]: {
+          ...prev[personalisationKey],
+          [metric.pid]: result
+        }
+      }));
+
+    } catch (error) {
+      console.error('Error computing single metric:', error);
+    } finally {
+      setLoadingMetrics(prev => ({
+        ...prev,
+        [metricKey]: false
+      }));
+    }
+  };
+
+  const togglePersonalisationExpansion = async (personalisationId: string, personalisation?: Personalisation) => {
+    const wasExpanded = expandedPersonalisations[personalisationId];
+    
     setExpandedPersonalisations((prev) => ({
       ...prev,
       [personalisationId]: !prev[personalisationId],
     }));
+
+    // If this is a metrics section being expanded for the first time, compute the metrics
+    if (personalisationId.startsWith('metrics-') && !wasExpanded && personalisation) {
+      await computeMetrics(personalisation);
+    }
   };
 
   const handleCreatePersonalisation = () => {
@@ -441,9 +572,6 @@ export default function Personalisations() {
                           <h3 className="text-xl font-semibold">
                             Personalisations
                           </h3>
-                          <Badge variant="outline" className="px-3 py-1">
-                            {filteredPersonalisations.length} results
-                          </Badge>
                         </div>
                       )}
                     </div>
@@ -664,7 +792,8 @@ export default function Personalisations() {
                                             className="flex items-center cursor-pointer p-3"
                                             onClick={() =>
                                               togglePersonalisationExpansion(
-                                                `metrics-${personalisation.pid}`
+                                                `metrics-${personalisation.pid}`,
+                                                personalisation
                                               )
                                             }
                                           >
@@ -693,31 +822,81 @@ export default function Personalisations() {
                                             <div className="border-t border-emerald-200/50 dark:border-emerald-800/30">
                                               <div className="space-y-0">
                                                 {personalisation.metrics && personalisation.metrics.length > 0 ? (
-                                                  personalisation.metrics.map(({ metric }, index) => (
-                                                    <div key={metric.pid} className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 last:border-b-0 dark:border-emerald-800/20">
-                                                      <div className="flex items-center space-x-3">
-                                                        <div className={`w-2 h-2 rounded-full ${
-                                                          index === 0 ? 'bg-green-500' :
-                                                          index === 1 ? 'bg-blue-500' :
-                                                          index === 2 ? 'bg-purple-500' :
-                                                          'bg-gray-500'
-                                                        }`}></div>
-                                                        <div>
-                                                          <div className="text-sm font-medium text-foreground">
-                                                            {metric.name}
-                                                          </div>
-                                                          <div className="text-xs text-muted-foreground">
-                                                            {metric.type.charAt(0).toUpperCase() + metric.type.slice(1)}
+                                                  personalisation.metrics.map(({ metric }, index) => {
+                                                    const personalisationKey = `metrics-${personalisation.pid}`;
+                                                    const metricKey = `${personalisationKey}-${metric.pid}`;
+                                                    const metricValue = metricValues[personalisationKey]?.[metric.pid];
+                                                    
+                                                    return (
+                                                      <div key={metric.pid} className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 last:border-b-0 dark:border-emerald-800/20">
+                                                        <div className="flex items-center space-x-3">
+                                                          <div className={`w-2 h-2 rounded-full ${
+                                                            index === 0 ? 'bg-green-500' :
+                                                            index === 1 ? 'bg-blue-500' :
+                                                            index === 2 ? 'bg-purple-500' :
+                                                            'bg-gray-500'
+                                                          }`}></div>
+                                                          <div>
+                                                            <div className="text-sm font-medium text-foreground">
+                                                              {metric.name}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                              {metric.type.charAt(0).toUpperCase() + metric.type.slice(1)}
+                                                            </div>
                                                           </div>
                                                         </div>
-                                                      </div>
-                                                      <div className="text-right">
-                                                        <div className="text-sm text-muted-foreground">
-                                                          Tracking
+                                                        <div className="text-right">
+                                                          {loadingMetrics[metricKey] ? (
+                                                            <div className="flex items-center space-x-2">
+                                                              <div className="animate-spin w-3 h-3 border border-emerald-600 border-t-transparent rounded-full"></div>
+                                                              <span className="text-xs text-muted-foreground">Loading...</span>
+                                                            </div>
+                                                          ) : loadingMetrics[personalisationKey] && !metricValue ? (
+                                                            <div className="flex items-center space-x-2">
+                                                              <div className="animate-spin w-3 h-3 border border-emerald-600 border-t-transparent rounded-full"></div>
+                                                              <span className="text-xs text-muted-foreground">Loading...</span>
+                                                            </div>
+                                                          ) : metricValue?.error ? (
+                                                            <div className="text-xs text-red-600">
+                                                              Error
+                                                            </div>
+                                                          ) : metricValue?.hasData === false && metricValue?.value === null ? (
+                                                            <div className="text-sm text-muted-foreground">
+                                                              No data
+                                                            </div>
+                                                          ) : metricValue?.hasData && metricValue?.value !== undefined && metricValue?.value !== null ? (
+                                                            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                                              {(() => {
+                                                                if (typeof metricValue.value !== 'number') return metricValue.value;
+                                                                
+                                                                // Format based on metric type
+                                                                if (metric.type === 'retention') {
+                                                                  return `${(metricValue.value * 100).toFixed(1)}%`;
+                                                                } else if (metric.type === 'ratio') {
+                                                                  return metricValue.value.toFixed(3);
+                                                                } else {
+                                                                  // For count and aggregation
+                                                                  return metricValue.value % 1 === 0 ? 
+                                                                    metricValue.value.toLocaleString() : 
+                                                                    metricValue.value.toFixed(2);
+                                                                }
+                                                              })()}
+                                                            </div>
+                                                          ) : (
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={() => computeSingleMetric(personalisation, metric)}
+                                                              className="text-sm text-muted-foreground hover:text-emerald-600 transition-colors h-auto p-1 font-normal disabled:opacity-50"
+                                                              disabled={loadingMetrics[metricKey] || loadingMetrics[personalisationKey]}
+                                                            >
+                                                              {loadingMetrics[metricKey] ? 'Loading...' : 'Click to load'}
+                                                            </Button>
+                                                          )}
                                                         </div>
                                                       </div>
-                                                    </div>
-                                                  ))
+                                                    );
+                                                  })
                                                 ) : (
                                                   <div className="py-6 px-4 text-center">
                                                     <div className="text-sm text-muted-foreground">

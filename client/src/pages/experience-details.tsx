@@ -9,10 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import PersonalisationForm from "@/components/personalisation-form";
-import SegmentExperienceForm from "@/components/segment-experience-form";
 import { 
   ChevronLeft, 
   Plus,
@@ -79,8 +75,6 @@ export default function ExperienceDetails() {
   const tabFromUrl = urlParams.get('tab');
   
   const [activeTab, setActiveTab] = useState(tabFromUrl || "objects");
-  const [showPersonalisationForm, setShowPersonalisationForm] = useState(false);
-  const [showSegmentForm, setShowSegmentForm] = useState(false);
   const [showVariantForm, setShowVariantForm] = useState<string | null>(null);
   const [showDefaultVariants, setShowDefaultVariants] = useState(false);
   const [expandedObjects, setExpandedObjects] = useState<Record<string, boolean>>({});
@@ -490,22 +484,6 @@ export default function ExperienceDetails() {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Create Personalisation Side Panel */}
-        <PersonalisationForm 
-          open={showPersonalisationForm}
-          onOpenChange={setShowPersonalisationForm}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: [`/api/experiences/${experienceId}`] });
-          }}
-        />
-
-        {/* Create Segment Experience Side Panel */}
-        <SegmentExperienceForm 
-          open={showSegmentForm}
-          onOpenChange={setShowSegmentForm}
-          personalisations={[]} 
-        />
       </div>
     </ConsoleLayout>
   );
