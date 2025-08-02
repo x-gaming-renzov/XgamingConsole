@@ -404,7 +404,7 @@ export default function CreatePersonalisation() {
       <div className="flex-1 p-6 pb-0">
         <div className="h-full max-h-[calc(80vh+8px)] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex mb-8 items-center justify-between flex-col gap-8 xl:flex-row">
             <div className="flex items-center">
               <div className="flex items-center space-x-2">
                 <div className="w-14 h-14 bg-gradient-to-r from-primary/20 via-primary/10 to-blue-600/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
