@@ -121,9 +121,8 @@ export default function MetricBuilder() {
   const [metricType, setMetricType] = useState<MetricType>("count");
   const [timeRange, setTimeRange] = useState("30d");
   const [granularity, setGranularity] = useState("daily");
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasRunQuery, setHasRunQuery] = useState(false);
   const [filters, setFilters] = useState<FilterType[]>([]);
   const [groupByItems, setGroupByItems] = useState<GroupByType[]>([]);
   const [metricName, setMetricName] = useState("");
@@ -139,7 +138,7 @@ export default function MetricBuilder() {
   
   // Auto re-run queries when time range or granularity changes
   useEffect(() => {
-    if (!loading && hasRunQuery) {
+    if (!loading && chartData !== null) {
       onSubmit();
     }
   }, [timeRange, granularity]);
@@ -202,8 +201,10 @@ export default function MetricBuilder() {
       setFormData(newFormData);
       
       // Auto-run query for existing metrics
-      setTimeout(() => {
-        onSubmit();
+      setTimeout(async () => {
+        const result = await computeMetric(metric.type, config);
+        setChartData(Array.isArray(result) ? result : result.result || []);
+        console.log("Chart data:", result);
       }, 100); // Small delay to ensure form state is updated
     }
   }, [existingMetric, isEditing]);
@@ -310,7 +311,7 @@ export default function MetricBuilder() {
   };
 
   // Get full range data for display
-  const fullRangeData = chartData.length > 0 ? generateFullDateRange(chartData) : [];
+  const fullRangeData = (chartData && chartData.length > 0) ? generateFullDateRange(chartData) : [];
   
   // Form data state
   const [formData, setFormData] = useState<FormData>({
@@ -380,11 +381,28 @@ export default function MetricBuilder() {
     return groupByItems.map(item => item.key).filter(key => key !== "");
   };
 
+  const computeMetric = async (metricType: MetricType, config: any) => {
+    const requestBody = {
+      type: metricType,
+      config: config,
+    };
+
+    console.log("Sending request:", requestBody);
+
+    const response = await apiRequest("POST", "/api/metrics/compute", requestBody);
+
+    if (!response.ok) {
+      throw new Error(`Failed to compute metric: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  }
+
   // Submit handler
   async function onSubmit(e?: React.FormEvent | React.MouseEvent) {
     if (e) e.preventDefault();
     setLoading(true);
-    setHasRunQuery(true);
     
     try {
       // Prepare config based on metric type
@@ -429,20 +447,7 @@ export default function MetricBuilder() {
           break;
       }
 
-      const requestBody = {
-        type: metricType,
-        config,
-      };
-
-      console.log("Sending request:", requestBody);
-
-      const response = await apiRequest("POST", "/api/metrics/compute", requestBody);
-
-      if (!response.ok) {
-        throw new Error(`Failed to compute metric: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      const result = await computeMetric(metricType, config);
       setChartData(Array.isArray(result) ? result : result.result || []);
     } catch (error: any) {
       console.error("Metric computation error:", error);
@@ -1045,7 +1050,7 @@ export default function MetricBuilder() {
                         </div>
                       </div>
                     </div>
-                  ) : !hasRunQuery ? (
+                  ) : !chartData ? (
                     /* Initial State - Query Not Run Yet */
                     <div className="h-[400px] flex items-center justify-center">
                       <div className="text-center space-y-4">
