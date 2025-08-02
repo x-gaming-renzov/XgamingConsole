@@ -281,7 +281,6 @@ export default function CreatePersonalisation() {
   };
 
   const validateStep2 = () => {
-    return true;
     if (selectedObjects.length === 0) return false;
     if (createdVariants.length === 0) return false;
     
@@ -303,7 +302,6 @@ export default function CreatePersonalisation() {
   };
 
   const validateStep3 = () => {
-    return true;
     // Check if total target percentage equals 100%
     const totalPercentage = createdVariants.reduce((sum, variant) => sum + variant.target_percentage, 0);
     return totalPercentage === 100;
