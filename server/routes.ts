@@ -1492,6 +1492,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Metrics Builder endpoints
+  app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+
+      const { type, config } = req.body;
+
+      // Call Nova Manager to run the metric query
+      const queryData = await callNovaBackend<any>(
+        `/api/v1/metrics/compute/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            organisation_id: organisationId,
+            app_id: appId,
+            type,
+            config,
+          })
+        }
+      );
+
+      console.log("queryData", queryData)
+      res.json(queryData);
+    } catch (error) {
+      console.error("Failed to fetch metric data:", error);
+      // Return empty data instead of error for better UX
+      res.json([]);
+    }
+  });
+
+  // Events schema endpoints
+  app.get("/api/metrics/events-schema", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+      const { search } = req.query;
+
+      let url = `/api/v1/metrics/events-schema/?organisation_id=${organisationId}&app_id=${appId}`;
+      
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+
+      // Call Nova Manager to get events schema
+      const novaEventsSchema = await callNovaBackend<any[]>(url);
+
+      res.json(novaEventsSchema);
+    } catch (error) {
+      console.error("Failed to fetch events schema:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch events schema" });
+    }
+  });
+
+  // User profile keys endpoints
+  app.get("/api/metrics/user-profile-keys", authenticateToken, async (req, res) => {
+    try {
+      const organisationId = "org123";
+      const appId = "app123";
+      const { search } = req.query;
+
+      let url = `/api/v1/metrics/user-profile-keys/?organisation_id=${organisationId}&app_id=${appId}`;
+      
+      if (search) {
+        url += `&search=${encodeURIComponent(search as string)}`;
+      }
+
+      // Call Nova Manager to get user profile keys
+      const novaUserProfileKeys = await callNovaBackend<any[]>(url);
+
+      res.json(novaUserProfileKeys);
+    } catch (error) {
+      console.error("Failed to fetch user profile keys:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch user profile keys" });
+    }
+  });
+
   // Metrics endpoints
   app.get("/api/metrics", authenticateToken, async (req, res) => {
     try {
@@ -1523,37 +1600,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch metric details:", error);
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metric details" });
-    }
-  });
-
-
-  app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
-    try {
-      const organisationId = "org123";
-      const appId = "app123";
-
-      const { type, config } = req.body;
-
-      // Call Nova Manager to run the metric query
-      const queryData = await callNovaBackend<any>(
-        `/api/v1/metrics/compute/`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            organisation_id: organisationId,
-            app_id: appId,
-            type,
-            config,
-          })
-        }
-      );
-
-      console.log("queryData", queryData)
-      res.json(queryData);
-    } catch (error) {
-      console.error("Failed to fetch metric data:", error);
-      // Return empty data instead of error for better UX
-      res.json([]);
     }
   });
 
