@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { PlusIcon, XIcon, PlayIcon, BarChart3Icon, ChevronLeft, CheckIcon, ChevronDownIcon } from "lucide-react";
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import ConsoleLayout from "@/components/console-layout";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -505,8 +505,135 @@ export default function MetricBuilder() {
     return fullRange;
   };
 
-  // Get full range data for display
-  const fullRangeData = (chartData && chartData.length > 0) ? generateFullDateRange(chartData) : [];
+  // Function to generate color palette for different groups
+  const generateColors = (count: number) => {
+    const colors = [
+      "#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
+      "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#6366f1"
+    ];
+    return Array.from({length: count}, (_, i) => colors[i % colors.length]);
+  };
+
+  // Function to process grouped data for chart
+  const processGroupedData = (data: any[]) => {
+    if (!data || data.length === 0) return { chartData: [], groups: [] };
+    
+    // Check if we have group by items
+    const hasGroupBy = groupByItems.some(item => item.key !== "");
+    
+    if (!hasGroupBy) {
+      // No grouping - use existing logic
+      return { 
+        chartData: generateFullDateRange(data), 
+        groups: [] 
+      };
+    }
+    
+    // Extract all unique group combinations
+    const groupKeys = groupByItems.filter(item => item.key !== "").map(item => item.key);
+    const groupCombinations = new Set<string>();
+    
+    data.forEach(item => {
+      const groupValues = groupKeys.map(key => item[key] || 'null').join('|');
+      groupCombinations.add(groupValues);
+    });
+    
+    const groups = Array.from(groupCombinations).sort();
+    const colors = generateColors(groups.length);
+    
+    // Parse time range to get the number of days/hours
+    const parseTimeRange = (range: string) => {
+      const match = range.match(/(\d+)([hdwmy])/);
+      if (!match) return { amount: 30, unit: 'd' };
+      return { amount: parseInt(match[1]), unit: match[2] };
+    };
+
+    const { amount, unit } = parseTimeRange(timeRange);
+    const now = new Date();
+    let startDate = new Date(now);
+
+    switch (unit) {
+      case 'h':
+        startDate.setHours(now.getHours() - amount);
+        break;
+      case 'd':
+        startDate.setDate(now.getDate() - amount);
+        break;
+      case 'w':
+        startDate.setDate(now.getDate() - (amount * 7));
+        break;
+      case 'm':
+        startDate.setMonth(now.getMonth() - amount);
+        break;
+    }
+
+    // Create full time range
+    const timePoints = [];
+    const current = new Date(startDate);
+    
+    while (current <= now) {
+      timePoints.push(current.getTime());
+      
+      if (granularity === 'hourly') {
+        current.setHours(current.getHours() + 1);
+      } else if (granularity === 'weekly') {
+        current.setDate(current.getDate() + 7);
+      } else if (granularity === 'monthly') {
+        current.setMonth(current.getMonth() + 1);
+      } else {
+        current.setDate(current.getDate() + 1);
+      }
+    }
+    
+    // Create data structure for chart
+    const chartData = timePoints.map(timestamp => {
+      const point: any = { period: timestamp };
+      
+      groups.forEach((groupCombo, index) => {
+        const groupKey = `group_${index}`;
+        
+        // Find matching data point
+        const matchingItem = data.find(item => {
+          const itemTime = typeof item.period === 'number' ? item.period : new Date(item.period).getTime();
+          const itemGroupValues = groupKeys.map(key => item[key] || 'null').join('|');
+          
+          // Check time match (with some tolerance for different granularities)
+          let timeMatch = false;
+          const timeDiff = Math.abs(itemTime - timestamp);
+          
+          if (granularity === 'hourly') {
+            timeMatch = timeDiff < 3600000; // 1 hour tolerance
+          } else if (granularity === 'daily') {
+            timeMatch = timeDiff < 86400000; // 1 day tolerance  
+          } else if (granularity === 'weekly') {
+            timeMatch = timeDiff < 604800000; // 1 week tolerance
+          } else if (granularity === 'monthly') {
+            timeMatch = timeDiff < 2592000000; // 30 days tolerance
+          } else {
+            timeMatch = timeDiff < 86400000; // 1 day tolerance for 'none'
+          }
+          
+          return timeMatch && itemGroupValues === groupCombo;
+        });
+        
+        point[groupKey] = matchingItem ? matchingItem.value : 0;
+        point[`${groupKey}_label`] = groupCombo.replace(/\|/g, ', ');
+        point[`${groupKey}_color`] = colors[index];
+      });
+      
+      return point;
+    });
+    
+    return { chartData, groups: groups.map((combo, index) => ({
+      key: `group_${index}`,
+      label: combo.replace(/\|/g, ', '),
+      color: colors[index]
+    })) };
+  };
+
+  // Get processed data for display
+  const { chartData: processedChartData, groups } = (chartData && chartData.length > 0) ? processGroupedData(chartData) : { chartData: [], groups: [] };
+  const fullRangeData = processedChartData;
 
   const form = useForm({
     defaultValues: formData,
@@ -1663,24 +1790,74 @@ export default function MetricBuilder() {
                   ) : granularity === "none" ? (
                     /* Total Value Display for "none" granularity */
                     <div className="h-[400px] flex items-center justify-center">
-                      <div className="text-center space-y-6">
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                            Total {metricType.charAt(0).toUpperCase() + metricType.slice(1)}
-                          </h3>
-                          <div className="text-6xl font-bold text-primary">
-                            {chartData[0]?.value?.toLocaleString() || '0'}
+                      <div className="text-center space-y-6 w-full max-w-4xl">
+                        {groups.length > 0 ? (
+                          /* Grouped totals display */
+                          <div className="space-y-6">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                              Total {metricType.charAt(0).toUpperCase() + metricType.slice(1)} by Groups
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {groups.map((group, index) => {
+                                const totalValue = chartData.reduce((sum, item) => {
+                                  const groupValues = groupByItems
+                                    .filter(gbi => gbi.key !== "")
+                                    .map(gbi => item[gbi.key] || 'null')
+                                    .join('|');
+                                  return groupValues === group.label.replace(/, /g, '|') ? sum + (item.value || 0) : sum;
+                                }, 0);
+                                
+                                return (
+                                  <div 
+                                    key={group.key} 
+                                    className="bg-gradient-to-br from-background to-muted/30 rounded-xl p-4 border border-border/50"
+                                  >
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: group.color }}
+                                      ></div>
+                                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                        {group.label}
+                                      </span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-foreground">
+                                      {totalValue.toLocaleString()}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-xl p-4 max-w-md mx-auto">
+                              <div className="flex items-center justify-center space-x-3">
+                                <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                                <span className="text-sm text-muted-foreground">
+                                  {timeRange} period • Grouped totals
+                                </span>
+                                <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-xl p-6 max-w-md mx-auto">
-                          <div className="flex items-center justify-center space-x-3">
-                            <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
-                            <span className="text-sm text-muted-foreground">
-                              {timeRange} period • Total aggregation
-                            </span>
-                            <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                        ) : (
+                          /* Single total display */
+                          <div className="space-y-2">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                              Total {metricType.charAt(0).toUpperCase() + metricType.slice(1)}
+                            </h3>
+                            <div className="text-6xl font-bold text-primary">
+                              {chartData[0]?.value?.toLocaleString() || '0'}
+                            </div>
+                            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-xl p-6 max-w-md mx-auto">
+                              <div className="flex items-center justify-center space-x-3">
+                                <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                                <span className="text-sm text-muted-foreground">
+                                  {timeRange} period • Total aggregation
+                                </span>
+                                <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1689,14 +1866,24 @@ export default function MetricBuilder() {
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
                           data={fullRangeData}
-                          margin={{ top: 20, right: 0, left: 0, bottom: 20 }}
+                          margin={{ top: 20, right: 0, left: 0, bottom: groups.length > 0 ? 60 : 20 }}
                         >
                           <defs>
-                            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
-                              <stop offset="50%" stopColor="#22c55e" stopOpacity={0.1} />
-                              <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-                            </linearGradient>
+                            {groups.length > 0 ? (
+                              groups.map((group, index) => (
+                                <linearGradient key={group.key} id={`chartGradient_${index}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor={group.color} stopOpacity={0.3} />
+                                  <stop offset="50%" stopColor={group.color} stopOpacity={0.1} />
+                                  <stop offset="100%" stopColor={group.color} stopOpacity={0} />
+                                </linearGradient>
+                              ))
+                            ) : (
+                              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
+                                <stop offset="50%" stopColor="#22c55e" stopOpacity={0.1} />
+                                <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                              </linearGradient>
+                            )}
                             <filter id="glow">
                               <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                               <feMerge> 
@@ -1758,7 +1945,7 @@ export default function MetricBuilder() {
                               if (active && payload && payload.length) {
                                 return (
                                   <div className="bg-gray-900 text-white border border-gray-700 rounded-lg shadow-lg p-3">
-                                    <div className="text-xs text-gray-400 mb-1">
+                                    <div className="text-xs text-gray-400 mb-2">
                                       {typeof label === "number" 
                                         ? new Date(label).toLocaleDateString('en-US', { 
                                             month: 'short', 
@@ -1768,39 +1955,96 @@ export default function MetricBuilder() {
                                         : label
                                       }
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                      <span className="text-sm font-medium">
-                                        {payload[0].value?.toLocaleString()}
-                                      </span>
+                                    <div className="space-y-1">
+                                      {payload.map((entry, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                          <div 
+                                            className="w-2 h-2 rounded-full" 
+                                            style={{ backgroundColor: entry.color }}
+                                          ></div>
+                                          <span className="text-xs text-gray-300">
+                                            {groups.length > 0 ? groups.find(g => g.key === entry.dataKey)?.label || 'Total' : 'Total'}:
+                                          </span>
+                                          <span className="text-sm font-medium">
+                                            {entry.value?.toLocaleString()}
+                                          </span>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 );
                               }
                               return null;
                             }}
-                            cursor={{ stroke: "#22c55e", strokeWidth: 1, strokeDasharray: "4 4" }}
+                            cursor={{ stroke: "#64748b", strokeWidth: 1, strokeDasharray: "4 4" }}
                           />
                           
-                          <Area
-                            type="monotone"
-                            dataKey="value"
-                            stroke="#22c55e"
-                            strokeWidth={3}
-                            fill="url(#chartGradient)"
-                            dot={{ 
-                              r: 0,
-                              fill: "#22c55e",
-                              strokeWidth: 0
-                            }}
-                            activeDot={{ 
-                              r: 6, 
-                              fill: "#22c55e",
-                              stroke: "#ffffff",
-                              strokeWidth: 3,
-                              filter: "url(#glow)"
-                            }}
-                          />
+                          {groups.length > 0 && (
+                            <Legend 
+                              verticalAlign="bottom" 
+                              height={36}
+                              content={({ payload }) => (
+                                <div className="flex flex-wrap justify-center gap-4 mt-4">
+                                  {payload?.map((entry, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: entry.color }}
+                                      ></div>
+                                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                                        {groups.find(g => g.key === entry.dataKey)?.label}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            />
+                          )}
+                          
+                          {groups.length > 0 ? (
+                            groups.map((group, index) => (
+                              <Area
+                                key={group.key}
+                                type="monotone"
+                                dataKey={group.key}
+                                stroke={group.color}
+                                strokeWidth={2}
+                                fill={`url(#chartGradient_${index})`}
+                                dot={{ 
+                                  r: 0,
+                                  fill: group.color,
+                                  strokeWidth: 0
+                                }}
+                                activeDot={{ 
+                                  r: 4, 
+                                  fill: group.color,
+                                  stroke: "#ffffff",
+                                  strokeWidth: 2,
+                                  filter: "url(#glow)"
+                                }}
+                              />
+                            ))
+                          ) : (
+                            <Area
+                              type="monotone"
+                              dataKey="value"
+                              stroke="#22c55e"
+                              strokeWidth={3}
+                              fill="url(#chartGradient)"
+                              dot={{ 
+                                r: 0,
+                                fill: "#22c55e",
+                                strokeWidth: 0
+                              }}
+                              activeDot={{ 
+                                r: 6, 
+                                fill: "#22c55e",
+                                stroke: "#ffffff",
+                                strokeWidth: 3,
+                                filter: "url(#glow)"
+                              }}
+                            />
+                          )}
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
