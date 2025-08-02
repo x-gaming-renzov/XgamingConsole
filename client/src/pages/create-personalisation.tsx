@@ -102,6 +102,7 @@ export default function CreatePersonalisation() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiPrompt, setAIPrompt] = useState('');
   const [aiModalStep, setAIModalStep] = useState<'prompt' | 'loading'>('prompt');
+  const [expandedConfigs, setExpandedConfigs] = useState<Record<string, boolean>>({});
 
 
   // Query for experience objects when experience is selected
@@ -368,6 +369,7 @@ export default function CreatePersonalisation() {
         experience_id: formData.experienceId,
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
+        selected_metrics: formData.selected_metrics,
         experience_variants: experience_variants
       });
 
@@ -1464,47 +1466,70 @@ export default function CreatePersonalisation() {
                         {/* Experience Variants */}
                         <div>
                           <h3 className="text-lg font-semibold text-foreground mb-4">Experience Variants</h3>
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {createdVariants.map((variant, variantIndex) => (
-                              <div key={variantIndex} className="p-4 bg-white/70 dark:bg-gray-800/70 rounded-xl border border-white/50">
+                              <div key={variantIndex} className="bg-gradient-to-br from-white to-gray-50/80 dark:from-gray-800 dark:to-gray-800/80 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-5 shadow-sm hover:shadow-md transition-all duration-200">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-semibold text-foreground">{variant.name || `Variant ${variantIndex + 1}`}</h4>
-                                  <Badge variant="outline" className="bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+                                  <h4 className="font-semibold text-foreground text-base">{variant.name || `Variant ${variantIndex + 1}`}</h4>
+                                  <Badge variant="secondary" className="bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800/50 dark:text-blue-300 font-medium px-2.5 py-1">
                                     {variant.target_percentage}%
                                   </Badge>
                                 </div>
                                 
                                 {variant.description && (
-                                  <p className="text-sm text-muted-foreground mb-4">{variant.description}</p>
+                                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{variant.description}</p>
                                 )}
 
                                 {/* Object Variants for this Experience Variant */}
-                                <div className="space-y-3">
+                                <div className="space-y-2.5">
                                   {objects
                                     .filter((obj: any) => selectedObjects.includes(obj.pid))
-                                    .map((obj: any) => {
+                                    .map((obj: any, objIndex: number) => {
                                       const featureVariant = variant.feature_variants[obj.pid];
+                                      const configKey = `${variantIndex}-${obj.pid}`;
+                                      const isExpanded = expandedConfigs[configKey] || false;
+                                      
+                                      const toggleExpanded = () => {
+                                        setExpandedConfigs(prev => ({
+                                          ...prev,
+                                          [configKey]: !prev[configKey]
+                                        }));
+                                      };
+
                                       return (
-                                        <div key={obj.pid} className="p-3 bg-gray-50/70 dark:bg-gray-700/50 rounded-lg border border-gray-200/50 dark:border-gray-600/50">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <div className="w-4 h-4 bg-indigo-500 rounded-sm"></div>
-                                            <span className="text-sm font-medium text-foreground">{obj.feature_flag?.name}</span>
+                                        <div key={obj.pid} className="bg-white/80 dark:bg-gray-700/80 rounded-lg border border-gray-200/50 dark:border-gray-600/50 overflow-hidden">
+                                          <div 
+                                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-white dark:hover:bg-gray-700/90 transition-all duration-150"
+                                            onClick={toggleExpanded}
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                                <Package className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-sm font-medium text-foreground truncate">{obj.feature_flag?.name}</span>
+                                                  <span className="text-xs text-muted-foreground">→</span>
+                                                  <span className="text-xs font-medium text-blue-600 dark:text-blue-400 truncate">{featureVariant?.name || 'Default'}</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                                           </div>
-                                          <div className="ml-6">
-                                            <p className="text-xs text-muted-foreground mb-1">Variant: <span className="font-medium">{featureVariant?.name || 'Default'}</span></p>
-                                            {featureVariant?.config && Object.keys(featureVariant.config).length > 0 && (
-                                              <div className="space-y-1">
+                                          {isExpanded && featureVariant?.config && Object.keys(featureVariant.config).length > 0 && (
+                                            <div className="px-3 pb-3 border-t border-gray-200/50 dark:border-gray-600/50 bg-gray-50/50 dark:bg-gray-800/50">
+                                              <div className="pt-3 space-y-2">
                                                 {Object.entries(featureVariant.config).map(([key, value]) => (
-                                                  <div key={key} className="flex items-center gap-2 text-xs">
-                                                    <span className="text-muted-foreground">{key}:</span>
-                                                    <code className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-foreground font-mono">
+                                                  <div key={key} className="flex items-center justify-between">
+                                                    <span className="text-xs text-muted-foreground">{key}</span>
+                                                    <code className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs text-foreground font-mono border border-gray-200 dark:border-gray-600">
                                                       {String(value)}
                                                     </code>
                                                   </div>
                                                 ))}
                                               </div>
-                                            )}
-                                          </div>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -1589,7 +1614,7 @@ export default function CreatePersonalisation() {
                         <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                           <BarChart3 className="w-5 h-5 text-white" />
                         </div>
-                        Success Metrics
+                        Selected Metrics
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -1602,38 +1627,34 @@ export default function CreatePersonalisation() {
                           <p className="text-xs text-muted-foreground mt-1">You can track performance by adding metrics in step 4</p>
                         </div>
                       ) : (
-                        <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200/50 dark:border-emerald-800/50">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-                              <BarChart3 className="w-4 h-4 text-white" />
-                            </div>
-                            <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Selected Metrics</h3>
-                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100">
-                              {formData.selected_metrics.length}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {metrics
-                              .filter((metric: any) => formData.selected_metrics.includes(metric.pid))
-                              .map((metric: any) => (
-                                <div key={metric.pid} className="p-4 bg-white/60 dark:bg-gray-800/60 rounded-lg border border-white/50">
-                                  <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                      <BarChart3 className="w-3 h-3 text-white" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {metrics
+                            .filter((metric: any) => formData.selected_metrics.includes(metric.pid))
+                            .map((metric: any) => (
+                              <div key={metric.pid} className="group relative bg-gradient-to-br from-white to-gray-50/80 dark:from-gray-800 dark:to-gray-800/80 rounded-xl border border-gray-200/60 dark:border-gray-700/60 p-4 hover:shadow-md hover:border-emerald-300/50 dark:hover:border-emerald-600/50 transition-all duration-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                                      <BarChart3 className="w-4 h-4 text-white" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-medium text-foreground">{metric.name}</p>
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {metric.description || 'No description available'}
-                                      </p>
-                                      <Badge variant="outline" className="mt-2 text-xs bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300">
+                                      <p className="text-sm font-semibold text-foreground truncate">{metric.name}</p>
+                                      <Badge variant="secondary" className="mt-1 text-xs bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-800/50 dark:text-emerald-300">
                                         {metric.type || 'Metric'}
                                       </Badge>
                                     </div>
                                   </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => window.open(`/metrics/builder?id=${metric.pid}`, '_blank')}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 h-7 w-7 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 flex-shrink-0"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  </Button>
                                 </div>
-                              ))}
-                          </div>
+                              </div>
+                            ))}
                         </div>
                       )}
                     </CardContent>
