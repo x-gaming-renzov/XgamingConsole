@@ -31,6 +31,16 @@ interface Experience {
   status: string;
 }
 
+interface Metric {
+  metric: {
+    pid: string;
+    name: string;
+    description: string;
+    type: string;
+    config: Record<string, any>;
+  }
+}
+
 interface Personalisation {
   pid: string;
   name: string;
@@ -55,6 +65,7 @@ interface Personalisation {
       is_default: boolean;
     };
   }>;
+  metrics?: Metric[];
 }
 
 export default function Personalisations() {
@@ -305,7 +316,7 @@ export default function Personalisations() {
               <div className="p-8 pt-0">
                 <div className="flex gap-4 h-[calc(100vh-250px)]">
                   {/* Vertical Experience Tabs */}
-                  <div className="w-80 space-y-4 overflow-y-auto">
+                  <div className="w-64 xl:w-80 space-y-4 overflow-y-auto">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-foreground">
                         Experiences
@@ -585,7 +596,7 @@ export default function Personalisations() {
                                       )}
 
                                       {/* Bottom Row - Targeting Rules and Metrics */}
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                         {/* Targeting Rules Section */}
                                         <div className="h-fit border border-blue-200/50 bg-blue-50/30 rounded-xl dark:border-blue-800/30 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 transition-colors">
                                           <div
@@ -665,7 +676,7 @@ export default function Personalisations() {
                                               variant="outline"
                                               className="ml-2 text-xs border-emerald-300 text-emerald-600 dark:border-emerald-600 dark:text-emerald-400"
                                             >
-                                              4 KPIs
+                                              {personalisation.metrics?.length || 0}
                                             </Badge>
                                             {expandedPersonalisations[
                                               `metrics-${personalisation.pid}`
@@ -681,103 +692,42 @@ export default function Personalisations() {
                                           ] && (
                                             <div className="border-t border-emerald-200/50 dark:border-emerald-800/30">
                                               <div className="space-y-0">
-                                                {/* Conversion Rate */}
-                                                <div className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 dark:border-emerald-800/20">
-                                                  <div className="flex items-center space-x-3">
-                                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                    <div>
-                                                      <div className="text-sm font-medium text-foreground">
-                                                        Conversion
+                                                {personalisation.metrics && personalisation.metrics.length > 0 ? (
+                                                  personalisation.metrics.map(({ metric }, index) => (
+                                                    <div key={metric.pid} className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 last:border-b-0 dark:border-emerald-800/20">
+                                                      <div className="flex items-center space-x-3">
+                                                        <div className={`w-2 h-2 rounded-full ${
+                                                          index === 0 ? 'bg-green-500' :
+                                                          index === 1 ? 'bg-blue-500' :
+                                                          index === 2 ? 'bg-purple-500' :
+                                                          'bg-gray-500'
+                                                        }`}></div>
+                                                        <div>
+                                                          <div className="text-sm font-medium text-foreground">
+                                                            {metric.name}
+                                                          </div>
+                                                          <div className="text-xs text-muted-foreground">
+                                                            {metric.type.charAt(0).toUpperCase() + metric.type.slice(1)}
+                                                          </div>
+                                                        </div>
                                                       </div>
-                                                      <div className="text-xs text-muted-foreground">
-                                                        vs baseline 12.4%
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                  <div className="text-right">
-                                                    <div className="text-lg font-bold text-foreground">
-                                                      14.8%
-                                                    </div>
-                                                    <div className="flex items-center space-x-1 justify-end">
-                                                      <TrendingUp className="w-3 h-3 text-green-500" />
-                                                      <span className="text-xs font-semibold text-green-600">
-                                                        +2.4%
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Engagement Rate */}
-                                                <div className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 dark:border-emerald-800/20">
-                                                  <div className="flex items-center space-x-3">
-                                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                                    <div>
-                                                      <div className="text-sm font-medium text-foreground">
-                                                        Engagement
-                                                      </div>
-                                                      <div className="text-xs text-muted-foreground">
-                                                        vs baseline 63.1%
+                                                      <div className="text-right">
+                                                        <div className="text-sm text-muted-foreground">
+                                                          Tracking
+                                                        </div>
                                                       </div>
                                                     </div>
+                                                  ))
+                                                ) : (
+                                                  <div className="py-6 px-4 text-center">
+                                                    <div className="text-sm text-muted-foreground">
+                                                      No metrics configured for this personalisation
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                      Metrics can be added when creating or editing the personalisation
+                                                    </p>
                                                   </div>
-                                                  <div className="text-right">
-                                                    <div className="text-lg font-bold text-foreground">
-                                                      68.2%
-                                                    </div>
-                                                    <div className="flex items-center space-x-1 justify-end">
-                                                      <TrendingUp className="w-3 h-3 text-blue-500" />
-                                                      <span className="text-xs font-semibold text-blue-600">
-                                                        +5.1%
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Session Length */}
-                                                <div className="flex items-center justify-between py-3 px-4 border-b border-emerald-200/30 dark:border-emerald-800/20">
-                                                  <div className="flex items-center space-x-3">
-                                                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                                    <div>
-                                                      <div className="text-sm font-medium text-foreground">
-                                                        Session
-                                                      </div>
-                                                      <div className="text-xs text-muted-foreground">
-                                                        vs baseline 4.0 min
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                  <div className="text-right">
-                                                    <div className="text-lg font-bold text-foreground">
-                                                      4.2 min
-                                                    </div>
-                                                    <div className="flex items-center space-x-1 justify-end">
-                                                      <TrendingUp className="w-3 h-3 text-purple-500" />
-                                                      <span className="text-xs font-semibold text-purple-600">
-                                                        +12s
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                {/* Users Reached */}
-                                                <div className="flex items-center justify-between py-3 px-4">
-                                                  <div className="flex items-center space-x-3">
-                                                    <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                                    <div>
-                                                      <div className="text-sm font-medium text-foreground">
-                                                        Users Reached
-                                                      </div>
-                                                      <div className="text-xs text-muted-foreground">
-                                                        in last 30 days
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                  <div className="text-right">
-                                                    <div className="text-lg font-bold text-foreground">
-                                                      2.4K
-                                                    </div>
-                                                  </div>
-                                                </div>
+                                                )}
                                               </div>
                                             </div>
                                           )}
