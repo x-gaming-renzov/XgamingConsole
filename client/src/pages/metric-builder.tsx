@@ -1,35 +1,77 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  CardContent
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, XIcon, PlayIcon, BarChart3Icon, ChevronLeft } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PlusIcon, XIcon, PlayIcon, BarChart3Icon, ChevronLeft, CheckIcon, ChevronDownIcon } from "lucide-react";
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import ConsoleLayout from "@/components/console-layout";
 import { apiRequest } from "@/lib/queryClient";
 
+// Simple debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 type MetricType = "count" | "aggregation" | "ratio" | "retention";
+
+enum KeySource {
+  EVENT_PROPERTIES = "event_properties",
+  USER_PROFILE = "user_profile"
+}
 
 interface FilterType {
   key: string;
   op: "=" | "!=" | ">" | "<" | ">=" | "<=";
   value: string;
+  source: KeySource;
 }
 
 interface GroupByType {
   key: string;
+  source: KeySource;
+}
+
+interface EventSchema {
+  pid: string;
+  event_name: string;
+  event_schema: Record<string, any>;
+}
+
+interface EventProperty {
+  key: string;
+  type: string;
+  description: string;
+}
+
+interface UserProfileKey {
+  pid: string;
+  key: string;
+  type: string;
+  description: string;
 }
 
 interface FormData {
@@ -68,41 +110,11 @@ const METRIC_TYPES = [
   { value: "retention", label: "Retention", description: "User retention analysis" },
 ];
 
-const EVENT_NAMES = [
-  { value: "event_0_login", label: "User Login" },
-  { value: "event_1_purchase", label: "Purchase" },
-  { value: "event_2_logout", label: "User Logout" },
-  { value: "event_3_signup", label: "User Signup" },
-  { value: "event_4_page_view", label: "Page View" },
-];
-
-const GROUP_BY_OPTIONS = [
-  { value: "user_id", label: "User ID" },
-  { value: "event_name", label: "Event Name" },
-  { value: "device", label: "Device" },
-  { value: "country", label: "Country" },
-  { value: "platform", label: "Platform" },
-];
-
-const FILTER_KEYS = [
-  { value: "user_id", label: "User ID" },
-  { value: "device", label: "Device" },
-  { value: "country", label: "Country" },
-  { value: "platform", label: "Platform" },
-];
-
 const AGGREGATION_TYPES = [
   { value: "sum", label: "Sum" },
   { value: "avg", label: "Average" },
   { value: "min", label: "Minimum" },
   { value: "max", label: "Maximum" },
-];
-
-const PROPERTY_OPTIONS = [
-  { value: "revenue", label: "Revenue" },
-  { value: "duration", label: "Duration" },
-  { value: "count", label: "Count" },
-  { value: "score", label: "Score" },
 ];
 
 const RETENTION_WINDOWS = [
@@ -123,10 +135,44 @@ export default function MetricBuilder() {
   const [granularity, setGranularity] = useState("daily");
   const [chartData, setChartData] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [filters, setFilters] = useState<FilterType[]>([]);
   const [groupByItems, setGroupByItems] = useState<GroupByType[]>([]);
   const [metricName, setMetricName] = useState("");
   const [metricDescription, setMetricDescription] = useState("");
+  
+  // Command selector states
+  const [eventSelectorOpen, setEventSelectorOpen] = useState(false);
+  const [propertySelectorOpen, setPropertySelectorOpen] = useState(false);
+  const [initialEventSelectorOpen, setInitialEventSelectorOpen] = useState(false);
+  const [returnEventSelectorOpen, setReturnEventSelectorOpen] = useState(false);
+  const [groupBySelectorOpen, setGroupBySelectorOpen] = useState<number | null>(null);
+  const [filterKeySelectorOpen, setFilterKeySelectorOpen] = useState<number | null>(null);
+  
+  // Search states for key selectors
+  const [groupBySearchTerms, setGroupBySearchTerms] = useState<{[key: number]: string}>({});
+  const [filterSearchTerms, setFilterSearchTerms] = useState<{[key: number]: string}>({});
+  
+  // Individual search terms for different dropdowns
+  const [eventSearchTerm, setEventSearchTerm] = useState('');
+  const [propertySearchTerm, setPropertySearchTerm] = useState('');
+  
+  // Debounced search terms
+  const debouncedEventSearch = useDebounce(eventSearchTerm, 300);
+  const debouncedPropertySearch = useDebounce(propertySearchTerm, 300);
+
+  // Form data state - moved up to be used in queries
+  const [formData, setFormData] = useState<FormData>({
+    event_name: "",
+    distinct: false,
+    property: "",
+    aggregation: "sum",
+    numerator_event: "",
+    denominator_event: "",
+    initial_event: "",
+    return_event: "",
+    retention_window: "7d",
+  });
   
   const { toast } = useToast();
 
@@ -135,10 +181,142 @@ export default function MetricBuilder() {
     queryKey: [`/api/metrics/${metricId}`],
     enabled: isEditing,
   });
+
+  // Fetch events schema
+  const { data: eventsSchema = [] } = useQuery<EventSchema[]>({
+    queryKey: ["/api/metrics/events-schema"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/metrics/events-schema");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events schema: ${response.statusText}`);
+      }
+      return response.json();
+    },
+  });
+
+  // Fetch user profile keys
+  const { data: userProfileKeys = [] } = useQuery<UserProfileKey[]>({
+    queryKey: ["/api/metrics/user-profile-keys"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/metrics/user-profile-keys");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user profile keys: ${response.statusText}`);
+      }
+      return response.json();
+    },
+  });
+
+  // Search events with debounced term
+  const { data: searchedEvents = [] } = useQuery<EventSchema[]>({
+    queryKey: ["/api/metrics/events-schema/search", debouncedEventSearch],
+    queryFn: async () => {
+      if (!debouncedEventSearch.trim()) return eventsSchema;
+      
+      const response = await apiRequest("GET", `/api/metrics/events-schema?search=${encodeURIComponent(debouncedEventSearch)}`);
+      if (!response.ok) {
+        return eventsSchema; // Fallback to cached data on error
+      }
+      return response.json();
+    },
+    enabled: !!debouncedEventSearch.trim(),
+  });
+
+  // Search user profile keys for group by and filters
+  const { data: searchedUserKeys = [] } = useQuery<UserProfileKey[]>({
+    queryKey: ["/api/metrics/user-profile-keys/search", debouncedPropertySearch],
+    queryFn: async () => {
+      if (!debouncedPropertySearch.trim()) return userProfileKeys;
+      
+      const response = await apiRequest("GET", `/api/metrics/user-profile-keys?search=${encodeURIComponent(debouncedPropertySearch)}`);
+      if (!response.ok) {
+        return userProfileKeys; // Fallback to cached data on error
+      }
+      return response.json();
+    },
+    enabled: !!debouncedPropertySearch.trim(),
+  });
+
+  // Extract properties from selected event schema (frontend only)
+  const eventProperties: EventProperty[] = React.useMemo(() => {
+    if (!formData.event_name) return [];
+    
+    const selectedEvent = eventsSchema.find(event => event.event_name === formData.event_name);
+    if (!selectedEvent || !selectedEvent.event_schema?.properties) return [];
+    
+    const properties: EventProperty[] = [];
+    Object.entries(selectedEvent.event_schema.properties).forEach(([key, value]: [string, any]) => {
+      const propType = value?.type || 'string';
+      const description = value?.description || '';
+      properties.push({
+        key,
+        type: propType,
+        description
+      });
+    });
+    
+    return properties;
+  }, [eventsSchema, formData.event_name]);
+
+  // Helper functions to prepare data for UI
+  const getEventOptions = () => {
+    const events = debouncedEventSearch.trim() ? searchedEvents : eventsSchema;
+    return events.map(event => ({
+      value: event.event_name,
+      label: event.event_name.replace(/event_\d+_/, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    }));
+  };
+
+  const getPropertyOptions = () => {
+    return eventProperties.map(prop => ({
+      value: prop.key,
+      label: prop.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      type: prop.type,
+      description: prop.description
+    }));
+  };
+
+  const getKeyOptions = (searchTerm: string = '') => {
+    // Use searched data if search term exists, otherwise use cached data
+    const keys = searchTerm.trim() ? searchedUserKeys : userProfileKeys;
+    
+    const profileKeys = keys
+      .filter(key => 
+        !searchTerm || 
+        key.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        key.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+              .map(key => ({
+          value: key.key,
+          label: key.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          type: key.type === 'str' ? 'string' : key.type === 'int' ? 'integer' : key.type === 'bool' ? 'boolean' : key.type,
+          source: KeySource.USER_PROFILE
+        }));
+    
+    // Only include event properties for count & aggregation (single event types)
+    if (metricType === 'count' || metricType === 'aggregation') {
+      const eventKeys = eventProperties
+        .filter(prop => 
+          !searchTerm || 
+          prop.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          prop.description.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .map(prop => ({
+          value: prop.key,
+          label: prop.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          type: prop.type === 'str' ? 'string' : prop.type === 'int' ? 'integer' : prop.type === 'bool' ? 'boolean' : prop.type,
+          source: KeySource.EVENT_PROPERTIES
+        }));
+      
+      return [...eventKeys, ...profileKeys];
+    }
+    
+    // For ratio & retention, only show profile keys (multiple events involved)
+    return profileKeys;
+  };
   
   // Auto re-run queries when time range or granularity changes
   useEffect(() => {
-    if (!loading && chartData !== null) {
+    if (!loading && chartData !== null && !hasError) {
       onSubmit();
     }
   }, [timeRange, granularity]);
@@ -160,40 +338,52 @@ export default function MetricBuilder() {
       
       // Populate filters
       if (config.filters) {
-        const filterArray = Object.entries(config.filters).map(([key, value]) => ({
-          key,
-          op: "=" as const,
-          value: value as string,
-        }));
+        const filterArray = Object.entries(config.filters).map(([key, filterData]) => {
+          const data = filterData as any;
+          return {
+            key,
+            op: (data.op || "=") as "=" | "!=" | ">" | "<" | ">=" | "<=",
+            value: data.value,
+            source: (data.source || KeySource.USER_PROFILE) as KeySource
+          };
+        });
         setFilters(filterArray);
       }
       
       // Populate group by
       if (config.group_by && Array.isArray(config.group_by)) {
-        const groupByArray = config.group_by.map((key: string) => ({ key }));
+        const groupByArray = config.group_by.map((item: any) => {
+          return { 
+            key: item.key, 
+            source: (item.source || KeySource.USER_PROFILE) as KeySource
+          };
+        });
         setGroupByItems(groupByArray);
       }
       
       // Populate metric-specific form data
       const newFormData = { ...formData };
       
+      const eventOptions = getEventOptions();
+      const defaultEvent = eventOptions.length > 0 ? eventOptions[0].value : "";
+      
       switch (metric.type) {
         case "count":
-          newFormData.event_name = config.event_name || EVENT_NAMES[0].value;
+          newFormData.event_name = config.event_name || defaultEvent;
           newFormData.distinct = config.distinct || false;
           break;
         case "aggregation":
-          newFormData.event_name = config.event_name || EVENT_NAMES[0].value;
-          newFormData.property = config.property || PROPERTY_OPTIONS[0].value;
+          newFormData.event_name = config.event_name || defaultEvent;
+          newFormData.property = config.property || "";
           newFormData.aggregation = config.aggregation || "sum";
           break;
         case "ratio":
-          newFormData.numerator_event = config.numerator?.event_name || EVENT_NAMES[0].value;
-          newFormData.denominator_event = config.denominator?.event_name || EVENT_NAMES[1].value;
+          newFormData.numerator_event = config.numerator?.event_name || defaultEvent;
+          newFormData.denominator_event = config.denominator?.event_name || (eventOptions.length > 1 ? eventOptions[1].value : defaultEvent);
           break;
         case "retention":
-          newFormData.initial_event = config.initial_event?.event_name || EVENT_NAMES[3].value;
-          newFormData.return_event = config.return_event?.event_name || EVENT_NAMES[0].value;
+          newFormData.initial_event = config.initial_event?.event_name || defaultEvent;
+          newFormData.return_event = config.return_event?.event_name || defaultEvent;
           newFormData.retention_window = config.retention_window || "7d";
           break;
       }
@@ -202,9 +392,14 @@ export default function MetricBuilder() {
       
       // Auto-run query for existing metrics
       setTimeout(async () => {
-        const result = await computeMetric(metric.type, config);
-        setChartData(Array.isArray(result) ? result : result.result || []);
-        console.log("Chart data:", result);
+        try {
+          const result = await computeMetric(metric.type, config);
+          setChartData(Array.isArray(result) ? result : result.result || []);
+          console.log("Chart data:", result);
+        } catch (error) {
+          console.error("Error loading existing metric data:", error);
+          setHasError(true);
+        }
       }, 100); // Small delay to ensure form state is updated
     }
   }, [existingMetric, isEditing]);
@@ -312,19 +507,6 @@ export default function MetricBuilder() {
 
   // Get full range data for display
   const fullRangeData = (chartData && chartData.length > 0) ? generateFullDateRange(chartData) : [];
-  
-  // Form data state
-  const [formData, setFormData] = useState<FormData>({
-    event_name: EVENT_NAMES[0].value,
-    distinct: false,
-    property: PROPERTY_OPTIONS[0].value,
-    aggregation: "sum",
-    numerator_event: EVENT_NAMES[0].value,
-    denominator_event: EVENT_NAMES[1].value,
-    initial_event: EVENT_NAMES[3].value,
-    return_event: EVENT_NAMES[0].value,
-    retention_window: "7d",
-  });
 
   const form = useForm({
     defaultValues: formData,
@@ -337,14 +519,14 @@ export default function MetricBuilder() {
 
   // Handle filter management
   const addFilter = () => {
-    setFilters([...filters, { key: "", op: "=", value: "" }]);
+    setFilters([...filters, { key: "", op: "=", value: "", source: KeySource.USER_PROFILE }]);
   };
 
   const removeFilter = (index: number) => {
     setFilters(filters.filter((_, i) => i !== index));
   };
 
-  const updateFilter = (index: number, field: keyof FilterType, value: string) => {
+  const updateFilter = (index: number, field: keyof FilterType, value: string | KeySource) => {
     const newFilters = [...filters];
     newFilters[index] = { ...newFilters[index], [field]: value };
     setFilters(newFilters);
@@ -352,7 +534,7 @@ export default function MetricBuilder() {
 
   // Handle group by management
   const addGroupBy = () => {
-    setGroupByItems([...groupByItems, { key: "" }]);
+    setGroupByItems([...groupByItems, { key: "", source: KeySource.USER_PROFILE }]);
   };
 
   const removeGroupBy = (index: number) => {
@@ -361,24 +543,38 @@ export default function MetricBuilder() {
 
   const updateGroupBy = (index: number, value: string) => {
     const newGroupBy = [...groupByItems];
-    newGroupBy[index] = { key: value };
+    // Find the source of the selected key
+    const selectedKey = getKeyOptions(groupBySearchTerms[index] || '').find(key => key.value === value);
+    newGroupBy[index] = { 
+      key: value, 
+      source: selectedKey?.source || KeySource.USER_PROFILE
+    };
     setGroupByItems(newGroupBy);
   };
 
-  // Convert filters array to object for backend
+  // Convert filters array to enhanced object for backend
   const getFiltersObject = () => {
-    const filtersObj: Record<string, string> = {};
+    const filtersObj: Record<string, { value: string; source: KeySource; op: string }> = {};
     filters.forEach(filter => {
-      if (filter.key && filter.value && filter.op === "=") {
-        filtersObj[filter.key] = filter.value;
+      if (filter.key && filter.value) {
+        filtersObj[filter.key] = {
+          value: filter.value,
+          source: filter.source,
+          op: filter.op
+        };
       }
     });
     return filtersObj;
   };
 
-  // Get group by array for backend
+  // Get group by array with source information for backend
   const getGroupByArray = () => {
-    return groupByItems.map(item => item.key).filter(key => key !== "");
+    return groupByItems
+      .filter(item => item.key !== "")
+      .map(item => ({
+        key: item.key,
+        source: item.source
+      }));
   };
 
   const computeMetric = async (metricType: MetricType, config: any) => {
@@ -407,6 +603,7 @@ export default function MetricBuilder() {
   async function onSubmit(e?: React.FormEvent | React.MouseEvent) {
     if (e) e.preventDefault();
     setLoading(true);
+    setHasError(false); // Clear any previous error state
     
     try {
       // Prepare config based on metric type
@@ -455,6 +652,7 @@ export default function MetricBuilder() {
       setChartData(Array.isArray(result) ? result : result.result || []);
     } catch (error: any) {
       console.error("Metric computation error:", error);
+      setHasError(true); // Set error state to prevent infinite loop
       toast({
         title: "Error",
         description: error.message || "Failed to compute metric",
@@ -681,21 +879,53 @@ export default function MetricBuilder() {
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium">Event</Label>
-                        <Select 
-                          value={formData.event_name || EVENT_NAMES[0].value}
-                          onValueChange={(value) => updateFormData("event_name", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={eventSelectorOpen} onOpenChange={setEventSelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={eventSelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.event_name 
+                                ? getEventOptions().find((event) => event.value === formData.event_name)?.label 
+                                : "Select event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput 
+                                placeholder="Search events..." 
+                                value={eventSearchTerm}
+                                onValueChange={setEventSearchTerm}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("event_name", currentValue);
+                                        setEventSelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.event_name === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div className="flex items-center space-x-2">
                         <input
@@ -714,39 +944,108 @@ export default function MetricBuilder() {
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium">Event</Label>
-                        <Select 
-                          value={formData.event_name || EVENT_NAMES[0].value}
-                          onValueChange={(value) => updateFormData("event_name", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={eventSelectorOpen} onOpenChange={setEventSelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={eventSelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.event_name 
+                                ? getEventOptions().find((event) => event.value === formData.event_name)?.label 
+                                : "Select event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput 
+                                placeholder="Search events..." 
+                                value={eventSearchTerm}
+                                onValueChange={setEventSearchTerm}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("event_name", currentValue);
+                                        setEventSelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.event_name === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Property</Label>
-                        <Select 
-                          value={formData.property || PROPERTY_OPTIONS[0].value}
-                          onValueChange={(value) => updateFormData("property", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select property" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PROPERTY_OPTIONS.map((prop) => (
-                              <SelectItem key={prop.value} value={prop.value}>
-                                {prop.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={propertySelectorOpen} onOpenChange={setPropertySelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={propertySelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.property 
+                                ? getPropertyOptions().find((prop) => prop.value === formData.property)?.label 
+                                : "Select property..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput 
+                                placeholder="Search properties..." 
+                                value={propertySearchTerm}
+                                onValueChange={setPropertySearchTerm}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No properties found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getPropertyOptions().map((prop) => (
+                                    <CommandItem
+                                      key={prop.value}
+                                      value={prop.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("property", currentValue);
+                                        setPropertySelectorOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex flex-col flex-1">
+                                        <span>{prop.label}</span>
+                                        {prop.description && (
+                                          <span className="text-xs text-muted-foreground">{prop.description}</span>
+                                        )}
+                                      </div>
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.property === prop.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Aggregation</Label>
@@ -773,39 +1072,95 @@ export default function MetricBuilder() {
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium">Numerator Event</Label>
-                        <Select 
-                          value={formData.numerator_event || EVENT_NAMES[0].value}
-                          onValueChange={(value) => updateFormData("numerator_event", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select numerator event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={eventSelectorOpen} onOpenChange={setEventSelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={eventSelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.numerator_event 
+                                ? getEventOptions().find((event) => event.value === formData.numerator_event)?.label 
+                                : "Select numerator event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search events..." />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("numerator_event", currentValue);
+                                        setEventSelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.numerator_event === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Denominator Event</Label>
-                        <Select 
-                          value={formData.denominator_event || EVENT_NAMES[1].value}
-                          onValueChange={(value) => updateFormData("denominator_event", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select denominator event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={propertySelectorOpen} onOpenChange={setPropertySelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={propertySelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.denominator_event 
+                                ? getEventOptions().find((event) => event.value === formData.denominator_event)?.label 
+                                : "Select denominator event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search events..." />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("denominator_event", currentValue);
+                                        setPropertySelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.denominator_event === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                   )}
@@ -814,39 +1169,95 @@ export default function MetricBuilder() {
                     <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium">Initial Event</Label>
-                        <Select 
-                          value={formData.initial_event || EVENT_NAMES[3].value}
-                          onValueChange={(value) => updateFormData("initial_event", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select initial event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={initialEventSelectorOpen} onOpenChange={setInitialEventSelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={initialEventSelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.initial_event 
+                                ? getEventOptions().find((event) => event.value === formData.initial_event)?.label 
+                                : "Select initial event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search events..." />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("initial_event", currentValue);
+                                        setInitialEventSelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.initial_event === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Return Event</Label>
-                        <Select 
-                          value={formData.return_event || EVENT_NAMES[0].value}
-                          onValueChange={(value) => updateFormData("return_event", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="Select return event" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EVENT_NAMES.map((event) => (
-                              <SelectItem key={event.value} value={event.value}>
-                                {event.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={returnEventSelectorOpen} onOpenChange={setReturnEventSelectorOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={returnEventSelectorOpen}
+                              className="mt-1 w-full justify-between"
+                            >
+                              {formData.return_event 
+                                ? getEventOptions().find((event) => event.value === formData.return_event)?.label 
+                                : "Select return event..."
+                              }
+                              <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search events..." />
+                              <CommandList>
+                                <CommandEmpty>No events found.</CommandEmpty>
+                                <CommandGroup>
+                                  {getEventOptions().map((event) => (
+                                    <CommandItem
+                                      key={event.value}
+                                      value={event.value}
+                                      onSelect={(currentValue) => {
+                                        updateFormData("return_event", currentValue);
+                                        setReturnEventSelectorOpen(false);
+                                      }}
+                                    >
+                                      {event.label}
+                                      <CheckIcon
+                                        className={`ml-auto h-4 w-4 ${
+                                          formData.return_event === event.value ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Retention Window</Label>
@@ -886,21 +1297,88 @@ export default function MetricBuilder() {
                     <div className="space-y-2">
                       {groupByItems.map((item, index) => (
                         <div key={index} className="flex gap-2 items-center">
-                          <Select
-                            value={item.key}
-                            onValueChange={(value) => updateGroupBy(index, value)}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select field" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {GROUP_BY_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover open={groupBySelectorOpen === index} onOpenChange={(open) => {
+                            setGroupBySelectorOpen(open ? index : null);
+                            if (!open) {
+                              // Clear search term when closing
+                              setGroupBySearchTerms(prev => ({...prev, [index]: ''}));
+                            }
+                          }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={groupBySelectorOpen === index}
+                                className="w-full justify-between"
+                              >
+                                {item.key 
+                                  ? getKeyOptions(groupBySearchTerms[index] || '').find((key) => key.value === item.key)?.label || item.key
+                                  : "Select field..."
+                                }
+                                <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                              <Command>
+                                <CommandInput 
+                                  placeholder="Search keys..." 
+                                  value={groupBySearchTerms[index] || ''}
+                                  onValueChange={(value) => setGroupBySearchTerms(prev => ({...prev, [index]: value}))}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>No keys found.</CommandEmpty>
+                                  {(metricType === 'count' || metricType === 'aggregation') && (
+                                    <CommandGroup heading="Event Properties">
+                                      {getKeyOptions(groupBySearchTerms[index] || '').filter(key => key.source === KeySource.EVENT_PROPERTIES).map((key) => (
+                                        <CommandItem
+                                          key={`event-${key.value}`}
+                                          value={key.value}
+                                          onSelect={(currentValue) => {
+                                            updateGroupBy(index, currentValue);
+                                            setGroupBySelectorOpen(null);
+                                            setGroupBySearchTerms(prev => ({...prev, [index]: ''}));
+                                          }}
+                                        >
+                                          <div className="flex flex-col flex-1">
+                                            <span>{key.label}</span>
+                                            <span className="text-xs text-muted-foreground">{key.type}</span>
+                                          </div>
+                                          <CheckIcon
+                                            className={`ml-auto h-4 w-4 ${
+                                              item.key === key.value ? "opacity-100" : "opacity-0"
+                                            }`}
+                                          />
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  )}
+                                  <CommandGroup heading="User Profile">
+                                    {getKeyOptions(groupBySearchTerms[index] || '').filter(key => key.source === KeySource.USER_PROFILE).map((key) => (
+                                      <CommandItem
+                                        key={`profile-${key.value}`}
+                                        value={key.value}
+                                        onSelect={(currentValue) => {
+                                          updateGroupBy(index, currentValue);
+                                          setGroupBySelectorOpen(null);
+                                          setGroupBySearchTerms(prev => ({...prev, [index]: ''}));
+                                        }}
+                                      >
+                                        <div className="flex flex-col flex-1">
+                                          <span>{key.label}</span>
+                                          <span className="text-xs text-muted-foreground">{key.type}</span>
+                                        </div>
+                                        <CheckIcon
+                                          className={`ml-auto h-4 w-4 ${
+                                            item.key === key.value ? "opacity-100" : "opacity-0"
+                                          }`}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <Button
                             type="button"
                             size="sm"
@@ -926,52 +1404,132 @@ export default function MetricBuilder() {
                     {filters.length === 0 && (
                       <div className="text-sm text-muted-foreground py-2">No filters applied</div>
                     )}
-                    <div className="space-y-2">
+                    <div>
                       {filters.map((filter, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <Select
-                            value={filter.key}
-                            onValueChange={(value) => updateFilter(index, "key", value)}
-                          >
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Field" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {FILTER_KEYS.map((key) => (
-                                <SelectItem key={key.value} value={key.value}>
-                                  {key.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={filter.op}
-                            onValueChange={(value) => updateFilter(index, "op", value as any)}
-                          >
-                            <SelectTrigger className="w-16">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="=">=</SelectItem>
-                              <SelectItem value="!=">≠</SelectItem>
-                              <SelectItem value=">">{">"}</SelectItem>
-                              <SelectItem value="<">{"<"}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            className="flex-1"
-                            placeholder="Value"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(index, "value", e.target.value)}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeFilter(index)}
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </Button>
+                        <div key={index} className="space-y-2">
+                          {/* Field Selector - Full Width */}
+                          <div className="flex gap-2 items-start">
+                            <div className="flex-1 space-y-2">
+                              <Popover open={filterKeySelectorOpen === index} onOpenChange={(open) => {
+                                setFilterKeySelectorOpen(open ? index : null);
+                                if (!open) {
+                                  // Clear search term when closing
+                                  setFilterSearchTerms(prev => ({...prev, [index]: ''}));
+                                }
+                              }}>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={filterKeySelectorOpen === index}
+                                    className="w-full justify-between"
+                                  >
+                                    {filter.key 
+                                      ? getKeyOptions(filterSearchTerms[index] || '').find((key) => key.value === filter.key)?.label || filter.key
+                                      : "Select field..."
+                                    }
+                                    <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                  <Command>
+                                    <CommandInput 
+                                      placeholder="Search keys..." 
+                                      value={filterSearchTerms[index] || ''}
+                                      onValueChange={(value) => setFilterSearchTerms(prev => ({...prev, [index]: value}))}
+                                    />
+                                    <CommandList>
+                                      <CommandEmpty>No keys found.</CommandEmpty>
+                                      {(metricType === 'count' || metricType === 'aggregation') && (
+                                        <CommandGroup heading="Event Properties">
+                                          {getKeyOptions(filterSearchTerms[index] || '').filter(key => key.source === KeySource.EVENT_PROPERTIES).map((key) => (
+                                            <CommandItem
+                                              key={`event-${key.value}`}
+                                              value={key.value}
+                                              onSelect={(currentValue) => {
+                                                const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(key => key.value === currentValue);
+                                                updateFilter(index, "key", currentValue);
+                                                updateFilter(index, "source", selectedKey?.source || KeySource.USER_PROFILE);
+                                                setFilterKeySelectorOpen(null);
+                                                setFilterSearchTerms(prev => ({...prev, [index]: ''}));
+                                              }}
+                                            >
+                                              <div className="flex flex-col flex-1">
+                                                <span>{key.label}</span>
+                                                <span className="text-xs text-muted-foreground">{key.type}</span>
+                                              </div>
+                                              <CheckIcon
+                                                className={`ml-auto h-4 w-4 ${
+                                                  filter.key === key.value ? "opacity-100" : "opacity-0"
+                                                }`}
+                                              />
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      )}
+                                      <CommandGroup heading="User Profile">
+                                        {getKeyOptions(filterSearchTerms[index] || '').filter(key => key.source === KeySource.USER_PROFILE).map((key) => (
+                                          <CommandItem
+                                              key={`profile-${key.value}`}
+                                              value={key.value}
+                                              onSelect={(currentValue) => {
+                                                const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(key => key.value === currentValue);
+                                                updateFilter(index, "key", currentValue);
+                                                updateFilter(index, "source", selectedKey?.source || KeySource.USER_PROFILE);
+                                                setFilterKeySelectorOpen(null);
+                                                setFilterSearchTerms(prev => ({...prev, [index]: ''}));
+                                              }}
+                                          >
+                                            <div className="flex flex-col flex-1">
+                                              <span>{key.label}</span>
+                                              <span className="text-xs text-muted-foreground">{key.type}</span>
+                                            </div>
+                                            <CheckIcon
+                                              className={`ml-auto h-4 w-4 ${
+                                                filter.key === key.value ? "opacity-100" : "opacity-0"
+                                              }`}
+                                            />
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              {/* Operator, Value, and Remove Button Row */}
+                              <div className="flex gap-2 items-center">
+                                <Select
+                                  value={filter.op}
+                                  onValueChange={(value) => updateFilter(index, "op", value as any)}
+                                >
+                                  <SelectTrigger className="w-16">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="=">=</SelectItem>
+                                    <SelectItem value="!=">≠</SelectItem>
+                                    <SelectItem value=">">{">"}</SelectItem>
+                                    <SelectItem value="<">{"<"}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  className="flex-1"
+                                  placeholder="Value"
+                                  value={filter.value}
+                                  onChange={(e) => updateFilter(index, "value", e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeFilter(index)}
+                              className="mt-2"
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -982,13 +1540,16 @@ export default function MetricBuilder() {
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button 
-                      onClick={(e) => onSubmit(e)} 
+                      onClick={(e) => {
+                        setHasError(false); // Clear error state on manual retry
+                        onSubmit(e);
+                      }} 
                       disabled={loading} 
                       className="flex-1 text-white"
                     >
                       <PlayIcon className="h-4 w-4 mr-2" />
-                    {loading ? "Running..." : "Run Query"}
-                  </Button>
+                      {loading ? "Running..." : hasError ? "Retry Query" : "Run Query"}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -1050,6 +1611,21 @@ export default function MetricBuilder() {
                           <h3 className="text-lg font-semibold text-foreground">Running Query</h3>
                           <p className="text-sm text-muted-foreground">
                             Analyzing your {metricType} data...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : hasError ? (
+                    /* Error State */
+                    <div className="h-[400px] flex items-center justify-center">
+                      <div className="text-center space-y-4">
+                        <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center mx-auto">
+                          <div className="w-10 h-10 text-red-500">⚠️</div>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">Query failed</h3>
+                          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                            There was an error running your query. Please check your configuration and try again.
                           </p>
                         </div>
                       </div>
