@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient"; // keep for potential raw calls
+import { useAuth } from "@/contexts/AuthContext";
+import ForgotPasswordModal from "./forgot-password-modal";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,7 +37,8 @@ interface AuthModalProps {
 export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthModalProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { login: setUser } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  // useAuth provides login and register
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -56,62 +58,51 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
     },
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof loginSchema>) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setUser(data.user, data.token);
+  const { login, register } = useAuth();
+
+  // Form submission handlers using AuthContext
+  const handleLogin = async (data: z.infer<typeof loginSchema>) => {
+    try {
+      await login(data.email, data.password);
       toast({
         title: "Welcome back!",
         description: "You have been successfully logged in.",
       });
       onClose();
       setLocation("/personalisations");
-    },
-    onError: (error) => {
+    } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.message || 'Unable to login',  
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  const signupMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof signupSchema>) => {
-      const response = await apiRequest("POST", "/api/auth/register", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setUser(data.user, data.token);
+  const handleSignup = async (data: z.infer<typeof signupSchema>) => {
+    try {
+      // Include full name and company/game name
+      await register(data.email, data.password, data.name, data.company);
+      // automatically log in after signup
+      await login(data.email, data.password);
       toast({
         title: "Account created!",
-        description: "Welcome to Xgaming Nova. Your account has been created successfully.",
+        description: "Your account has been created successfully.",
       });
       onClose();
       setLocation("/console");
-    },
-    onError: (error) => {
+    } catch (error: any) {
       toast({
         title: "Signup failed",
-        description: error.message,
+        description: error.message || 'Unable to sign up',
         variant: "destructive",
       });
-    },
-  });
-
-  const handleLogin = (data: z.infer<typeof loginSchema>) => {
-    loginMutation.mutate(data);
-  };
-
-  const handleSignup = (data: z.infer<typeof signupSchema>) => {
-    signupMutation.mutate(data);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -162,12 +153,21 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
                   </FormItem>
                 )}
               />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={loginMutation.isPending}
+                disabled={loginForm.formState.isSubmitting}
               >
-                {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                {loginForm.formState.isSubmitting ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </Form>
@@ -243,9 +243,9 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={signupMutation.isPending}
+                disabled={signupForm.formState.isSubmitting}
               >
-                {signupMutation.isPending ? "Creating account..." : "Create Account"}
+                {signupForm.formState.isSubmitting ? "Creating account..." : "Create Account"}
               </Button>
             </form>
           </Form>
@@ -263,6 +263,16 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
           </p>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ForgotPasswordModal
+        open={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onBackToLogin={() => {
+          setShowForgotPassword(false);
+          onSwitchMode('login');
+        }}
+      />
+    </>
   );
 }

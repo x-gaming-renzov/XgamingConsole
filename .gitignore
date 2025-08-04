@@ -6,3 +6,9 @@ vite.config.ts.*
 *.tar.gz
 .env.prod
 smartobjdemo.json
+prod.sh
+dev.sh
+openapi.json
+.vscode/tasks.json
+docs/auth.md
+features/auth.md

@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Zap, BarChart3, CheckCircle, Target, TrendingUp } from "lucide-react";
 import AuthModal from "@/components/auth-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "wouter";
 import heroimage from "@/assets/heroimage.png";
 
 export default function Landing() {
@@ -11,6 +13,7 @@ export default function Landing() {
     open: false,
     mode: 'login'
   });
+  const { token, logout } = useAuth();
 
   const openLogin = () => setAuthModal({ open: true, mode: 'login' });
   const openSignup = () => setAuthModal({ open: true, mode: 'signup' });
@@ -30,12 +33,27 @@ export default function Landing() {
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
-              <Button variant="ghost" onClick={openLogin} className="text-muted-foreground hover:text-foreground">
-                Login
-              </Button>
-              <Button onClick={openSignup} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Get Started
-              </Button>
+              {!token ? (
+                <>
+                  <Button variant="ghost" onClick={openLogin} className="text-muted-foreground hover:text-foreground">
+                    Login
+                  </Button>
+                  <Button onClick={openSignup} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Get Started
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/dashboard">
+                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" onClick={logout} className="text-muted-foreground hover:text-foreground">
+                    Logout
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
-  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail
+  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail,
+  Eye, Clock, X
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
+import { handleError, showSuccess } from "@/lib/errorHandler";
 import ConsoleLayout from "@/components/console-layout";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface KnowledgeBaseFile {
   id: number;
@@ -41,14 +43,26 @@ interface TeamMember {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "collaborator" | "developer" | "viewer";
+  role: "admin" | "developer" | "analyst" | "viewer" | "owner";
   status: "active" | "pending" | "inactive";
   lastActive: string;
   invitedBy: string;
 }
 
-export default function ProjectSettings() {
-  const { toast } = useToast();
+interface PendingInvite {
+  pid: string;
+  target_type: string;
+  target_id: string;
+  email: string;
+  role: string;
+  token: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export default function AppSettings() {
+  const { token, selectedAppId } = useAuth();
 
   // Billing state
   const [billing] = useState({
@@ -92,39 +106,78 @@ export default function ProjectSettings() {
   });
 
   // Team members state
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah@company.com",
-      role: "admin",
-      status: "active",
-      lastActive: "2 hours ago",
-      invitedBy: "You"
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      email: "mike@company.com",
-      role: "collaborator",
-      status: "active",
-      lastActive: "1 day ago",
-      invitedBy: "Sarah Chen"
-    },
-    {
-      id: 3,
-      name: "Alex Rodriguez",
-      email: "alex@company.com",
-      role: "developer",
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    }
-  ]);
-
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer" | "viewer">("collaborator");
+  const [inviteRole, setInviteRole] = useState<"admin" | "developer" | "analyst" | "viewer" | "owner">("viewer");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  // Load members when app selected
+  useEffect(() => {
+    async function loadMembers() {
+      if (!selectedAppId) return;
+      try {
+        const res = await fetch(`/api/apps/${selectedAppId}/members`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        // Map Nova response to TeamMember shape
+        const raw = await res.json();
+        const mapped = raw.map((m: any) => ({
+          id: m.user_id,
+          name: m.full_name ?? m.name ?? m.email,
+          email: m.email,
+          role: m.role,
+          status: m.status ?? 'active',
+          lastActive: m.last_active ?? 'Never',
+          invitedBy: m.invited_by ?? ''
+        }));
+        setTeamMembers(mapped);
+      } catch (err: any) {
+        console.error('Load members error:', err);
+        handleError(err, 'load team members');
+      }
+    }
+
+    async function loadPendingInvites() {
+      if (!selectedAppId) return;
+      try {
+        const res = await fetch(`/api/apps/${selectedAppId}/pending-invites`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (!res.ok) {
+          // If it's a 404 or other error that might indicate no pending invites endpoint, just set empty array
+          if (res.status === 404) {
+            setPendingInvites([]);
+            return;
+          }
+          throw new Error(await res.text());
+        }
+        
+        const text = await res.text();
+        if (!text.trim()) {
+          // Handle empty response
+          setPendingInvites([]);
+          return;
+        }
+        
+        try {
+          const invites = JSON.parse(text);
+          setPendingInvites(Array.isArray(invites) ? invites : []);
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites JSON:', text);
+          setPendingInvites([]);
+        }
+      } catch (err: any) {
+        console.error('Load pending invites error:', err);
+        // Don't show error for pending invites - just set empty array and continue
+        setPendingInvites([]);
+      }
+    }
+
+    loadMembers();
+    loadPendingInvites();
+  }, [selectedAppId]);
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
@@ -138,7 +191,7 @@ export default function ProjectSettings() {
         if (prev >= 100) {
           clearInterval(interval);
           setUploading(false);
-          toast({ description: "File uploaded successfully" });
+          showSuccess("File Uploaded", "File uploaded successfully");
           return 100;
         }
         return prev + 10;
@@ -148,57 +201,130 @@ export default function ProjectSettings() {
 
   const handleFileDelete = (fileId: number) => {
     setKbFiles(prev => prev.filter(f => f.id !== fileId));
-    toast({ description: "File deleted successfully" });
+    showSuccess("File Deleted", "File deleted successfully");
   };
 
   const handleSlackConnect = () => {
     setSlackConnected(true);
-    toast({ description: "Slack integration connected successfully" });
+    showSuccess("Slack Connected", "Slack integration connected successfully");
   };
 
   const handleInviteMember = () => {
-    if (!inviteEmail) {
-      toast({ description: "Please enter an email address", variant: "destructive" });
-      return;
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email: inviteEmail, role: inviteRole })
+    })
+    .then(async res => { 
+      if (!res.ok) throw new Error(await res.text());
+      return res.json(); 
+    })
+    .then(() => {
+      showSuccess("Invitation Sent", `Invitation sent to ${inviteEmail}`);
+      setInviteEmail(""); setInviteRole("viewer"); setInviteDialogOpen(false);
+      
+      // Reload both members and pending invites
+      return Promise.all([
+        fetch(`/api/apps/${selectedAppId}/members`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/apps/${selectedAppId}/pending-invites`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+    })
+    .then(([membersRes, invitesRes]) => Promise.all([
+      membersRes.json(), 
+      invitesRes.ok ? invitesRes.text() : Promise.resolve('')
+    ]))
+    .then(([membersData, invitesText]) => {
+      const mapped = membersData.map((m: any) => ({
+        id: m.user_id,
+        name: m.full_name ?? m.name ?? m.email,
+        email: m.email,
+        role: m.role,
+        status: m.status ?? 'active',
+        lastActive: m.last_active ?? 'Never',
+        invitedBy: m.invited_by ?? ''
+      }));
+      setTeamMembers(mapped);
+      
+      // Handle pending invites response safely
+      if (invitesText.trim()) {
+        try {
+          const invitesData = JSON.parse(invitesText);
+          setPendingInvites(Array.isArray(invitesData) ? invitesData : []);
+        } catch (jsonError) {
+          console.warn('Failed to parse pending invites after invite:', jsonError);
+          setPendingInvites([]);
+        }
+      } else {
+        setPendingInvites([]);
+      }
+    })
+    .catch(err => {
+      console.error('Invite error:', err);
+      handleError(err, 'send invitation');
+    });
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    if (!selectedAppId) return;
+    try {
+      const res = await fetch(`/api/apps/${selectedAppId}/revoke-invite/${inviteId}`, { 
+        method: 'POST', 
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({})
+      });
+      if (!res.ok) throw new Error('Revoke invite failed');
+      setPendingInvites(prevInvites => prevInvites.filter(invite => invite.pid !== inviteId));
+      showSuccess("Invitation Revoked", "Pending invitation has been revoked");
+    } catch (err: any) {
+      handleError(err, "revoke invitation");
     }
-
-    const newMember: TeamMember = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: inviteRole,
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    };
-
-    setTeamMembers(prev => [...prev, newMember]);
-    setInviteEmail("");
-    setInviteRole("collaborator");
-    setInviteDialogOpen(false);
-    
-    toast({ description: `Invitation sent to ${inviteEmail}` });
   };
 
   const handleRemoveMember = (memberId: number) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== memberId));
-    toast({ description: "Team member removed" });
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/members/${memberId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => { if (!res.ok) throw new Error('Remove failed'); })
+    .then(() => {
+      showSuccess("Member Removed", "Team member removed successfully");
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+    })
+    .catch(err => {
+      console.error('Remove member error:', err);
+      handleError(err, 'remove team member');
+    });
   };
 
-  const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer" | "viewer") => {
-    setTeamMembers(prev => 
-      prev.map(m => m.id === memberId ? { ...m, role: newRole } : m)
-    );
-    toast({ description: "Role updated successfully" });
+  const handleRoleChange = (memberId: number, newRole: "admin" | "developer" | "analyst" | "viewer" | "owner") => {
+    if (!selectedAppId) return;
+    fetch(`/api/apps/${selectedAppId}/members/${memberId}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role: newRole })
+    })
+    .then(async res => { if (!res.ok) throw new Error(await res.text()); return res.json(); })
+    .then(() => {
+      setTeamMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      showSuccess("Role Updated", "Role updated successfully");
+    })
+    .catch(err => {
+      console.error('Role change error:', err);
+      handleError(err, 'update member role');
+    });
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "admin": return <Crown className="w-4 h-4" />;
-      case "collaborator": return <UserCheck className="w-4 h-4" />;
-      case "developer": return <Shield className="w-4 h-4" />;
+      case "developer": return <UserCheck className="w-4 h-4" />;
+      case "analyst": return <Shield className="w-4 h-4" />;
       case "viewer": return <Eye className="w-4 h-4" />;
-      default: return <User className="w-4 h-4" />;
     }
   };
 
@@ -241,14 +367,14 @@ export default function ProjectSettings() {
       <div className="p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center text-sm text-muted-foreground mb-2">
+        <div className="flex items-center text-sm text-muted-foreground mb-2">
             <span>Settings</span>
             <span className="mx-2">/</span>
-            <span className="text-foreground">Project Settings</span>
+            <span className="text-foreground">App Settings</span>
           </div>
-          <h1 className="text-2xl font-semibold">Project Settings</h1>
+          <h1 className="text-2xl font-semibold">App Settings</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage project-specific settings and integrations.
+            Manage app-specific settings and integrations.
           </p>
         </div>
 
@@ -302,10 +428,11 @@ export default function ProjectSettings() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="owner">Owner - Full access</SelectItem>
                               <SelectItem value="admin">Admin - Full access</SelectItem>
-                              <SelectItem value="collaborator">Product - Create and Edit experiments</SelectItem>
                               <SelectItem value="developer">Developer - Manage integrations</SelectItem>
-                              <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
+                              <SelectItem value="analyst">Analyst - Create and edit experiments and campaigns</SelectItem>
+                              <SelectItem value="viewer">Viewer - View insights</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -329,10 +456,7 @@ export default function ProjectSettings() {
                     <TableRow>
                       <TableHead>Member</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead>Invited By</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -363,23 +487,13 @@ export default function ProjectSettings() {
                               </div>
                             </SelectTrigger>
                             <SelectContent>
+                              <SelectItem value="owner">Owner</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="collaborator">Product</SelectItem>
                               <SelectItem value="developer">Developer</SelectItem>
-                              <SelectItem value="viewer">Analyst</SelectItem>
+                              <SelectItem value="analyst">Analyst</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(member.status) as any}>
-                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.lastActive}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.invitedBy}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -397,6 +511,77 @@ export default function ProjectSettings() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Pending Invites Section - Only show if there are pending invites */}
+            {pendingInvites.length > 0 && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Pending Invitations ({pendingInvites.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Invited</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingInvites.map(invite => {
+                        const createdDate = new Date(invite.created_at).toLocaleDateString();
+                        const expiresDate = new Date(invite.expires_at).toLocaleDateString();
+                        const isExpiringSoon = new Date(invite.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000; // Less than 24 hours
+                        
+                        return (
+                          <TableRow key={invite.pid}>
+                            <TableCell>
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback>{invite.email.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{invite.email}</span>
+                                  <span className="text-sm text-muted-foreground">Status: {invite.status}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="capitalize">{invite.role}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">{createdDate}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-sm ${isExpiringSoon ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                                {expiresDate}
+                                {isExpiringSoon && ' (Soon)'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleCancelInvite(invite.pid)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="w-4 h-4" />
+                                Revoke
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="billing" className="space-y-6">

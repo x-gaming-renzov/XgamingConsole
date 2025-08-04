@@ -4,8 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "@/pages/landing";
 import Console from "@/pages/console";
+import ResetPassword from "@/pages/reset-password";
+import AppSelector from "@/components/AppSelector";
 import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import CampaignDetails from "@/pages/campaign-details";
@@ -19,7 +22,8 @@ import Metrics from "@/pages/metrics";
 import MetricBuilder from "./pages/metric-builder";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
-import ProjectSettings from "@/pages/project-settings";
+import AppSettings from "@/pages/project-settings";
+import OrganizationSettings from "@/pages/organization-settings";
 import CreatePersonalisation from "@/pages/create-personalisation";
 
 import NotFound from "@/pages/not-found";
@@ -29,7 +33,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/console" component={Console} />
+      <Route path="/selector" component={AppSelector} />
       <Route path="/dashboard" component={Dashboard} />
       {/* <Route path="/campaigns" component={Campaigns} />
       <Route path="/campaigns/:campaignId" component={CampaignDetails} /> */}
@@ -45,7 +51,8 @@ function Router() {
       <Route path="/metrics/builder" component={MetricBuilder} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
-      <Route path="/project-settings" component={ProjectSettings} />
+      <Route path="/app-settings" component={AppSettings} />
+      <Route path="/organization-settings" component={OrganizationSettings} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>
@@ -55,12 +62,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
