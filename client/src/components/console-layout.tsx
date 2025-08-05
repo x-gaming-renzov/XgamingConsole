@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { handleError, showSuccess } from "@/lib/errorHandler";
 
 interface ConsoleLayoutProps {
@@ -20,11 +21,12 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const { token, logout, fetchOrgs, fetchApps, selectApp, selectedAppId } = useAuth();
   const [orgs, setOrgs] = useState<any[]>([]);
   const [apps, setApps] = useState<any[]>([]);
+  const [createAppOpen, setCreateAppOpen] = useState(false);
+  const [newAppName, setNewAppName] = useState("");
+  const [createAppOrg, setCreateAppOrg] = useState<string | null>(null);
   const [loadingApps, setLoadingApps] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
-  const [createAppOpen, setCreateAppOpen] = useState(false);
-  const [dialogOrg, setDialogOrg] = useState<string | null>(null);
-  const [newAppName, setNewAppName] = useState("");
+
 
   const handleLogout = () => {
     logout();
@@ -37,7 +39,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       try {
         const o = await fetchOrgs();
         setOrgs(o);
-        if (o.length && !dialogOrg) setDialogOrg(o[0].pid);
+        if (o.length) setCreateAppOrg(o[0].pid);
         const a = await fetchApps();
         setApps(a);
       } catch (e: any) {
@@ -49,25 +51,25 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     load();
   }, [fetchOrgs, fetchApps]);
 
-  // Create new app
   const handleCreateApp = async () => {
-    if (!dialogOrg) return;
+    if (!createAppOrg) return;
+    const orgPid = createAppOrg;
     try {
-      const res = await fetch(`/api/orgs/${dialogOrg}/apps`, {
+      const res = await fetch(`/api/orgs/${orgPid}/apps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: newAppName })
       });
       if (!res.ok) throw new Error(await res.text());
-      const app = await res.json();
-      showSuccess("App Created", `Created ${app.name}`);
+      const data = await res.json();
+      showSuccess("Application Created", `Successfully created application \"${data.name}\"`);
       const updatedApps = await fetchApps();
       setApps(updatedApps);
-      await selectApp(app.pid);
+      selectApp(data.pid);
       setCreateAppOpen(false);
       setNewAppName("");
     } catch (e: any) {
-      handleError(e, "create app");
+      handleError(e, "create application");
     }
   };
 
@@ -152,57 +154,58 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
             </div>
             
             {/* Application Selector */}
-            <div className="mb-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">APPLICATION</p>
+            <div className="mb-4 flex items-center space-x-2">
+              <Dialog open={createAppOpen} onOpenChange={setCreateAppOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Plus />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Application</DialogTitle>
+                    <DialogDescription>Enter a name for your new application under the selected organization</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                  <Label>Organization</Label>
+                  <Select value={createAppOrg || ''} onValueChange={setCreateAppOrg}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orgs.map(org => <SelectItem key={org.pid} value={org.pid}>{org.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Label htmlFor="app-name">Application Name</Label>
+                    <Input id="app-name" value={newAppName} onChange={e => setNewAppName(e.target.value)} />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setCreateAppOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCreateApp}>Create</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               {loadingApps ? (
                 <p className="text-xs">Loading apps...</p>
               ) : apps.length > 0 ? (
-                <div className="flex items-center space-x-2">
-                  <Select value={selectedAppId || ''} onValueChange={selectApp}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select an app" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {apps.map((app) => (
-                        <SelectItem key={app.pid} value={app.pid}>
-                          <div>
-                            <div className="font-medium">{app.name}</div>
-                            {/* optional subtitle */}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog open={createAppOpen} onOpenChange={setCreateAppOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="icon" variant="outline" onClick={() => setCreateAppOpen(true)}>
-                        <Plus />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create App</DialogTitle>
-                        <DialogDescription>Select an organization and enter a name.</DialogDescription>
-                      </DialogHeader>
-                      <Select value={dialogOrg || ''} onValueChange={setDialogOrg}>
-                        <SelectTrigger className="w-full mb-2">
-                          <SelectValue placeholder="Select org" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {orgs.map(o => <SelectItem key={o.pid} value={o.pid}>{o.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input value={newAppName} onChange={e => setNewAppName(e.target.value)} placeholder="App name" />
-                      <DialogFooter>
-                        <Button variant="ghost" onClick={() => setCreateAppOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateApp}>Create</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-               ) : (
-                 <p className="text-xs text-muted-foreground">No applications available.</p>
-               )}
+                <Select value={selectedAppId || ''} onValueChange={selectApp}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an app" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apps.map((app) => (
+                      <SelectItem key={app.pid} value={app.pid}>
+                        <div>
+                          <div className="font-medium">{app.name}</div>
+                          {/* optional subtitle */}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-xs text-muted-foreground">No applications available.</p>
+              )}
             </div>
           </SidebarHeader>
           
