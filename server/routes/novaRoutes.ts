@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { authenticateToken, callNovaBackend } from '../routes';
+import { callNovaBackend } from '../routes';
 
 // Register proxy routes for Nova backend: orgs and apps
 export function registerNovaRoutes(app: Express) {
