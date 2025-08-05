@@ -36,10 +36,10 @@ interface PendingInvite {
 
 export default function OrganizationSettings() {
   const { token, fetchOrgs } = useAuth();
-  const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  const [newOrgName, setNewOrgName] = useState("");
   const [orgs, setOrgs] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -210,11 +210,10 @@ export default function OrganizationSettings() {
         body: JSON.stringify({ name: newOrgName })
       });
       if (!res.ok) throw new Error(await res.text());
-      const org = await res.json();
-      showSuccess("Organization Created", `Created ${org.name}`);
-      const data = await fetchOrgs();
-      setOrgs(data);
-      setSelectedOrg(org.pid);
+      const data = await res.json();
+      showSuccess("Organization Created", `Successfully created organization \"${data.name}\"`);
+      setOrgs(prev => [...prev, data]);
+      setSelectedOrg(data.pid);
       setCreateOrgOpen(false);
       setNewOrgName("");
     } catch (e: any) {
@@ -232,26 +231,24 @@ export default function OrganizationSettings() {
             </div>
             <h1 className="text-2xl font-semibold">Organization Settings</h1>
           </div>
-          {/* Organization selector + Create button */}
           <div className="flex items-center space-x-2 mb-4">
             <Dialog open={createOrgOpen} onOpenChange={setCreateOrgOpen}>
               <DialogTrigger asChild>
-                <Button size="icon" variant="outline" onClick={() => setCreateOrgOpen(true)}>
+                <Button variant="outline" size="sm">
                   <Plus />
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create Organization</DialogTitle>
-                  <DialogDescription>Enter a name for your new organization.</DialogDescription>
+                  <DialogDescription>Enter a name for your new organization</DialogDescription>
                 </DialogHeader>
-                <Input
-                  value={newOrgName}
-                  onChange={e => setNewOrgName(e.target.value)}
-                  placeholder="Organization name"
-                />
+                <div className="space-y-4">
+                  <Label htmlFor="org-name">Organization Name</Label>
+                  <Input id="org-name" value={newOrgName} onChange={e => setNewOrgName(e.target.value)} />
+                </div>
                 <DialogFooter>
-                  <Button variant="ghost" onClick={() => setCreateOrgOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setCreateOrgOpen(false)}>Cancel</Button>
                   <Button onClick={handleCreateOrg}>Create</Button>
                 </DialogFooter>
               </DialogContent>
@@ -261,7 +258,7 @@ export default function OrganizationSettings() {
                 <SelectValue placeholder="Select Org" />
               </SelectTrigger>
               <SelectContent>
-              {orgs.map(o => <SelectItem key={o.pid} value={o.pid}>{o.name}</SelectItem>)}
+                {orgs.map(o => <SelectItem key={o.pid} value={o.pid}>{o.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
