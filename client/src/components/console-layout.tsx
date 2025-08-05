@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { handleError, showSuccess } from "@/lib/errorHandler";
 
 interface ConsoleLayoutProps {
   children: ReactNode;
@@ -19,7 +22,9 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [apps, setApps] = useState<any[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
   const [appError, setAppError] = useState<string | null>(null);
-
+  const [createAppOpen, setCreateAppOpen] = useState(false);
+  const [dialogOrg, setDialogOrg] = useState<string | null>(null);
+  const [newAppName, setNewAppName] = useState("");
 
   const handleLogout = () => {
     logout();
@@ -32,6 +37,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
       try {
         const o = await fetchOrgs();
         setOrgs(o);
+        if (o.length && !dialogOrg) setDialogOrg(o[0].pid);
         const a = await fetchApps();
         setApps(a);
       } catch (e: any) {
@@ -42,6 +48,28 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     }
     load();
   }, [fetchOrgs, fetchApps]);
+
+  // Create new app
+  const handleCreateApp = async () => {
+    if (!dialogOrg) return;
+    try {
+      const res = await fetch(`/api/orgs/${dialogOrg}/apps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newAppName })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const app = await res.json();
+      showSuccess("App Created", `Created ${app.name}`);
+      const updatedApps = await fetchApps();
+      setApps(updatedApps);
+      await selectApp(app.pid);
+      setCreateAppOpen(false);
+      setNewAppName("");
+    } catch (e: any) {
+      handleError(e, "create app");
+    }
+  };
 
   // Redirect to landing if not authenticated
   useEffect(() => {
@@ -129,24 +157,52 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               {loadingApps ? (
                 <p className="text-xs">Loading apps...</p>
               ) : apps.length > 0 ? (
-                <Select value={selectedAppId || ''} onValueChange={selectApp}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select an app" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apps.map((app) => (
-                      <SelectItem key={app.pid} value={app.pid}>
-                        <div>
-                          <div className="font-medium">{app.name}</div>
-                          {/* optional subtitle */}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="text-xs text-muted-foreground">No applications available.</p>
-              )}
+                <div className="flex items-center space-x-2">
+                  <Select value={selectedAppId || ''} onValueChange={selectApp}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select an app" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apps.map((app) => (
+                        <SelectItem key={app.pid} value={app.pid}>
+                          <div>
+                            <div className="font-medium">{app.name}</div>
+                            {/* optional subtitle */}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Dialog open={createAppOpen} onOpenChange={setCreateAppOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="icon" variant="outline" onClick={() => setCreateAppOpen(true)}>
+                        <Plus />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create App</DialogTitle>
+                        <DialogDescription>Select an organization and enter a name.</DialogDescription>
+                      </DialogHeader>
+                      <Select value={dialogOrg || ''} onValueChange={setDialogOrg}>
+                        <SelectTrigger className="w-full mb-2">
+                          <SelectValue placeholder="Select org" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {orgs.map(o => <SelectItem key={o.pid} value={o.pid}>{o.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Input value={newAppName} onChange={e => setNewAppName(e.target.value)} placeholder="App name" />
+                      <DialogFooter>
+                        <Button variant="ghost" onClick={() => setCreateAppOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateApp}>Create</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+               ) : (
+                 <p className="text-xs text-muted-foreground">No applications available.</p>
+               )}
             </div>
           </SidebarHeader>
           

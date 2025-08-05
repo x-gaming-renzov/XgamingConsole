@@ -61,4 +61,37 @@ export function registerNovaRoutes(app: Express) {
       res.status(502).json({ message: error.message || 'Failed to fetch org members' });
     }
   });
+
+  app.post('/api/orgs', async (req: Request, res: Response) => {
+    try {
+      const org = await callNovaBackend<{ pid: string; name: string }>(
+        '/api/v1/auth/organisations',
+        {
+          method: 'POST',
+          body: JSON.stringify(req.body),
+        }
+      );
+      res.json(org);
+    } catch (err: any) {
+      console.error('Failed to create organisation:', err);
+      res.status(502).json({ message: 'Failed to create organisation' });
+    }
+  });
+
+  // Create app under an organisation
+  app.post('/api/orgs/:orgPid/apps', async (req: Request, res: Response) => {
+    try {
+      const appResp = await callNovaBackend<{ pid: string; name: string }>(
+        `/api/v1/auth/organisations/${req.params.orgPid}/apps`,
+        {
+          method: 'POST',
+          body: JSON.stringify(req.body),
+        }
+      );
+      res.json(appResp);
+    } catch (err: any) {
+      console.error('Failed to create app:', err);
+      res.status(502).json({ message: 'Failed to create app' });
+    }
+  });
 }
