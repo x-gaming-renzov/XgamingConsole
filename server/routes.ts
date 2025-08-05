@@ -17,24 +17,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 // AsyncLocalStorage to propagate the original Authorization header
 const authStorage = new AsyncLocalStorage<{ authHeader?: string }>();
 
-// Middleware to verify JWT token
-export function authenticateToken(req: any, res: any, next: any) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      return res.status(403).json({ message: 'Invalid token' });
-    }
-    req.user = user;
-    next();
-  });
-}
-
 // Helper function to call Nova backend
 export async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
   console.log(`callNovaBackend: forwarding request to Nova ${NOVA_BACKEND_URL}${endpoint}`, options);
@@ -118,10 +100,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Experience routes (Nova Manager integration)
-  app.get("/api/experiences", authenticateToken, async (req, res) => {
+  app.get("/api/experiences", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       const { search } = req.query;
 
@@ -141,10 +123,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get available objects (not in any experience)
-  app.get("/api/objects/available", authenticateToken, async (req: any, res: any) => {
+  app.get("/api/objects/available", async (req: any, res: any) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova backend to get available feature flags in a single call
       const availableFlags = await callNovaBackend<any[]>(
@@ -175,11 +157,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create experience with simplified approach
-  app.post("/api/experiences", authenticateToken, async (req, res) => {
+  app.post("/api/experiences", async (req, res) => {
     try {
       const experienceData = req.body;
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Validate required fields
       if (!experienceData.name || !experienceData.selectedObjects || !Array.isArray(experienceData.selectedObjects)) {
@@ -224,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single experience with detailed information
-  app.get("/api/experiences/:id", authenticateToken, async (req, res) => {
+  app.get("/api/experiences/:id", async (req, res) => {
     try {
       const experienceId = req.params.id;
       
@@ -240,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Experience Objects
-  app.get("/api/experiences/:id/objects", authenticateToken, async (req, res) => {
+  app.get("/api/experiences/:id/objects", async (req, res) => {
     try {
       const experienceId = req.params.id;
 
@@ -256,10 +238,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Personalisations endpoints
-  app.get("/api/personalisations", authenticateToken, async (req, res) => {
+  app.get("/api/personalisations", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova Manager to get personalisations
       const novaPersonalisations = await callNovaBackend<any[]>(
@@ -273,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/personalisations", authenticateToken, async (req, res) => {
+  app.post("/api/personalisations", async (req, res) => {
     try {
       const personalisationData = req.body;
 
@@ -294,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Experience Personalisation endpoints
-  app.get("/api/personalisations/personalised-experiences/:experienceId", authenticateToken, async (req, res) => {
+  app.get("/api/personalisations/personalised-experiences/:experienceId", async (req, res) => {
     try {
       const { experienceId } = req.params;
       const { skip = 0, limit = 100 } = req.query;
@@ -311,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/experiences/:experienceId/personalisations/:personalisationId", authenticateToken, async (req, res) => {
+  app.get("/api/experiences/:experienceId/personalisations/:personalisationId", async (req, res) => {
     try {
       const { experienceId, personalisationId } = req.params;
 
@@ -344,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/experiences/:experienceId/personalisations/:personalisationId", authenticateToken, async (req, res) => {
+  app.put("/api/experiences/:experienceId/personalisations/:personalisationId", async (req, res) => {
     try {
       const { experienceId, personalisationId } = req.params;
       const personalisationData = req.body;
@@ -394,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/experiences/:experienceId/personalisations/:personalisationId", authenticateToken, async (req, res) => {
+  app.delete("/api/experiences/:experienceId/personalisations/:personalisationId", async (req, res) => {
     try {
       const { experienceId, personalisationId } = req.params;
 
@@ -412,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk experience actions
-  app.post("/api/experiences/bulk-action", authenticateToken, async (req, res) => {
+  app.post("/api/experiences/bulk-action", async (req, res) => {
     try {
       // TODO: Fix this. Shouldnt delete directly from db.
       const { action, experienceIds } = req.body;
@@ -491,10 +473,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recommendations routes
-  app.post("/api/recommendations/get-ai-recommendations", authenticateToken, async (req, res) => {
+  app.post("/api/recommendations/get-ai-recommendations", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       const userPrompt = req.body.userPrompt || "";
 
@@ -520,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Create experience targeting rules
-  app.post("/api/experiences/:experienceId/targeting-rules/", authenticateToken, async (req, res) => {
+  app.post("/api/experiences/:experienceId/targeting-rules/", async (req, res) => {
     try {
       const { experienceId } = req.params;
       const targetingRuleData = req.body;
@@ -554,10 +536,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Segments routes
-  app.get("/api/segments", authenticateToken, async (req, res) => {
+  app.get("/api/segments", async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova backend to get segments
       const novaResponse = await callNovaBackend<SegmentListResponseItem[]>(
@@ -583,10 +565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/segments", authenticateToken, async (req, res) => {
+  app.post("/api/segments", async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
+            const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova backend to create segement
       const segmentData = {
@@ -615,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/segments/estimate", authenticateToken, async (req, res) => {
+  app.post("/api/segments/estimate", async (req, res) => {
     try {
       const { rulesJson } = req.body;
       
@@ -630,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/segments/:id", authenticateToken, async (req, res) => {
+  app.get("/api/segments/:id", async (req, res) => {
     try {
       const id = req.params.id;
 
@@ -656,10 +638,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Campaign routes
-  app.get("/api/campaigns", authenticateToken, async (req, res) => {
+  app.get("/api/campaigns", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova Manager to get campaigns
       const novaCampaigns = await callNovaBackend<any[]>(
@@ -690,10 +672,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/campaigns", authenticateToken, async (req, res) => {
+  app.post("/api/campaigns", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
       const campaignData = req.body;
 
       // Transform frontend data to Nova Manager format
@@ -751,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single campaign details
-  app.get("/api/campaigns/:id", authenticateToken, async (req, res) => {
+  app.get("/api/campaigns/:id", async (req, res) => {
     try {
       const campaignId = req.params.id;
       
@@ -787,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update campaign
-  app.put("/api/campaigns/:id", authenticateToken, async (req, res) => {
+  app.put("/api/campaigns/:id", async (req, res) => {
     try {
       const campaignId = req.params.id;
       const updateData = req.body;
@@ -827,10 +809,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object routes
-  app.get("/api/objects", authenticateToken, async (req, res) => {
+  app.get("/api/objects", async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
+            const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova backend to get feature flags
       const novaResponse = await callNovaBackend<GetFeatureFlagsResponse>(
@@ -860,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // app.post("/api/objects", authenticateToken, async (req, res) => {
+  // app.post("/api/objects", async (req, res) => {
   //   try {
   //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
@@ -884,7 +866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Get single object details
-  app.get("/api/objects/:id", authenticateToken, async (req, res) => {
+  app.get("/api/objects/:id", async (req, res) => {
     try {
       const objectId = req.params.id;
 
@@ -913,7 +895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Variant API routes
-  // app.get("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
+  // app.get("/api/objects/:objectId/variants", async (req: any, res) => {
   //   try {
   //     const { objectId } = req.params;
 
@@ -935,7 +917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // app.post("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
+  // app.post("/api/objects/:objectId/variants", async (req: any, res) => {
   //   try {
   //     const { objectId } = req.params;
   //     const variantData = req.body;
@@ -951,7 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // app.patch("/api/variants/:id", authenticateToken, async (req: any, res) => {
+  // app.patch("/api/variants/:id", async (req: any, res) => {
   //   try {
   //     const { id } = req.params;
   //     const updates = req.body;
@@ -965,7 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // app.delete("/api/variants/:id", authenticateToken, async (req: any, res) => {
+  // app.delete("/api/variants/:id", async (req: any, res) => {
   //   try {
   //     const { id } = req.params;
   //     const deleted = await storage.deleteVariant(parseInt(id));
@@ -979,10 +961,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Metrics Builder endpoints
-  app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
+  app.post("/api/metrics/compute", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       const { type, config } = req.body;
 
@@ -1010,10 +992,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Events schema endpoints
-  app.get("/api/metrics/events-schema", authenticateToken, async (req, res) => {
+  app.get("/api/metrics/events-schema", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
       const { search } = req.query;
 
       let url = `/api/v1/metrics/events-schema/?organisation_id=${organisationId}&app_id=${appId}`;
@@ -1033,10 +1015,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User profile keys endpoints
-  app.get("/api/metrics/user-profile-keys", authenticateToken, async (req, res) => {
+  app.get("/api/metrics/user-profile-keys", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
       const { search } = req.query;
 
       let url = `/api/v1/metrics/user-profile-keys/?organisation_id=${organisationId}&app_id=${appId}`;
@@ -1056,10 +1038,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Metrics endpoints
-  app.get("/api/metrics", authenticateToken, async (req, res) => {
+  app.get("/api/metrics", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
 
       // Call Nova Manager to get metrics
       const novaMetrics = await callNovaBackend<any[]>(
@@ -1073,7 +1055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/metrics/:id", authenticateToken, async (req, res) => {
+  app.get("/api/metrics/:id", async (req, res) => {
     try {
       const metricId = req.params.id;
 
@@ -1089,10 +1071,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/metrics", authenticateToken, async (req, res) => {
+  app.post("/api/metrics", async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
+      const organisationId = req.headers['x-org-id'] as string;
+      const appId = req.headers['x-app-id'] as string;
       const metricData = req.body;
 
       // Transform frontend data to Nova Manager format
@@ -1121,7 +1103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/metrics/:id", authenticateToken, async (req, res) => {
+  app.put("/api/metrics/:id", async (req, res) => {
     try {
       const metricId = req.params.id;
       const metricData = req.body;
