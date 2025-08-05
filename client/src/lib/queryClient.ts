@@ -13,9 +13,13 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const token = localStorage.getItem('auth_token');
+  const orgId = localStorage.getItem('current_org');
+  const appId = localStorage.getItem('current_app');
   const headers: Record<string, string> = {
     ...(data ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    ...(orgId ? { "X-Org-Id": orgId } : {}),
+    ...(appId ? { "X-App-Id": appId } : {}),
   };
 
   const res = await fetch(url, {
@@ -36,8 +40,12 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const token = localStorage.getItem('auth_token');
+    const orgId = localStorage.getItem('current_org');
+    const appId = localStorage.getItem('current_app');
     const headers: Record<string, string> = {
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(orgId ? { "X-Org-Id": orgId } : {}),
+      ...(appId ? { "X-App-Id": appId } : {}),
     };
 
     const res = await fetch(queryKey[0] as string, {

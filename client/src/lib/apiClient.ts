@@ -24,7 +24,6 @@ apiClient.interceptors.response.use(
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       // Clear storage and redirect to login
       localStorage.removeItem('auth_token');
-      localStorage.removeItem('selected_app');
       window.location.href = '/';
     }
     return Promise.reject(error);

@@ -10,6 +10,7 @@ interface JWTPayload {
 
 interface AuthContextType {
   token: string | null;
+  selectedOrgId: string | null;
   selectedAppId: string | null;
   register: (email: string, password: string, full_name: string, company_name: string) => Promise<void>;
   login: (username: string, password: string) => Promise<any>;
@@ -24,18 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
   // Initialize from localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem('auth_token');
-    const savedApp = localStorage.getItem('selected_app');
+    const savedOrg = localStorage.getItem('current_org');
+    const savedApp = localStorage.getItem('current_app');
     if (savedToken) {
       try {
         const payload: JWTPayload = jwtDecode(savedToken);
         if (payload.exp * 1000 > Date.now()) {
-          setToken(savedToken);
-          if (savedApp) setSelectedAppId(savedApp);
+      setToken(savedToken);
+      if (savedOrg) setSelectedOrgId(savedOrg);
+      if (savedApp) setSelectedAppId(savedApp);
         } else {
           localStorage.removeItem('auth_token');
         }
@@ -145,10 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       const newToken = data.token ?? data.access_token;
       if (!newToken) throw new Error('No token returned on app switch');
-      // persist new app-scoped token
+      // persist new app-scoped token and context IDs
       persistToken(newToken);
-      setSelectedAppId(appId);
-      localStorage.setItem('selected_app', appId);
+      setSelectedAppId(data.current_app_id);
+      setSelectedOrgId(data.current_org_id);
+      localStorage.setItem('current_app', data.current_app_id);
+      localStorage.setItem('current_org', data.current_org_id);
     } catch (e) {
       console.error('Error switching app:', e);
       throw e;
@@ -159,12 +165,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setSelectedAppId(null);
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('selected_app');
     window.location.href = '/';
   };
 
   const value = {
     token,
+    selectedOrgId,
     selectedAppId,
     register,
     login,
