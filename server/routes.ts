@@ -93,6 +93,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(err.status || 502).json({ message: err.message || 'Login failed' });
     }
   });
+  // Proxy fetch current user
+  app.get("/api/auth/me", async (req, res) => {
+    console.log('Proxy /api/auth/me -> Nova');
+    try {
+      const novaResp = await callNovaBackend<any>('/api/v1/auth/me', { method: 'GET' });
+      return res.json(novaResp);
+    } catch (err: any) {
+      console.error('Nova fetchMe error:', err);
+      return res.status(err.status || 502).json({ message: err.message || 'Fetch current user failed' });
+    }
+  });
   // Nova proxy routes (orgs & apps)
   registerNovaRoutes(app);
   // Nova membership and invitation routes

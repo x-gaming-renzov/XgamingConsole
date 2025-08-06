@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +19,8 @@ export default function PersonalSettings() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    displayName: user?.name || "",
-    email: user?.email || "",
-    role: "Owner",
-    timezone: "UTC",
-    dateFormat: "DD/MM/YYYY",
-    language: "en"
+    displayName: "",
+    email: ""
   });
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKey] = useState("pk_live_1234567890abcdef1234567890abcdef");
@@ -47,6 +43,17 @@ export default function PersonalSettings() {
 
 
 
+  // Fetch current user on mount
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        setProfile({ displayName: data.full_name || '', email: data.email || '' });
+      })
+      .catch(() => {});
+  }, []);
   return (
     <ConsoleLayout>
       <div className="p-6">
@@ -73,28 +80,8 @@ export default function PersonalSettings() {
             <Card>
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
-                <CardDescription>
-                  Update your personal information and preferences.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="w-20 h-20">
-                    <AvatarImage src="/placeholder-avatar.jpg" />
-                    <AvatarFallback className="text-lg">
-                      {profile.displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <Button variant="outline" size="sm">
-                      Change Avatar
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      JPG, GIF or PNG. Max size of 2MB.
-                    </p>
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Display Name</Label>
@@ -115,103 +102,11 @@ export default function PersonalSettings() {
                       onBlur={(e) => handleProfileSave("email", e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select value={profile.timezone} onValueChange={(value) => handleProfileSave("timezone", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="UTC">UTC</SelectItem>
-                        <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                        <SelectItem value="Europe/London">London</SelectItem>
-                        <SelectItem value="Europe/Paris">Paris</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="language">Language</Label>
-                    <Select value={profile.language} onValueChange={(value) => handleProfileSave("language", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="ko">Korean</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Security */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Security</CardTitle>
-                <CardDescription>
-                  Manage your password and authentication settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Password</p>
-                    <p className="text-sm text-muted-foreground">Change your account password</p>
-                  </div>
-                  <Button variant="outline">
-                    Change Password
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* API Access */}
-            <Card>
-              <CardHeader>
-                <CardTitle>API Access</CardTitle>
-                <CardDescription>
-                  Manage your API keys for SDK integration.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium">API Key</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {showApiKey ? apiKey : "pk_live_••••••••••••••••••••••••••••••••"}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                      >
-                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleApiKeyCopy}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <Button variant="outline" onClick={handleApiKeyRotate}>
-                    Rotate Key
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
 
