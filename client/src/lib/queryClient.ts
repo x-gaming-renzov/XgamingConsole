@@ -18,8 +18,8 @@ export async function apiRequest(
   const headers: Record<string, string> = {
     ...(data ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-    ...(orgId ? { "X-Org-Id": orgId } : {}),
-    ...(appId ? { "X-App-Id": appId } : {}),
+    ...(orgId ? { "x-org-id": orgId } : {}),
+    ...(appId ? { "x-app-id": appId } : {}),
   };
 
   const res = await fetch(url, {
@@ -44,8 +44,8 @@ export const getQueryFn: <T>(options: {
     const appId = localStorage.getItem('current_app');
     const headers: Record<string, string> = {
       ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-      ...(orgId ? { "X-Org-Id": orgId } : {}),
-      ...(appId ? { "X-App-Id": appId } : {}),
+      ...(orgId ? { "x-org-id": orgId } : {}),
+      ...(appId ? { "x-app-id": appId } : {}),
     };
 
     const res = await fetch(queryKey[0] as string, {
