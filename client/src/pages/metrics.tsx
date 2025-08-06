@@ -15,6 +15,7 @@ import {
   Repeat
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 interface Metric {
   pid: string;
@@ -72,6 +73,7 @@ const formatMetricType = (type: string) => {
 };
 
 export default function Metrics() {
+  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: metrics, isLoading } = useQuery<Metric[]>({
@@ -95,7 +97,7 @@ export default function Metrics() {
               <h1 className="text-2xl font-bold text-foreground">Metrics</h1>
               <p className="text-muted-foreground">Track and analyze key performance indicators</p>
             </div>
-            <Button onClick={() => window.location.href = '/metrics/builder'} className="text-white">
+            <Button onClick={() => setLocation('/metrics/builder')} className="text-white">
               <Plus className="w-4 h-4 mr-2" />
               New Metric
             </Button>
@@ -172,7 +174,7 @@ export default function Metrics() {
                     }
                   </p>
                   {!searchQuery && (
-                    <Button onClick={() => window.location.href = '/metrics/builder'} className="text-white">
+                    <Button onClick={() => setLocation('/metrics/builder')} className="text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Metric
                     </Button>
@@ -185,4 +187,4 @@ export default function Metrics() {
       </ConsoleLayout>
     </>
   );
-} 
+}
