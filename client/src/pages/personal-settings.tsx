@@ -88,8 +88,7 @@ export default function PersonalSettings() {
                     <Input
                       id="displayName"
                       value={profile.displayName}
-                      onChange={(e) => setProfile(prev => ({ ...prev, displayName: e.target.value }))}
-                      onBlur={(e) => handleProfileSave("displayName", e.target.value)}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -98,8 +97,7 @@ export default function PersonalSettings() {
                       id="email"
                       type="email"
                       value={profile.email}
-                      onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                      onBlur={(e) => handleProfileSave("email", e.target.value)}
+                      readOnly
                     />
                   </div>
                 </div>
