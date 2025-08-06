@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 import ConsoleLayout from "@/components/console-layout";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 // Simple debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -129,6 +130,7 @@ export default function MetricBuilder() {
   const urlParams = new URLSearchParams(window.location.search);
   const metricId = urlParams.get('id');
   const isEditing = !!metricId;
+  const [, setLocation] = useLocation();
 
   const [metricType, setMetricType] = useState<MetricType>("count");
   const [timeRange, setTimeRange] = useState("30d");
@@ -873,8 +875,8 @@ export default function MetricBuilder() {
         description: `Metric ${isEditing ? 'updated' : 'saved'} successfully`,
       });
 
-      // Navigate back to metrics page
-      window.location.href = '/metrics';
+      // Navigate back to metrics page (client-side)
+      setLocation('/metrics');
     } catch (error: any) {
       console.error("Save metric error:", error);
       toast({
@@ -918,7 +920,7 @@ export default function MetricBuilder() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => window.location.href = '/metrics'}
+                onClick={() => setLocation('/metrics')}
                 className="mr-2"
               >
                 <ChevronLeft className="w-4 h-4" />
