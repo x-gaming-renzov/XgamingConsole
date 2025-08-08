@@ -52,10 +52,6 @@ export default function Campaigns() {
     description: "",
   });
 
-  const { data: metrics } = useQuery<CampaignMetrics>({
-    queryKey: ["/api/campaigns/metrics"],
-  });
-
   const { data: campaigns, isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
   });
@@ -88,7 +84,6 @@ export default function Campaigns() {
     onSuccess: () => {
       // Invalidate queries to refetch fresh data from the server
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/campaigns/metrics"] });
     }
   });
 

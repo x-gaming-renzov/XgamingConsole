@@ -12,7 +12,6 @@ import {
   CirclePlay
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import ExperienceForm from "@/components/experience-form";
 import { apiRequest } from "@/lib/queryClient";
 
 interface SegmentDetails {
@@ -69,7 +68,6 @@ interface Personalisation {
 export default function SegmentDetails() {
   const [, params] = useRoute("/segments/:id");
   const segmentId = params?.id;
-  const [showExperienceForm, setShowExperienceForm] = useState(false);
 
   const { data: segmentDetails, isLoading, error } = useQuery<SegmentDetails>({
     queryKey: [`/api/segments/${segmentId}`],
@@ -272,18 +270,12 @@ export default function SegmentDetails() {
                   <p className="text-sm mb-4">
                     This segment hasn't been used in any experiences yet.
                   </p>
-                  <Button onClick={() => setShowExperienceForm(true)}>Create Experience</Button>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
       </ConsoleLayout>
-
-      <ExperienceForm
-        open={showExperienceForm}
-        onOpenChange={setShowExperienceForm}
-      />
     </>
   );
 } 

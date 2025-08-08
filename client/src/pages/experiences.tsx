@@ -25,7 +25,6 @@ import {
   Target,
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import ExperienceForm from "@/components/experience-form";
 
 interface Experience {
   pid: string;
@@ -40,7 +39,6 @@ interface Experience {
 export default function Experiences() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showExperienceForm, setShowExperienceForm] = useState(false);
 
   const { data: experiences, isLoading } = useQuery<Experience[]>({
     queryKey: ["/api/experiences"],
@@ -193,11 +191,6 @@ export default function Experiences() {
           </Card>
         </div>
       </ConsoleLayout>
-
-      <ExperienceForm
-        open={showExperienceForm}
-        onOpenChange={setShowExperienceForm}
-      />
     </>
   );
 }
