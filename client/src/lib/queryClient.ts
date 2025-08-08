@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { useAuth } from "./auth";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -7,23 +8,54 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+async function makeRequestWithAuth(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = useAuth.getState().token;
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+
+  return await fetch(url, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const token = localStorage.getItem('auth_token');
   const headers: Record<string, string> = {
     ...(data ? { "Content-Type": "application/json" } : {}),
-    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
   };
 
-  const res = await fetch(url, {
+  let res = await makeRequestWithAuth(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
+
+  // If we get 401, try to refresh the token and retry once
+  if (res.status === 401) {
+    const refreshSuccess = await useAuth.getState().refreshAccessToken();
+    
+    if (refreshSuccess) {
+      // Retry the request with the new token
+      res = await makeRequestWithAuth(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+      });
+    } else {
+      // Refresh failed, user will be redirected to login by logout()
+      throw new Error('Authentication failed');
+    }
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -35,18 +67,33 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const token = localStorage.getItem('auth_token');
-    const headers: Record<string, string> = {
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-    };
+    let res = await makeRequestWithAuth(queryKey[0] as string);
 
-    const res = await fetch(queryKey[0] as string, {
-      headers,
-      credentials: "include",
-    });
+    // If we get 401, try to refresh the token and retry once
+    if (res.status === 401) {
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      const refreshSuccess = await useAuth.getState().refreshAccessToken();
+      
+      if (refreshSuccess) {
+        // Retry the request with the new token
+        res = await makeRequestWithAuth(queryKey[0] as string);
+      } else {
+        // Refresh failed, user will be redirected to login by logout()
+        throw new Error('Authentication failed');
+      }
+    }
+
+    // Handle the second 401 if refresh didn't work
+    if (res.status === 401) {
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
+      // Force logout since refresh didn't help
+      useAuth.getState().logout();
+      throw new Error('Authentication failed');
     }
 
     await throwIfResNotOk(res);
@@ -64,6 +111,13 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: false,
+      onError: (error: any) => {
+        // Handle authentication errors globally for mutations
+        if (error.message === 'Authentication failed' || 
+            (error.message && error.message.includes('401'))) {
+          useAuth.getState().logout();
+        }
+      },
     },
   },
 });

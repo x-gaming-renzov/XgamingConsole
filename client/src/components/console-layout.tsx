@@ -1,12 +1,15 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/components/ui/sidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/lib/auth";
+import { useAuth, switchApp } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConsoleLayoutProps {
   children: ReactNode;
@@ -15,19 +18,63 @@ interface ConsoleLayoutProps {
 export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
-  const [selectedProject, setSelectedProject] = useState("project-1");
+  const [selectedApp, setSelectedApp] = useState<string>("");
+  const { toast } = useToast();
+
+  // Fetch real apps data - only when user is authenticated
+  const { data: apps = [], isLoading: appsLoading, error: appsError } = useQuery({
+    queryKey: ["/api/auth/apps"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/auth/apps");
+      return response.json();
+    },
+    enabled: !!user, // Only fetch when user is available
+    retry: 1,
+    staleTime: 60 * 60 * 1000, // 1 hour
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
+  // Get current selected app details
+  const currentApp = apps.find((app: any) => app.id === selectedApp);
+
+  // Set the first app as selected by default when apps load
+  // In a real implementation, you'd get the current app from the JWT token
+  useEffect(() => {
+    if (apps.length > 0 && !selectedApp) {
+      // For now, select the first app. In production, you'd decode the JWT 
+      // to get the current app_id and set that as selected
+      setSelectedApp(apps[0].id);
+    }
+  }, [apps, selectedApp]);
 
   const handleLogout = () => {
+    toast({
+      title: "Signing out...",
+      description: "You have been successfully logged out.",
+    });
     logout();
-    setLocation("/");
   };
 
-  // Mock projects - in real app, this would come from API
-  const projects = [
-    { id: "project-1", name: "Mobile RPG", description: "Main game project" },
-    { id: "project-2", name: "Puzzle Quest", description: "Casual puzzle game" },
-    { id: "project-3", name: "Racing Elite", description: "Racing game project" }
-  ];
+  const handleAppSwitch = async (appId: string) => {
+    if (appId !== selectedApp) {
+      const success = await switchApp(appId);
+      if (success) {
+        setSelectedApp(appId);
+        toast({
+          title: "App switched",
+          description: "Successfully switched to the selected app.",
+        });
+      } else {
+        toast({
+          title: "Failed to switch app",
+          description: "There was an error switching apps. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
   const navigationItems = [
     // {
@@ -102,24 +149,37 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </Link>
             </div>
             
-            {/* Project Selector */}
+            {/* App Selector */}
             <div className="mb-4">
-              <p className="text-xs font-medium text-muted-foreground mb-2">PROJECT</p>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div>
-                        <div className="font-medium">{project.name}</div>
-                        <div className="text-xs text-muted-foreground">{project.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-xs font-medium text-muted-foreground mb-2">APP</p>
+              {appsLoading ? (
+                <div className="h-10 bg-muted/50 rounded-md animate-pulse" />
+              ) : appsError ? (
+                <div className="h-10 bg-destructive/10 rounded-md flex items-center justify-center">
+                  <span className="text-xs text-destructive">Failed to load apps</span>
+                </div>
+              ) : apps.length === 0 ? (
+                <div className="h-10 bg-muted/50 rounded-md flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground">No apps found</span>
+                </div>
+              ) : (
+                <Select value={selectedApp} onValueChange={handleAppSwitch}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an app">
+                      {currentApp && (
+                        <span className="font-medium">{currentApp.name}</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apps.map((app: any) => (
+                      <SelectItem key={app.id} value={app.id}>
+                        {app.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </SidebarHeader>
           

@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { useInitializeAuth } from "@/lib/auth";
 import Landing from "@/pages/landing";
 import Console from "@/pages/console";
 import Dashboard from "@/pages/dashboard";
@@ -21,6 +22,7 @@ import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
 import CreatePersonalisation from "@/pages/create-personalisation";
+import Onboarding from "@/pages/onboarding";
 
 import NotFound from "@/pages/not-found";
 import Personalisations from "./pages/personalisations";
@@ -29,6 +31,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/console" component={Console} />
       <Route path="/dashboard" component={Dashboard} />
       {/* <Route path="/campaigns" component={Campaigns} />
@@ -53,6 +56,9 @@ function Router() {
 }
 
 function App() {
+  // Initialize auth session restoration on app mount
+  useInitializeAuth();
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

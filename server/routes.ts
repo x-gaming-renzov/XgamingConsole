@@ -8,10 +8,18 @@ import { analyzeExperienceDescription } from "./openai";
 import fetch from 'node-fetch';
 import { GetFeatureFlagDetailsResponse, GetFeatureFlagsResponse, FlagVariant, SegmentListResponseItem, SegmentDetailsResponse } from "./types";
 
+// Extend Express Request interface
+declare module 'express-serve-static-core' {
+  interface Request {
+    token?: string;
+    user?: any; // For backward compatibility with existing routes
+  }
+}
+
 const NOVA_BACKEND_URL = process.env.NOVA_BACKEND_URL || "http://127.0.0.1:8000";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Middleware to verify JWT token
+// Middleware to extract JWT token for FastAPI forwarding
 function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -20,13 +28,9 @@ function authenticateToken(req: any, res: any, next: any) {
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      return res.status(403).json({ message: 'Invalid token' });
-    }
-    req.user = user;
-    next();
-  });
+  // Store token for forwarding to FastAPI (don't verify here, let FastAPI handle it)
+  req.token = token;
+  next();
 }
 
 // Helper function to call Nova backend
@@ -49,45 +53,14 @@ async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Auth routes
+  // Auth routes - Proxy to FastAPI
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
-      
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      
-      // Create user
-      const user = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
+      const response = await callNovaBackend<any>('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
       });
-
-      // Create default project
-      const project = await storage.createProject({
-        name: userData.company || "My Game",
-        description: "Default project",
-        userId: user.id,
-      });
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        user: { ...user, password: undefined },
-        project,
-        token,
-      });
+      res.json(response);
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Registration failed" });
     }
@@ -95,177 +68,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
-      
-      // Find user
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-
-      // Get user's projects
-      const projects = await storage.getProjectsByUserId(user.id);
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        user: { ...user, password: undefined },
-        projects,
-        token,
+      const response = await callNovaBackend<any>('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
       });
+      res.json(response);
     } catch (error) {
       res.status(400).json({ message: error instanceof Error ? error.message : "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/refresh", async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>('/api/v1/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+      });
+      res.json(response);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "Token refresh failed" });
     }
   });
 
   // Get current user
   app.get("/api/auth/me", authenticateToken, async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      const projects = await storage.getProjectsByUserId(user.id);
-      
-      res.json({
-        user: { ...user, password: undefined },
-        projects,
+      const response = await callNovaBackend<any>('/api/v1/auth/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
       });
+      res.json(response);
     } catch (error) {
       res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
     }
   });
 
-  // Project routes
-  app.get("/api/projects", authenticateToken, async (req, res) => {
+  // App management - Proxy to FastAPI
+  app.post("/api/auth/apps", authenticateToken, async (req, res) => {
     try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      res.json(projects);
+      const response = await callNovaBackend<any>('/api/v1/auth/apps', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch projects" });
+      res.status(400).json({ message: error instanceof Error ? error.message : "App creation failed" });
     }
   });
 
-  app.post("/api/projects", authenticateToken, async (req, res) => {
+  app.get("/api/auth/apps", authenticateToken, async (req, res) => {
     try {
-      const projectData = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject({
-        ...projectData,
-        userId: req.user.userId,
+      const response = await callNovaBackend<any>('/api/v1/auth/apps', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
       });
-      res.json(project);
+      res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create project" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch apps" });
+    }
+  });
+
+  app.post("/api/auth/switch-app", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>('/api/v1/auth/switch-app', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
+    } catch (error) {
+      res.status(400).json({ message: error instanceof Error ? error.message : "App switch failed" });
     }
   });
 
   // Experiment routes
-  app.get("/api/experiments", authenticateToken, async (req, res) => {
-    try {
-      const { projectId } = req.query;
+  // app.get("/api/experiments", authenticateToken, async (req, res) => {
+  //   try {
+  //     const { projectId } = req.query;
       
-      if (!projectId) {
-        return res.status(400).json({ message: "Project ID is required" });
-      }
+  //     if (!projectId) {
+  //       return res.status(400).json({ message: "Project ID is required" });
+  //     }
 
-      // Verify user has access to project
-      const project = await storage.getProject(Number(projectId));
-      if (!project || project.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+  //     // Verify user has access to project
+  //     const project = await storage.getProject(Number(projectId));
+  //     if (!project || project.userId !== req.user.userId) {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
 
-      const experiments = await storage.getExperimentsByProjectId(Number(projectId));
-      res.json(experiments);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiments" });
-    }
-  });
+  //     const experiments = await storage.getExperimentsByProjectId(Number(projectId));
+  //     res.json(experiments);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiments" });
+  //   }
+  // });
 
-  app.post("/api/experiments", authenticateToken, async (req, res) => {
-    try {
-      const experimentData = insertExperimentSchema.parse(req.body);
-      const { projectId } = req.body;
+  // app.post("/api/experiments", authenticateToken, async (req, res) => {
+  //   try {
+  //     const experimentData = insertExperimentSchema.parse(req.body);
+  //     const { projectId } = req.body;
 
-      // Verify user has access to project
-      const project = await storage.getProject(projectId);
-      if (!project || project.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+  //     // Verify user has access to project
+  //     const project = await storage.getProject(projectId);
+  //     if (!project || project.userId !== req.user.userId) {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
 
-      const experiment = await storage.createExperiment({
-        ...experimentData,
-        projectId,
-        userId: req.user.userId,
-      });
-      res.json(experiment);
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experiment" });
-    }
-  });
+  //     const experiment = await storage.createExperiment({
+  //       ...experimentData,
+  //       projectId,
+  //       userId: req.user.userId,
+  //     });
+  //     res.json(experiment);
+  //   } catch (error) {
+  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experiment" });
+  //   }
+  // });
 
-  app.put("/api/experiments/:id", authenticateToken, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      const updates = req.body;
+  // app.put("/api/experiments/:id", authenticateToken, async (req, res) => {
+  //   try {
+  //     const id = Number(req.params.id);
+  //     const updates = req.body;
 
-      // Verify user has access to experiment
-      const experiment = await storage.getExperiment(id);
-      if (!experiment || experiment.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+  //     // Verify user has access to experiment
+  //     const experiment = await storage.getExperiment(id);
+  //     if (!experiment || experiment.userId !== req.user.userId) {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
 
-      const updatedExperiment = await storage.updateExperiment(id, updates);
-      res.json(updatedExperiment);
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update experiment" });
-    }
-  });
+  //     const updatedExperiment = await storage.updateExperiment(id, updates);
+  //     res.json(updatedExperiment);
+  //   } catch (error) {
+  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update experiment" });
+  //   }
+  // });
 
-  app.delete("/api/experiments/:id", authenticateToken, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
+  // app.delete("/api/experiments/:id", authenticateToken, async (req, res) => {
+  //   try {
+  //     const id = Number(req.params.id);
 
-      // Verify user has access to experiment
-      const experiment = await storage.getExperiment(id);
-      if (!experiment || experiment.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+  //     // Verify user has access to experiment
+  //     const experiment = await storage.getExperiment(id);
+  //     if (!experiment || experiment.userId !== req.user.userId) {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
 
-      const deleted = await storage.deleteExperiment(id);
-      res.json({ success: deleted });
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete experiment" });
-    }
-  });
+  //     const deleted = await storage.deleteExperiment(id);
+  //     res.json({ success: deleted });
+  //   } catch (error) {
+  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete experiment" });
+  //   }
+  // });
 
   // Experience routes (Nova Manager integration)
   app.get("/api/experiences", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
       const { search } = req.query;
 
-      let url = `/api/v1/experiences/?organisation_id=${organisationId}&app_id=${appId}`
-
+      let url = `/api/v1/experiences/`;
+      const params = new URLSearchParams();
       if (search) {
-        url += `&search=${search}`
+        params.append('search', search as string);
+      }
+      if (params.toString()) {
+        url += `?${params.toString()}`;
       }
 
       // Call Nova Manager to get experiences
-      const novaExperiences = await callNovaBackend<any[]>(url);
+      const novaExperiences = await callNovaBackend<any[]>(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
 
       res.json(novaExperiences);
     } catch (error) {
@@ -273,46 +257,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get available objects (not in any experience)
-  app.get("/api/objects/available", authenticateToken, async (req: any, res: any) => {
-    try {
-      const organisationId = "org123";
-      const appId = "app123";
-
-      // Call Nova backend to get available feature flags in a single call
-      const availableFlags = await callNovaBackend<any[]>(
-        `/api/v1/feature-flags/available/?organisation_id=${organisationId}&app_id=${appId}`
-      );
-
-      // Transform Nova feature flags to objects format for dashboard
-      const availableObjects = availableFlags.map((flag: any) => {
-        const flags = Object.entries(flag.keys_config || {}).map(
-          ([keyName, keyConfig]) => ({ ...(keyConfig as any), key: keyName })
-        );
-
-        return {
-          id: flag.pid,
-          name: flag.name,
-          description: flag.description || "",
-          type: flag.type,
-          flags,
-          createdAt: new Date(flag.created_at).toLocaleDateString(),
-          isActive: flag.is_active,
-        };
-      });
-
-      res.json(availableObjects);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch available objects" });
-    }
-  });
-
   // Create experience with simplified approach
   app.post("/api/experiences", authenticateToken, async (req, res) => {
     try {
       const experienceData = req.body;
-      const organisationId = "org123";
-      const appId = "app123";
 
       // Validate required fields
       if (!experienceData.name || !experienceData.selectedObjects || !Array.isArray(experienceData.selectedObjects)) {
@@ -324,8 +272,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: experienceData.name,
         description: experienceData.description || "",
         status: (experienceData.status || "active").toLowerCase(),
-        organisation_id: organisationId,
-        app_id: appId,
         selected_objects: experienceData.selectedObjects,
       };
 
@@ -335,18 +281,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "POST",
           body: JSON.stringify(novaExperienceData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
-      // Return in frontend format
+      // Return in frontend format (no internal IDs exposed)
       const experience = {
         id: novaExperience.pid,
         name: novaExperience.name,
         description: novaExperience.description || "",
         status: novaExperience.status.charAt(0).toUpperCase() + novaExperience.status.slice(1),
         createdAt: new Date(novaExperience.created_at).toLocaleDateString(),
-        organisation_id: novaExperience.organisation_id,
-        app_id: novaExperience.app_id,
       };
 
       res.json(experience);
@@ -363,7 +310,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Call Nova Manager to get experience details
       const novaExperience = await callNovaBackend<any>(
-        `/api/v1/experiences/${experienceId}/`
+        `/api/v1/experiences/${experienceId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaExperience);
@@ -379,7 +332,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova Manager to get experience details
       const novaExperience = await callNovaBackend<any>(
-        `/api/v1/experiences/${experienceId}/features/`
+        `/api/v1/experiences/${experienceId}/features/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaExperience);
@@ -391,12 +350,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Personalisations endpoints
   app.get("/api/personalisations", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
-      // Call Nova Manager to get personalisations
+      // Call Nova Manager to get personalisations - JWT contains org/app context
       const novaPersonalisations = await callNovaBackend<any[]>(
-        `/api/v1/personalisations/?organisation_id=${organisationId}&app_id=${appId}`
+        `/api/v1/personalisations/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaPersonalisations);
@@ -416,6 +378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "POST",
           body: JSON.stringify(req.body),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -434,7 +399,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova Manager to get personalisations
       const novaPersonalisations = await callNovaBackend<any[]>(
-        `/api/v1/personalisations/personalised-experiences/${experienceId}/`
+        `/api/v1/personalisations/personalised-experiences/${experienceId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaPersonalisations);
@@ -450,7 +421,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova Manager to get personalisation details
       const novaPersonalisation = await callNovaBackend<any>(
-        `/api/v1/experiences/${experienceId}/personalisations/${personalisationId}/`
+        `/api/v1/experiences/${experienceId}/personalisations/${personalisationId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       // Transform response to frontend format
@@ -500,6 +477,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "PUT",
           body: JSON.stringify(novaPersonalisationData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -534,7 +514,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Call Nova Manager to delete personalisation
       await callNovaBackend<any>(
         `/api/v1/experiences/${experienceId}/personalisations/${personalisationId}/`,
-        { method: "DELETE" }
+        {
+          method: "DELETE",
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json({ message: "Personalisation deleted successfully" });
@@ -544,103 +529,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk experience actions
-  app.post("/api/experiences/bulk-action", authenticateToken, async (req, res) => {
-    try {
-      // TODO: Fix this. Shouldnt delete directly from db.
-      const { action, experienceIds } = req.body;
-      
-      if (!action || !experienceIds || !Array.isArray(experienceIds)) {
-        return res.status(400).json({ message: "Invalid action or experience IDs" });
-      }
-
-      const validActions = ["pause", "resume", "archive", "delete"];
-      if (!validActions.includes(action)) {
-        return res.status(400).json({ message: "Invalid action" });
-      }
-
-      // Handle delete action separately
-      if (action === "delete") {
-        const deletedExperiences = [];
-        
-        for (const id of experienceIds) {
-          try {
-            // Call Nova Manager to delete experience
-            await callNovaBackend<any>(
-              `/api/v1/experiences/${id}/`,
-              { method: "DELETE" }
-            );
-            deletedExperiences.push(id);
-          } catch (error) {
-            console.error(`Failed to delete experience ${id}:`, error);
-          }
-        }
-
-        return res.json({ 
-          success: true, 
-          deleted: deletedExperiences.length,
-          action,
-          experienceIds: deletedExperiences
-        });
-      }
-
-      // Handle status update actions
-      const statusMap = {
-        pause: "paused",
-        resume: "active", 
-        archive: "completed"
-      };
-
-      const newStatus = statusMap[action as keyof typeof statusMap];
-      const updatedExperiences = [];
-
-      for (const id of experienceIds) {
-        try {
-          // Call Nova Manager to update experience status
-          const updated = await callNovaBackend<any>(
-            `/api/v1/experiences/${id}/status`,
-            {
-              method: "PUT",
-              body: JSON.stringify({ status: newStatus }),
-            }
-          );
-          if (updated) {
-            updatedExperiences.push(updated);
-          }
-        } catch (error) {
-          console.error(`Failed to update experience ${id}:`, error);
-        }
-      }
-
-      res.json({ 
-        success: true, 
-        updated: updatedExperiences.length,
-        action,
-        status: newStatus
-      });
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to perform bulk action" });
-    }
-  });
-
   // Recommendations routes
   app.post("/api/recommendations/get-ai-recommendations", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
       const userPrompt = req.body.userPrompt || "";
 
-      // Call Nova Manager to get personalisations
+      // Call Nova Manager to get recommendations - JWT contains org/app context
       const novaPersonalisations = await callNovaBackend<any[]>(
         `/api/v1/recommendations/get-ai-recommendations/`,
         {
           method: "POST",
           body: JSON.stringify({
-            organisation_id: organisationId,
-            app_id: appId,
             user_prompt: userPrompt,
-          })
+          }),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -650,177 +554,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-  // Create experience targeting rules
-  app.post("/api/experiences/:experienceId/targeting-rules/", authenticateToken, async (req, res) => {
-    try {
-      const { experienceId } = req.params;
-      const targetingRuleData = req.body;
-
-      // Transform frontend data to Nova Manager format
-      const novaSegmentData = {
-        rollout_percentage: targetingRuleData.target_percentage,
-        rule_config: { conditions: [] },
-        personalisations: targetingRuleData.personalisation_distribution.map((item: any) => ({
-          personalisation_id: item.personalisation_id,
-          target_percentage: item.target_percentage,
-          use_default: item.is_default || false,
-        })),
-        segments: [{ segment_id: targetingRuleData.segment_id, rule_config: { operator: "equals", value: "facebook" } }],
-      };
-
-      // Call Nova Manager to create experience segment
-      const response = await callNovaBackend(
-        `/api/v1/experiences/${experienceId}/targeting-rules/`,
-        {
-          method: "POST",
-          body: JSON.stringify(novaSegmentData),
-        }
-      );
-
-      res.json({ message: "Experience segment created successfully" });
-    } catch (error) {
-      console.error("Failed to create experience segment:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experience segment" });
-    }
-  });
-
   // Analytics routes
-  app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
-    try {
-      const { projectId } = req.query;
+  // app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
+  //   try {
+  //     const { projectId } = req.query;
       
-      if (!projectId) {
-        return res.status(400).json({ message: "Project ID is required" });
-      }
+  //     if (!projectId) {
+  //       return res.status(400).json({ message: "Project ID is required" });
+  //     }
 
-      // Verify user has access to project
-      const project = await storage.getProject(Number(projectId));
-      if (!project || project.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+  //     // Verify user has access to project
+  //     const project = await storage.getProject(Number(projectId));
+  //     if (!project || project.userId !== req.user.userId) {
+  //       return res.status(403).json({ message: "Access denied" });
+  //     }
 
-      const experiments = await storage.getExperimentsByProjectId(Number(projectId));
+  //     const experiments = await storage.getExperimentsByProjectId(Number(projectId));
       
-      // Calculate analytics
-      const activeExperiments = experiments.filter(exp => exp.status === "running").length;
-      const completedExperiments = experiments.filter(exp => exp.status === "completed").length;
+  //     // Calculate analytics
+  //     const activeExperiments = experiments.filter(exp => exp.status === "running").length;
+  //     const completedExperiments = experiments.filter(exp => exp.status === "completed").length;
       
-      // Mock analytics data for now
-      const analytics = {
-        activeExperiments,
-        completedExperiments,
-        totalExperiments: experiments.length,
-        avgCompletionRate: 67.3,
-        dayOneRetention: 42.1,
-        recentExperiments: experiments.slice(0, 5),
-      };
+  //     // Mock analytics data for now
+  //     const analytics = {
+  //       activeExperiments,
+  //       completedExperiments,
+  //       totalExperiments: experiments.length,
+  //       avgCompletionRate: 67.3,
+  //       dayOneRetention: 42.1,
+  //       recentExperiments: experiments.slice(0, 5),
+  //     };
 
-      res.json(analytics);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch analytics" });
-    }
-  });
+  //     res.json(analytics);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch analytics" });
+  //   }
+  // });
 
   // Get dashboard metrics overview
-  app.get("/api/metrics/overview", authenticateToken, async (req, res) => {
-    try {
-      // Get user's projects to calculate metrics
-      const projects = await storage.getProjectsByUserId(req.user.userId);
+  // app.get("/api/metrics/overview", authenticateToken, async (req, res) => {
+  //   try {
+  //     // Get user's projects to calculate metrics
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
-      if (projects.length === 0) {
-        return res.json({
-          activeExperiences: 0,
-          avgD0Retention: 0,
-          avgD1Retention: 0,
-          activationRate: 0,
-          campaignsNeedAttention: false,
-          activeCampaigns: []
-        });
-      }
+  //     if (projects.length === 0) {
+  //       return res.json({
+  //         activeExperiences: 0,
+  //         avgD0Retention: 0,
+  //         avgD1Retention: 0,
+  //         activationRate: 0,
+  //         campaignsNeedAttention: false,
+  //         activeCampaigns: []
+  //       });
+  //     }
 
-      // Get all campaigns for user's projects
-      const allCampaigns = [];
-      const allExperiments = [];
+  //     // Get all campaigns for user's projects
+  //     const allCampaigns = [];
+  //     const allExperiments: any[] = [];
       
-      for (const project of projects) {
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        const experiments = await storage.getExperimentsByProjectId(project.id);
-        allCampaigns.push(...campaigns);
-        allExperiments.push(...experiments);
-      }
+  //     for (const project of projects) {
+  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
+  //       const experiments = await storage.getExperimentsByProjectId(project.id);
+  //       allCampaigns.push(...campaigns);
+  //       allExperiments.push(...experiments);
+  //     }
 
-      // Filter active campaigns and calculate metrics
-      const activeCampaigns = allCampaigns
-        .filter(campaign => campaign.status === "Active")
-        .map(campaign => {
-          // Match experiences to campaigns based on source/description
-          let campaignActiveExperiences = 0;
+  //     // Filter active campaigns and calculate metrics
+  //     const activeCampaigns = allCampaigns
+  //       .filter(campaign => campaign.status === "Active")
+  //       .map(campaign => {
+  //         // Match experiences to campaigns based on source/description
+  //         let campaignActiveExperiences = 0;
           
-          if (campaign.utmSource === "facebook") {
-            // Facebook campaign gets "Double Coins for Facebook Players"
-            campaignActiveExperiences = allExperiments.filter(exp => 
-              exp.status === "active" && exp.name.toLowerCase().includes("facebook")
-            ).length;
-          } else if (campaign.utmSource === "tiktok") {
-            // TikTok campaign gets "TikTok Welcome Popup Personalization"
-            campaignActiveExperiences = allExperiments.filter(exp => 
-              exp.status === "active" && exp.name.toLowerCase().includes("tiktok")
-            ).length;
-          } else if (campaign.utmSource === "google") {
-            // Google campaign gets "Google UAC Welcome Bonus"
-            campaignActiveExperiences = allExperiments.filter(exp => 
-              exp.status === "active" && (exp.name.toLowerCase().includes("google") || exp.name.toLowerCase().includes("uac"))
-            ).length;
-          } else {
-            // Other campaigns get remaining experiences
-            campaignActiveExperiences = 0;
-          }
+  //         if (campaign.utmSource === "facebook") {
+  //           // Facebook campaign gets "Double Coins for Facebook Players"
+  //           campaignActiveExperiences = allExperiments.filter(exp => 
+  //             exp.status === "active" && exp.name.toLowerCase().includes("facebook")
+  //           ).length;
+  //         } else if (campaign.utmSource === "tiktok") {
+  //           // TikTok campaign gets "TikTok Welcome Popup Personalization"
+  //           campaignActiveExperiences = allExperiments.filter(exp => 
+  //             exp.status === "active" && exp.name.toLowerCase().includes("tiktok")
+  //           ).length;
+  //         } else if (campaign.utmSource === "google") {
+  //           // Google campaign gets "Google UAC Welcome Bonus"
+  //           campaignActiveExperiences = allExperiments.filter(exp => 
+  //             exp.status === "active" && (exp.name.toLowerCase().includes("google") || exp.name.toLowerCase().includes("uac"))
+  //           ).length;
+  //         } else {
+  //           // Other campaigns get remaining experiences
+  //           campaignActiveExperiences = 0;
+  //         }
           
-          return {
-            id: campaign.id,
-            label: campaign.name,
-            utmSource: campaign.utmSource,
-            d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
-            d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
-            newUsersToday: campaign.installs || 0,
-            activeExperiences: campaignActiveExperiences,
-            status: campaign.status as "Active" | "Paused" | "Draft"
-          };
-        });
+  //         return {
+  //           id: campaign.id,
+  //           label: campaign.name,
+  //           utmSource: campaign.utmSource,
+  //           d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
+  //           d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
+  //           newUsersToday: campaign.installs || 0,
+  //           activeExperiences: campaignActiveExperiences,
+  //           status: campaign.status as "Active" | "Paused" | "Draft"
+  //         };
+  //       });
 
-      const activeExperiences = allExperiments.filter(exp => exp.status === "active").length;
-      const avgD0Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / Math.max(allCampaigns.length, 1);
-      const avgD1Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d1Retention || 0), 0) / Math.max(allCampaigns.length, 1);
+  //     const activeExperiences = allExperiments.filter(exp => exp.status === "active").length;
+  //     const avgD0Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / Math.max(allCampaigns.length, 1);
+  //     const avgD1Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d1Retention || 0), 0) / Math.max(allCampaigns.length, 1);
       
-      // Calculate average session length (mock data for now, in minutes)
-      const avgSessionLength = 4.2 + (Math.random() * 2.5); // 4.2-6.7 minutes range
+  //     // Calculate average session length (mock data for now, in minutes)
+  //     const avgSessionLength = 4.2 + (Math.random() * 2.5); // 4.2-6.7 minutes range
 
-      const metrics = {
-        activeExperiences,
-        avgD0Retention: Math.round(avgD0Retention * 10) / 10,
-        avgD1Retention: Math.round(avgD1Retention * 10) / 10,
-        sessionLength: Math.round(avgSessionLength * 10) / 10, // Replace activationRate with sessionLength
-        campaignsNeedAttention: activeCampaigns.some(c => c.d1Lowest < 40),
-        activeCampaigns: activeCampaigns.slice(0, 3) // Show top 3
-      };
+  //     const metrics = {
+  //       activeExperiences,
+  //       avgD0Retention: Math.round(avgD0Retention * 10) / 10,
+  //       avgD1Retention: Math.round(avgD1Retention * 10) / 10,
+  //       sessionLength: Math.round(avgSessionLength * 10) / 10, // Replace activationRate with sessionLength
+  //       campaignsNeedAttention: activeCampaigns.some(c => c.d1Lowest < 40),
+  //       activeCampaigns: activeCampaigns.slice(0, 3) // Show top 3
+  //     };
 
-      res.json(metrics);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
-    }
-  });
+  //     res.json(metrics);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
+  //   }
+  // });
 
   // Segments routes
   app.get("/api/segments", authenticateToken, async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
-
-      // Call Nova backend to get segments
+      // Call Nova backend to get segments - JWT contains org/app context
       const novaResponse = await callNovaBackend<SegmentListResponseItem[]>(
-        `/api/v1/segments/?organisation_id=${organisationId}&app_id=${appId}`
+        `/api/v1/segments/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       // Transform Nova segments to segments format for dashboard
@@ -844,13 +715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/segments", authenticateToken, async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
-
-      // Call Nova backend to create segement
+      // Call Nova backend to create segment - JWT contains org/app context
       const segmentData = {
-        organisation_id: organisationId,
-        app_id: appId,
         name: req.body.name,
         description: req.body.description || "",
         rule_config: req.body.rule_config || { conditions: [] },
@@ -859,6 +725,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdSegment = await callNovaBackend<any>("/api/v1/segments/", {
         method: "POST",
         body: JSON.stringify(segmentData),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
       });
 
       res.json({
@@ -874,28 +743,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/segments/estimate", authenticateToken, async (req, res) => {
-    try {
-      const { rulesJson } = req.body;
-      
-      if (!rulesJson) {
-        return res.status(400).json({ message: "Rules JSON is required" });
-      }
-
-      const estimate = await storage.estimateSegmentSize(rulesJson);
-      res.json({ users_daily: estimate });
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to estimate segment size" });
-    }
-  });
-
   app.get("/api/segments/:id", authenticateToken, async (req, res) => {
     try {
       const id = req.params.id;
 
       // Call Nova backend to get segment details
       const novaResponse = await callNovaBackend<SegmentDetailsResponse>(
-        `/api/v1/segments/${id}/`
+        `/api/v1/segments/${id}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       const segmentDetails = {
@@ -914,89 +774,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/segments/:id", authenticateToken, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      const updates = req.body;
-
-      // Verify user has access to segment
-      const segment = await storage.getSegment(id);
-      if (!segment || segment.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const updatedSegment = await storage.updateSegment(id, updates);
-      res.json(updatedSegment);
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update segment" });
-    }
-  });
-
-  app.delete("/api/segments/:id", authenticateToken, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-
-      // Verify user has access to segment
-      const segment = await storage.getSegment(id);
-      if (!segment || segment.userId !== req.user.userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const deleted = await storage.deleteSegment(id);
-      res.json({ success: deleted });
-    } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete segment" });
-    }
-  });
-
-  // AI Experience Draft Generation
-  app.post("/api/ai/experience_draft", authenticateToken, async (req, res) => {
-    try {
-      const { prompt, campaignHint } = req.body;
-      
-      if (!prompt || typeof prompt !== 'string' || prompt.length < 10) {
-        return res.status(400).json({ message: "Prompt must be at least 10 characters" });
-      }
-
-      // Generate a unique draft ID
-      const draftId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Mock AI-generated experience template for now
-      // In production, this would use OpenAI API
-      const draft = {
-        draftId,
-        name: `AI Generated: ${prompt.substring(0, 50)}...`,
-        objects: [
-          {
-            objectId: "level_5",
-            variants: {
-              control: { coins_multiplier: 1 },
-              A: { coins_multiplier: 2 }
-            }
-          }
-        ],
-        campaignId: campaignHint || "tiktok",
-        target: {
-          split: 50
-        }
-      };
-      
-      res.json(draft);
-    } catch (error) {
-      console.error("AI draft generation error:", error);
-      res.status(500).json({ message: "Failed to generate experience draft" });
-    }
-  });
-
   // Campaign routes
   app.get("/api/campaigns", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
-      // Call Nova Manager to get campaigns
+      // Call Nova Manager to get campaigns - JWT contains org/app context
       const novaCampaigns = await callNovaBackend<any[]>(
-        `/api/v1/campaigns/?organisation_id=${organisationId}&app_id=${appId}`
+        `/api/v1/campaigns/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       // Transform Nova Manager campaigns to frontend format
@@ -1023,53 +812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/campaigns/metrics", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.json({
-          estRevenue: 0,
-          totalInstalls: 0,
-          avgD0Retention: 0,
-          objectsBound: 0
-        });
-      }
-
-      const allCampaigns = [];
-      const allObjects = [];
-      
-      for (const project of projects) {
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        const objects = await storage.getObjectsByProjectId(project.id);
-        allCampaigns.push(...campaigns);
-        allObjects.push(...objects);
-      }
-
-      const totalInstalls = allCampaigns.reduce((sum, c) => sum + (c.installs || 0), 0);
-      const estRevenue = allCampaigns.reduce((sum, c) => sum + Number(c.revenue || 0), 0);
-      const avgD0Retention = allCampaigns.length > 0 
-        ? allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / allCampaigns.length
-        : 0;
-
-      res.json({
-        estRevenue: Math.round(estRevenue * 100) / 100,
-        totalInstalls,
-        avgD0Retention: Math.round(avgD0Retention * 10) / 10,
-        objectsBound: allObjects.length
-      });
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaign metrics" });
-    }
-  });
-
   app.post("/api/campaigns", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
       const campaignData = req.body;
 
-      // Transform frontend data to Nova Manager format
+      // Transform frontend data to Nova Manager format - JWT contains org/app context
       const novaCampaignData = {
         name: campaignData.name || campaignData.label || `${campaignData.utmSource} Campaign`,
         description: campaignData.description || "",
@@ -1085,8 +832,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           operator: "AND"
         },
         launched_at: campaignData.launchDate || new Date().toISOString(),
-        organisation_id: organisationId,
-        app_id: appId
       };
 
       // Call Nova Manager to create campaign
@@ -1095,6 +840,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "POST",
           body: JSON.stringify(novaCampaignData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -1130,7 +878,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Call Nova Manager to get campaign details
       const novaCampaign = await callNovaBackend<any>(
-        `/api/v1/campaigns/${campaignId}/`
+        `/api/v1/campaigns/${campaignId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       // Transform Nova Manager response to frontend format
@@ -1171,6 +925,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "PUT",
           body: JSON.stringify(updateData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -1202,18 +959,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object routes
   app.get("/api/objects", authenticateToken, async (req, res) => {
     try {
-      const organisationId =  "org123";
-      const appId = "app123";
-
-      // Call Nova backend to get feature flags
+      // Call Nova backend to get feature flags - JWT contains org/app context
       const novaResponse = await callNovaBackend<GetFeatureFlagsResponse>(
-        `/api/v1/feature-flags/?organisation_id=${organisationId}&app_id=${appId}`
+        `/api/v1/feature-flags/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       // Transform Nova feature flags to objects format for dashboard
       const objects = novaResponse.map((flag: any) => {
         const flags = Object.entries(flag.keys_config).map(
-          ([keyName, keyConfig]) => ({ ...keyConfig, key: keyName })
+          ([keyName, keyConfig]) => ({ ...(keyConfig as any), key: keyName })
         );
 
         return {
@@ -1233,29 +993,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // app.post("/api/objects", authenticateToken, async (req, res) => {
-  //   try {
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-  //     if (projects.length === 0) {
-  //       return res.status(400).json({ message: "No project found for user" });
-  //     }
-
-  //     const projectId = projects[0].id; // Use first project for now
-  //     const objectData = req.body;
-
-  //     const object = await storage.createObject({
-  //       ...objectData,
-  //       projectId,
-  //       userId: req.user.userId
-  //     });
-
-  //     res.json(object);
-  //   } catch (error) {
-  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create object" });
-  //   }
-  // });
-
   // Get single object details
   app.get("/api/objects/:id", authenticateToken, async (req, res) => {
     try {
@@ -1263,7 +1000,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova backend to get detailed feature flag information
       const novaFlag = await callNovaBackend<any>(
-        `/api/v1/feature-flags/${objectId}/`
+        `/api/v1/feature-flags/${objectId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       const objectDetails = {
@@ -1285,232 +1028,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-  // Get object history
-  app.get("/api/objects/:id/history", authenticateToken, async (req, res) => {
-    try {
-      const objectId = parseInt(req.params.id);
-      
-      // Mock history data - in production would come from version control/audit logs
-      const mockHistory = [
-        {
-          id: 1,
-          date: "12 Jul 09:13",
-          version: "Manifest v42",
-          action: "Added param enemy_speed",
-          details: "• Added param enemy_speed"
-        },
-        {
-          id: 2,
-          date: "07 Jul 14:21",
-          version: "Manifest v40",
-          action: "Updated default starting_coins 80→100",
-          details: "• Updated default starting_coins 80→100"
-        },
-        {
-          id: 3,
-          date: "01 Jul 11:02",
-          version: "Manifest v37",
-          action: "Object created",
-          details: "Object created (v37)"
-        }
-      ];
-
-      res.json(mockHistory);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object history" });
-    }
-  });
-
-  // Variant API routes
-  // app.get("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
-  //   try {
-  //     const { objectId } = req.params;
-
-  //     // Get variants from Nova backend
-  //     const variants = await callNovaBackend<FlagVariant[]>(`/api/v1/feature-flags/${objectId}/variants/`);
-
-  //     const variantsResponse = variants.map((variant) => {
-  //       return {
-  //         id: variant.pid,
-  //         objectId,
-  //         name: variant.name,
-  //         payload: variant.config,
-  //       }
-  //     })
-      
-  //     res.json(variantsResponse);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch variants" });
-  //   }
-  // });
-
-  // app.post("/api/objects/:objectId/variants", authenticateToken, async (req: any, res) => {
-  //   try {
-  //     const { objectId } = req.params;
-  //     const variantData = req.body;
-
-  //     const variant = await callNovaBackend<GetFeatureFlagDetailsResponse>(
-  //       `/api/v1/feature-flags/${objectId}/variants/`,
-  //       { method: "POST", body: JSON.stringify(variantData) }
-  //     );
-
-  //     res.status(201).json(variant);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create variant" });
-  //   }
-  // });
-
-  // app.patch("/api/variants/:id", authenticateToken, async (req: any, res) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const updates = req.body;
-  //     const variant = await storage.updateVariant(parseInt(id), updates);
-  //     if (!variant) {
-  //       return res.status(404).json({ message: "Variant not found" });
-  //     }
-  //     res.json(variant);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to update variant" });
-  //   }
-  // });
-
-  // app.delete("/api/variants/:id", authenticateToken, async (req: any, res) => {
-  //   try {
-  //     const { id } = req.params;
-  //     const deleted = await storage.deleteVariant(parseInt(id));
-  //     if (!deleted) {
-  //       return res.status(404).json({ message: "Variant not found" });
-  //     }
-  //     res.status(204).send();
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to delete variant" });
-  //   }
-  // });
-
-  app.get("/api/manifest/info", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-      if (projects.length === 0) {
-        return res.json({ objectCount: 0, campaignCount: 0 });
-      }
-
-      let objectCount = 0;
-      let campaignCount = 0;
-      
-      for (const project of projects) {
-        const objects = await storage.getObjectsByProjectId(project.id);
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        objectCount += objects.length;
-        campaignCount += campaigns.length;
-      }
-
-      res.json({ objectCount, campaignCount });
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch manifest info" });
-    }
-  });
-
   // OpenAI experience analysis
-  app.post("/api/analyze-experience", authenticateToken, async (req, res) => {
-    try {
-      const { description } = req.body;
+  // app.post("/api/analyze-experience", authenticateToken, async (req, res) => {
+  //   try {
+  //     const { description } = req.body;
       
-      if (!description || description.trim().length < 10) {
-        return res.status(400).json({ message: "Description must be at least 10 characters long" });
-      }
+  //     if (!description || description.trim().length < 10) {
+  //       return res.status(400).json({ message: "Description must be at least 10 characters long" });
+  //     }
 
-      // Get user's first project (assuming single project for now)
-      const projects = await storage.getProjectsByUserId(req.user.userId);
-      if (projects.length === 0) {
-        return res.status(400).json({ message: "No project found for user" });
-      }
-      const projectId = projects[0].id;
+  //     // Get user's first project (assuming single project for now)
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
+  //     if (projects.length === 0) {
+  //       return res.status(400).json({ message: "No project found for user" });
+  //     }
+  //     const projectId = projects[0].id;
 
-      // Get available objects from database
-      const objects = await storage.getObjectsByProjectId(projectId);
+  //     // Get available objects from database
+  //     const objects = await storage.getObjectsByProjectId(projectId);
       
-      // Get available segments from database 
-      const segments = await storage.getSegmentsByProjectId(projectId);
+  //     // Get available segments from database 
+  //     const segments = await storage.getSegmentsByProjectId(projectId);
 
-      const analysis = await analyzeExperienceDescription(description, objects, segments);
+  //     const analysis = await analyzeExperienceDescription(description, objects, segments);
       
-      // Log the final analysis being sent to client
-      console.log("Analysis sent to client:", JSON.stringify(analysis, null, 2));
+  //     // Log the final analysis being sent to client
+  //     console.log("Analysis sent to client:", JSON.stringify(analysis, null, 2));
       
-      res.json(analysis);
-    } catch (error) {
-      console.error("Experience analysis failed:", error);
-      res.status(500).json({ message: "Failed to analyze experience description" });
-    }
-  });
-
-  // Team member endpoints
-  app.get("/api/team-members/:projectId", authenticateToken, async (req, res) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      const teamMembers = await storage.getTeamMembersByProjectId(projectId);
-      res.json(teamMembers);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch team members" });
-    }
-  });
-
-  app.post("/api/team-members", authenticateToken, async (req, res) => {
-    try {
-      const validation = insertTeamMemberSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({ message: "Invalid team member data", errors: validation.error.errors });
-      }
-
-      const teamMemberData = {
-        ...validation.data,
-        invitedBy: req.user.userId
-      };
-
-      const teamMember = await storage.createTeamMember(teamMemberData);
-      res.status(201).json(teamMember);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create team member" });
-    }
-  });
-
-  app.delete("/api/team-members/:id", authenticateToken, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteTeamMember(id);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Team member not found" });
-      }
-
-      res.json({ message: "Team member removed successfully" });
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to remove team member" });
-    }
-  });
+  //     res.json(analysis);
+  //   } catch (error) {
+  //     console.error("Experience analysis failed:", error);
+  //     res.status(500).json({ message: "Failed to analyze experience description" });
+  //   }
+  // });
 
   // Metrics Builder endpoints
   app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
       const { type, config } = req.body;
 
-      // Call Nova Manager to run the metric query
+      // Call Nova Manager to run the metric query - JWT contains org/app context
       const queryData = await callNovaBackend<any>(
         `/api/v1/metrics/compute/`,
         {
           method: "POST",
           body: JSON.stringify({
-            organisation_id: organisationId,
-            app_id: appId,
             type,
             config,
-          })
+          }),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -1526,18 +1094,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Events schema endpoints
   app.get("/api/metrics/events-schema", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
       const { search } = req.query;
 
-      let url = `/api/v1/metrics/events-schema/?organisation_id=${organisationId}&app_id=${appId}`;
+      let url = `/api/v1/metrics/events-schema/`;
       
       if (search) {
-        url += `&search=${encodeURIComponent(search as string)}`;
+        url += `?search=${encodeURIComponent(search as string)}`;
       }
 
-      // Call Nova Manager to get events schema
-      const novaEventsSchema = await callNovaBackend<any[]>(url);
+      // Call Nova Manager to get events schema - JWT contains org/app context
+      const novaEventsSchema = await callNovaBackend<any[]>(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
 
       res.json(novaEventsSchema);
     } catch (error) {
@@ -1549,18 +1120,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User profile keys endpoints
   app.get("/api/metrics/user-profile-keys", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
       const { search } = req.query;
 
-      let url = `/api/v1/metrics/user-profile-keys/?organisation_id=${organisationId}&app_id=${appId}`;
+      let url = `/api/v1/metrics/user-profile-keys/`;
       
       if (search) {
-        url += `&search=${encodeURIComponent(search as string)}`;
+        url += `?search=${encodeURIComponent(search as string)}`;
       }
 
-      // Call Nova Manager to get user profile keys
-      const novaUserProfileKeys = await callNovaBackend<any[]>(url);
+      // Call Nova Manager to get user profile keys - JWT contains org/app context
+      const novaUserProfileKeys = await callNovaBackend<any[]>(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
 
       res.json(novaUserProfileKeys);
     } catch (error) {
@@ -1572,12 +1146,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Metrics endpoints
   app.get("/api/metrics", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
-
-      // Call Nova Manager to get metrics
+      // Call Nova Manager to get metrics - JWT contains org/app context
       const novaMetrics = await callNovaBackend<any[]>(
-        `/api/v1/metrics/?organisation_id=${organisationId}&app_id=${appId}`
+        `/api/v1/metrics/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaMetrics);
@@ -1593,7 +1170,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Call Nova Manager to get metric details
       const novaMetric = await callNovaBackend<any>(
-        `/api/v1/metrics/${metricId}/`
+        `/api/v1/metrics/${metricId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
       );
 
       res.json(novaMetric);
@@ -1605,18 +1188,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/metrics", authenticateToken, async (req, res) => {
     try {
-      const organisationId = "org123";
-      const appId = "app123";
       const metricData = req.body;
 
-      // Transform frontend data to Nova Manager format
+      // Transform frontend data to Nova Manager format - JWT contains org/app context
       const novaMetricData = {
         name: metricData.name,
         description: metricData.description || "",
         type: metricData.type,
         config: metricData.config,
-        organisation_id: organisationId,
-        app_id: appId
       };
 
       // Call Nova Manager to create metric
@@ -1625,6 +1204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "POST",
           body: JSON.stringify(novaMetricData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -1654,6 +1236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           method: "PUT",
           body: JSON.stringify(novaMetricData),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
         }
       );
 
@@ -1665,130 +1250,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Insights endpoints
-  app.get("/api/insights/top-experiences", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
+  // app.get("/api/insights/top-experiences", authenticateToken, async (req, res) => {
+  //   try {
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+  //     if (projects.length === 0) {
+  //       return res.json([]);
+  //     }
 
-      const allExperiments = [];
-      for (const project of projects) {
-        const experiments = await storage.getExperimentsByProjectId(project.id);
-        allExperiments.push(...experiments);
-      }
+  //     const allExperiments: any[] = [];
+  //     for (const project of projects) {
+  //       const experiments = await storage.getExperimentsByProjectId(project.id);
+  //       allExperiments.push(...experiments);
+  //     }
 
-      // Generate realistic performance data for active experiments
-      const topExperiences = allExperiments
-        .filter(exp => exp.status === "active")
-        .map(exp => ({
-          id: exp.id,
-          name: exp.name,
-          campaign: exp.description || "Default Campaign",
-          uplift: Math.round((Math.random() * 15 + 2) * 10) / 10, // 2-17% uplift
-          confidence: Math.round((Math.random() * 20 + 80) * 10) / 10, // 80-100% confidence
-          participants: Math.floor(Math.random() * 5000 + 1000) // 1000-6000 participants
-        }))
-        .sort((a, b) => b.uplift - a.uplift) // Sort by uplift descending
-        .slice(0, 10); // Top 10
+  //     // Generate realistic performance data for active experiments
+  //     const topExperiences = allExperiments
+  //       .filter(exp => exp.status === "active")
+  //       .map(exp => ({
+  //         id: exp.id,
+  //         name: exp.name,
+  //         campaign: exp.description || "Default Campaign",
+  //         uplift: Math.round((Math.random() * 15 + 2) * 10) / 10, // 2-17% uplift
+  //         confidence: Math.round((Math.random() * 20 + 80) * 10) / 10, // 80-100% confidence
+  //         participants: Math.floor(Math.random() * 5000 + 1000) // 1000-6000 participants
+  //       }))
+  //       .sort((a, b) => b.uplift - a.uplift) // Sort by uplift descending
+  //       .slice(0, 10); // Top 10
 
-      res.json(topExperiences);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch top experiences" });
-    }
-  });
+  //     res.json(topExperiences);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch top experiences" });
+  //   }
+  // });
 
-  app.get("/api/insights/campaign-health", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
+  // app.get("/api/insights/campaign-health", authenticateToken, async (req, res) => {
+  //   try {
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+  //     if (projects.length === 0) {
+  //       return res.json([]);
+  //     }
 
-      const allCampaigns = [];
-      for (const project of projects) {
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        allCampaigns.push(...campaigns);
-      }
+  //     const allCampaigns = [];
+  //     for (const project of projects) {
+  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
+  //       allCampaigns.push(...campaigns);
+  //     }
 
-      // Calculate campaign health based on D1 retention performance
-      const campaignHealth = allCampaigns
-        .filter(campaign => campaign.status === "Active")
-        .map(campaign => {
-          const d1Delta = Number(campaign.d1Retention) - 45; // Compare against 45% baseline
-          let status: "Good" | "Warning" | "Critical" = "Good";
+  //     // Calculate campaign health based on D1 retention performance
+  //     const campaignHealth = allCampaigns
+  //       .filter(campaign => campaign.status === "Active")
+  //       .map(campaign => {
+  //         const d1Delta = Number(campaign.d1Retention) - 45; // Compare against 45% baseline
+  //         let status: "Good" | "Warning" | "Critical" = "Good";
           
-          if (d1Delta < -6) status = "Critical"; // TikTok: 38.9 - 45 = -6.1, should be Critical
-          else if (d1Delta < -2) status = "Warning";
+  //         if (d1Delta < -6) status = "Critical"; // TikTok: 38.9 - 45 = -6.1, should be Critical
+  //         else if (d1Delta < -2) status = "Warning";
           
-          return {
-            campaign: campaign.name,
-            d1Delta: Math.round(d1Delta * 10) / 10,
-            status
-          };
-        });
+  //         return {
+  //           campaign: campaign.name,
+  //           d1Delta: Math.round(d1Delta * 10) / 10,
+  //           status
+  //         };
+  //       });
 
-      res.json(campaignHealth);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaign health" });
-    }
-  });
+  //     res.json(campaignHealth);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaign health" });
+  //   }
+  // });
 
-  app.get("/api/insights/ideas", authenticateToken, async (req, res) => {
-    try {
-      const projects = await storage.getProjectsByUserId(req.user.userId);
+  // app.get("/api/insights/ideas", authenticateToken, async (req, res) => {
+  //   try {
+  //     const projects = await storage.getProjectsByUserId(req.user.userId);
       
-      if (projects.length === 0) {
-        return res.json([]);
-      }
+  //     if (projects.length === 0) {
+  //       return res.json([]);
+  //     }
 
-      // Get user's campaigns to generate targeted ideas
-      const allCampaigns = [];
-      const allExperiments = [];
+  //     // Get user's campaigns to generate targeted ideas
+  //     const allCampaigns = [];
+  //     const allExperiments: any[] = [];
       
-      for (const project of projects) {
-        const campaigns = await storage.getCampaignsByProjectId(project.id);
-        const experiments = await storage.getExperimentsByProjectId(project.id);
-        allCampaigns.push(...campaigns);
-        allExperiments.push(...experiments);
-      }
+  //     for (const project of projects) {
+  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
+  //       const experiments = await storage.getExperimentsByProjectId(project.id);
+  //       allCampaigns.push(...campaigns);
+  //       allExperiments.push(...experiments);
+  //     }
 
-      // Generate optimization ideas based on actual data
-      const ideas = [];
-      let idCounter = 1;
+  //     // Generate optimization ideas based on actual data
+  //     const ideas = [];
+  //     let idCounter = 1;
 
-      // Check for underperforming campaigns
-      const poorCampaigns = allCampaigns.filter(c => Number(c.d1Retention) < 40);
-      if (poorCampaigns.length > 0) {
-        ideas.push({
-          id: idCounter++,
-          title: `Improve ${poorCampaigns[0].name} D1 Retention`,
-          description: `This campaign shows D1 retention of ${poorCampaigns[0].d1Retention}%. Consider testing welcome bonuses or tutorial improvements.`,
-          impact: "High" as const,
-          effort: "Medium" as const,
-          category: "Retention" as const
-        });
-      }
+  //     // Check for underperforming campaigns
+  //     const poorCampaigns = allCampaigns.filter(c => Number(c.d1Retention) < 40);
+  //     if (poorCampaigns.length > 0) {
+  //       ideas.push({
+  //         id: idCounter++,
+  //         title: `Improve ${poorCampaigns[0].name} D1 Retention`,
+  //         description: `This campaign shows D1 retention of ${poorCampaigns[0].d1Retention}%. Consider testing welcome bonuses or tutorial improvements.`,
+  //         impact: "High" as const,
+  //         effort: "Medium" as const,
+  //         category: "Retention" as const
+  //       });
+  //     }
 
-      // Skip the onboarding coin rewards suggestion as requested
+  //     // Skip the onboarding coin rewards suggestion as requested
 
-      // Always include a monetization idea
-      ideas.push({
-        id: idCounter++,
-        title: "Limited-Time Purchase Bonus",
-        description: "Add 50% extra coins to in-app purchases during first 24 hours of gameplay to boost early monetization.",
-        impact: "High" as const,
-        effort: "Medium" as const,
-        category: "Monetization" as const
-      });
+  //     // Always include a monetization idea
+  //     ideas.push({
+  //       id: idCounter++,
+  //       title: "Limited-Time Purchase Bonus",
+  //       description: "Add 50% extra coins to in-app purchases during first 24 hours of gameplay to boost early monetization.",
+  //       impact: "High" as const,
+  //       effort: "Medium" as const,
+  //       category: "Monetization" as const
+  //     });
 
-      res.json(ideas);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch optimization ideas" });
-    }
-  });
+  //     res.json(ideas);
+  //   } catch (error) {
+  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch optimization ideas" });
+  //   }
+  // });
 
   const httpServer = createServer(app);
   return httpServer;

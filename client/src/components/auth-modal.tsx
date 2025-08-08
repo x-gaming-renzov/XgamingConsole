@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,7 +36,7 @@ interface AuthModalProps {
 export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthModalProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { login: setUser } = useAuth();
+  const { login, setTokens } = useAuth();
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -56,19 +56,44 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
     },
   });
 
+  // Reset forms when mode changes or modal opens
+  useEffect(() => {
+    if (open) {
+      loginForm.reset();
+      signupForm.reset();
+    }
+  }, [open, mode, loginForm, signupForm]);
+
   const loginMutation = useMutation({
     mutationFn: async (data: z.infer<typeof loginSchema>) => {
       const response = await apiRequest("POST", "/api/auth/login", data);
       return response.json();
     },
-    onSuccess: (data) => {
-      setUser(data.user, data.token);
-      toast({
-        title: "Welcome back!",
-        description: "You have been successfully logged in.",
-      });
-      onClose();
-      setLocation("/personalisations");
+    onSuccess: async (data) => {
+      try {
+        // Set tokens in auth store
+        setTokens(data.access_token, data.refresh_token);
+        
+        // Get user info
+        const userResponse = await apiRequest("GET", "/api/auth/me");
+        const userData = await userResponse.json();
+        
+        // Login will automatically handle routing
+        login(userData, data.access_token);
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have been successfully logged in.",
+        });
+        onClose();
+      } catch (error) {
+        console.error('Failed to get user info:', error);
+        toast({
+          title: "Login warning",
+          description: "Logged in but couldn't load user info. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -84,14 +109,31 @@ export default function AuthModal({ open, mode, onClose, onSwitchMode }: AuthMod
       const response = await apiRequest("POST", "/api/auth/register", data);
       return response.json();
     },
-    onSuccess: (data) => {
-      setUser(data.user, data.token);
-      toast({
-        title: "Account created!",
-        description: "Welcome to Xgaming Nova. Your account has been created successfully.",
-      });
-      onClose();
-      setLocation("/console");
+    onSuccess: async (data) => {
+      try {
+        // Set tokens in auth store
+        setTokens(data.access_token, data.refresh_token);
+        
+        // Get user info
+        const userResponse = await apiRequest("GET", "/api/auth/me");
+        const userData = await userResponse.json();
+        
+        // Login will automatically handle routing (new users will go to onboarding)
+        login(userData, data.access_token);
+        
+        toast({
+          title: "Account created!",
+          description: "Welcome to Xgaming Nova. Your account has been created successfully.",
+        });
+        onClose();
+      } catch (error) {
+        console.error('Failed to get user info:', error);
+        toast({
+          title: "Signup warning",
+          description: "Account created but couldn't load user info. Please refresh the page.",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       toast({

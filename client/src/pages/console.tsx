@@ -11,7 +11,7 @@ export default function Console() {
       setLocation("/");
     } else {
       // Redirect to dashboard by default
-      setLocation("/dashboard");
+      setLocation("/personalisations");
     }
   }, [user, setLocation]);
 
