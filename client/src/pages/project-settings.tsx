@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,10 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
-  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail
+  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth, isCurrentUserAdmin } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 import ConsoleLayout from "@/components/console-layout";
 
 interface KnowledgeBaseFile {
@@ -38,17 +41,48 @@ interface Transaction {
 }
 
 interface TeamMember {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  role: "admin" | "collaborator" | "developer" | "viewer";
+  role: "owner" | "admin" | "member";
   status: "active" | "pending" | "inactive";
-  lastActive: string;
-  invitedBy: string;
+  lastActive?: string;
+  invitedBy?: string;
+}
+
+interface Invitation {
+  id: string;
+  email: string;
+  role: "owner" | "admin" | "member";
+  status: "pending" | "accepted" | "expired" | "cancelled";
+  expires_at: string;
+  invited_by_name: string;
+  created_at: string;
+}
+
+interface InviteRequest {
+  email: string;
+  role: "admin" | "member";
 }
 
 export default function ProjectSettings() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Check if user has admin permissions
+  const isAdmin = isCurrentUserAdmin();
+  
+  // If user is not admin, redirect or show message
+  useEffect(() => {
+    if (user && !isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "You need admin or owner permissions to access project settings.",
+        variant: "destructive"
+      });
+    }
+  }, [user, isAdmin, toast]);
 
   // Billing state
   const [billing] = useState({
@@ -91,40 +125,32 @@ export default function ProjectSettings() {
     }
   });
 
-  // Team members state
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah@company.com",
-      role: "admin",
-      status: "active",
-      lastActive: "2 hours ago",
-      invitedBy: "You"
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      email: "mike@company.com",
-      role: "collaborator",
-      status: "active",
-      lastActive: "1 day ago",
-      invitedBy: "Sarah Chen"
-    },
-    {
-      id: 3,
-      name: "Alex Rodriguez",
-      email: "alex@company.com",
-      role: "developer",
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    }
-  ]);
-
+  // Invitation state
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "collaborator" | "developer" | "viewer">("collaborator");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  // Fetch pending invitations
+  const { data: invitations = [], isLoading: invitationsLoading } = useQuery({
+    queryKey: ["invitations"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/invitations/invitations?status=pending");
+      return response.json() as Promise<Invitation[]>;
+    },
+    enabled: isAdmin,
+  });
+
+  // For now, we'll show current user as the only "member" 
+  // In a real system, you'd have an API to fetch organization members
+  const teamMembers: TeamMember[] = user ? [{
+    id: user.email, // Using email as ID since we don't have user ID
+    name: user.name,
+    email: user.email,
+    role: user.role as "owner" | "admin" | "member",
+    status: "active" as const,
+    lastActive: "Now",
+    invitedBy: undefined
+  }] : [];
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
@@ -156,50 +182,101 @@ export default function ProjectSettings() {
     toast({ description: "Slack integration connected successfully" });
   };
 
+  // Send invitation mutation
+  const inviteMutation = useMutation({
+    mutationFn: async (inviteData: InviteRequest) => {
+      const response = await apiRequest("POST", "/api/invitations/invite", inviteData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      setInviteEmail("");
+      setInviteRole("member");
+      setInviteDialogOpen(false);
+      toast({ 
+        title: "Invitation Sent",
+        description: `Invitation sent to ${inviteEmail}` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to Send Invitation",
+        description: error.message || "Something went wrong",
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Cancel invitation mutation
+  const cancelInviteMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await apiRequest("DELETE", `/api/invitations/invitations/${invitationId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invitations"] });
+      toast({ 
+        title: "Invitation Cancelled",
+        description: "The invitation has been cancelled" 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to Cancel Invitation",
+        description: error.message || "Something went wrong",
+        variant: "destructive" 
+      });
+    }
+  });
+
   const handleInviteMember = () => {
     if (!inviteEmail) {
-      toast({ description: "Please enter an email address", variant: "destructive" });
+      toast({ 
+        title: "Email Required",
+        description: "Please enter an email address",
+        variant: "destructive" 
+      });
       return;
     }
 
-    const newMember: TeamMember = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: inviteRole,
-      status: "pending",
-      lastActive: "Never",
-      invitedBy: "You"
-    };
-
-    setTeamMembers(prev => [...prev, newMember]);
-    setInviteEmail("");
-    setInviteRole("collaborator");
-    setInviteDialogOpen(false);
-    
-    toast({ description: `Invitation sent to ${inviteEmail}` });
+    inviteMutation.mutate({ email: inviteEmail, role: inviteRole });
   };
 
-  const handleRemoveMember = (memberId: number) => {
-    setTeamMembers(prev => prev.filter(m => m.id !== memberId));
-    toast({ description: "Team member removed" });
-  };
-
-  const handleRoleChange = (memberId: number, newRole: "admin" | "collaborator" | "developer" | "viewer") => {
-    setTeamMembers(prev => 
-      prev.map(m => m.id === memberId ? { ...m, role: newRole } : m)
-    );
-    toast({ description: "Role updated successfully" });
+  const handleCancelInvitation = (invitationId: string) => {
+    cancelInviteMutation.mutate(invitationId);
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "admin": return <Crown className="w-4 h-4" />;
-      case "collaborator": return <UserCheck className="w-4 h-4" />;
-      case "developer": return <Shield className="w-4 h-4" />;
-      case "viewer": return <Eye className="w-4 h-4" />;
+      case "owner": return <Crown className="w-4 h-4" />;
+      case "admin": return <Shield className="w-4 h-4" />;
+      case "member": return <User className="w-4 h-4" />;
       default: return <User className="w-4 h-4" />;
     }
+  };
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case "owner": return "Owner";
+      case "admin": return "Admin";
+      case "member": return "Member";
+      default: return role;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 48) return "1 day ago";
+    return `${Math.floor(diffInHours / 24)} days ago`;
   };
 
   const getFileIcon = (filename: string) => {
@@ -230,10 +307,6 @@ export default function ProjectSettings() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
   const creditUsagePercentage = ((billing.totalCredits - billing.remainingCredits) / billing.totalCredits) * 100;
 
   return (
@@ -261,142 +334,228 @@ export default function ProjectSettings() {
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Team Members</CardTitle>
-                    <CardDescription>
-                      Manage team access and permissions for this project.
-                    </CardDescription>
+            {/* Only show to admins/owners */}
+            {!isAdmin ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-medium mb-2">Admin Access Required</h3>
+                    <p className="text-sm text-muted-foreground">
+                      You need admin or owner permissions to manage team members.
+                    </p>
                   </div>
-                  <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Invite Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Invite Team Member</DialogTitle>
-                        <DialogDescription>
-                          Send an invitation to join this project.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="invite-email">Email Address</Label>
-                          <Input
-                            id="invite-email"
-                            type="email"
-                            placeholder="colleague@company.com"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="invite-role">Role</Label>
-                          <Select value={inviteRole} onValueChange={(value: any) => setInviteRole(value)}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin - Full access</SelectItem>
-                              <SelectItem value="collaborator">Product - Create and Edit experiments</SelectItem>
-                              <SelectItem value="developer">Developer - Manage integrations</SelectItem>
-                              <SelectItem value="viewer">Analyst - View experiments and insights</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Current Members */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Organization Members</CardTitle>
+                        <CardDescription>
+                          Current members of your organization.
+                        </CardDescription>
                       </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleInviteMember}>
-                          <Mail className="w-4 h-4 mr-2" />
-                          Send Invitation
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead>Invited By</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {teamMembers.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-xs">
-                                {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{member.name}</p>
-                              <p className="text-sm text-muted-foreground">{member.email}</p>
+                      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button disabled={inviteMutation.isPending}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            {inviteMutation.isPending ? "Sending..." : "Invite Member"}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Invite Team Member</DialogTitle>
+                            <DialogDescription>
+                              Send an invitation to join your organization.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="invite-email">Email Address</Label>
+                              <Input
+                                id="invite-email"
+                                type="email"
+                                placeholder="colleague@company.com"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                                disabled={inviteMutation.isPending}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="invite-role">Role</Label>
+                              <Select 
+                                value={inviteRole} 
+                                onValueChange={(value: "admin" | "member") => setInviteRole(value)}
+                                disabled={inviteMutation.isPending}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin - Full access to organization</SelectItem>
+                                  <SelectItem value="member">Member - Standard access</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={member.role}
-                            onValueChange={(value: any) => handleRoleChange(member.id, value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <div className="flex items-center space-x-1">
-                                {getRoleIcon(member.role)}
-                                <SelectValue />
+                          <DialogFooter>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setInviteDialogOpen(false)}
+                              disabled={inviteMutation.isPending}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={handleInviteMember}
+                              disabled={inviteMutation.isPending}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              {inviteMutation.isPending ? "Sending..." : "Send Invitation"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Active</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {teamMembers.map((member) => (
+                          <TableRow key={member.id}>
+                            <TableCell>
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback className="text-xs">
+                                    {member.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium">{member.name}</p>
+                                  <p className="text-sm text-muted-foreground">{member.email}</p>
+                                </div>
                               </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="collaborator">Product</SelectItem>
-                              <SelectItem value="developer">Developer</SelectItem>
-                              <SelectItem value="viewer">Analyst</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(member.status) as any}>
-                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.lastActive}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {member.invitedBy}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveMember(member.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {getRoleIcon(member.role)}
+                                <span className="font-medium">{getRoleDisplayName(member.role)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusBadgeVariant(member.status) as any}>
+                                {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {member.lastActive || "Never"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* Pending Invitations */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Clock className="w-5 h-5" />
+                      <span>Pending Invitations</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Invitations that haven't been accepted yet.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {invitationsLoading ? (
+                      <div className="text-center py-6">
+                        <p className="text-sm text-muted-foreground">Loading invitations...</p>
+                      </div>
+                    ) : invitations.length === 0 ? (
+                      <div className="text-center py-6">
+                        <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-medium mb-2">No Pending Invitations</h3>
+                        <p className="text-sm text-muted-foreground">
+                          All invitations have been accepted or there are none pending.
+                        </p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Invited By</TableHead>
+                            <TableHead>Sent</TableHead>
+                            <TableHead>Expires</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {invitations.map((invitation) => (
+                            <TableRow key={invitation.id}>
+                              <TableCell>
+                                <div className="flex items-center space-x-3">
+                                  <Avatar className="w-8 h-8">
+                                    <AvatarFallback className="text-xs">
+                                      {invitation.email.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium">{invitation.email}</p>
+                                    <p className="text-sm text-muted-foreground">Pending</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  {getRoleIcon(invitation.role)}
+                                  <span className="font-medium">{getRoleDisplayName(invitation.role)}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {invitation.invited_by_name}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {formatRelativeTime(invitation.created_at)}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {formatDate(invitation.expires_at)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCancelInvitation(invitation.id)}
+                                  disabled={cancelInviteMutation.isPending}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="billing" className="space-y-6">

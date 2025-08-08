@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth, switchApp } from "@/lib/auth";
+import { useAuth, switchApp, isCurrentUserAdmin } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,6 +20,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const { user, logout } = useAuth();
   const [selectedApp, setSelectedApp] = useState<string>("");
   const { toast } = useToast();
+  const isAdmin = isCurrentUserAdmin();
 
   // Fetch real apps data - only when user is authenticated
   const { data: apps = [], isLoading: appsLoading, error: appsError } = useQuery({
@@ -257,7 +258,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
             <div className="h-px border-t border-border ml-4" />
 
             {/* Bottom Actions - Positioned at bottom */}
-            <div className="pt-4 space-y-2 mt-auto">
+            <div className="pt-4 space-y-2 mt-auto ml-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="w-full justify-start text-muted-foreground">
@@ -274,11 +275,13 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                       Personal Settings
                     </DropdownMenuItem>
                   </Link>
-                  <Link href="/project-settings">
-                    <DropdownMenuItem>
-                      Project Settings
-                    </DropdownMenuItem>
-                  </Link>
+                  {isAdmin && (
+                    <Link href="/project-settings">
+                      <DropdownMenuItem>
+                        Project Settings
+                      </DropdownMenuItem>
+                    </Link>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button 

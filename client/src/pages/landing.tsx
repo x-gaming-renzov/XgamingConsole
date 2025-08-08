@@ -1,20 +1,19 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield, Zap, BarChart3, CheckCircle, Target, TrendingUp } from "lucide-react";
-import AuthModal from "@/components/auth-modal";
+import LoginModal from "@/components/login-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import heroimage from "@/assets/heroimage.png";
 
 export default function Landing() {
-  const [authModal, setAuthModal] = useState<{ open: boolean; mode: 'login' | 'signup' }>({
-    open: false,
-    mode: 'login'
-  });
+  const [, setLocation] = useLocation();
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  const openLogin = () => setAuthModal({ open: true, mode: 'login' });
-  const openSignup = () => setAuthModal({ open: true, mode: 'signup' });
-  const closeAuth = () => setAuthModal({ open: false, mode: 'login' });
+  const openLogin = () => setLoginModalOpen(true);
+  const openSignup = () => setLocation('/signup');
+  const closeAuth = () => setLoginModalOpen(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -172,11 +171,9 @@ export default function Landing() {
         </div>
       </div>
 
-      <AuthModal 
-        open={authModal.open} 
-        mode={authModal.mode} 
+      <LoginModal 
+        open={loginModalOpen} 
         onClose={closeAuth}
-        onSwitchMode={(mode) => setAuthModal({ open: true, mode })}
       />
     </div>
   );

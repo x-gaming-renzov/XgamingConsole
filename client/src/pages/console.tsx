@@ -8,9 +8,10 @@ export default function Console() {
 
   useEffect(() => {
     if (!user) {
-      setLocation("/");
+      // TODO: Add proper handling for this
+      // setLocation("/");
     } else {
-      // Redirect to dashboard by default
+      // Redirect to personalisations by default
       setLocation("/personalisations");
     }
   }, [user, setLocation]);

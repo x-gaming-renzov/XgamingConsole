@@ -105,11 +105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/refresh", async (req, res) => {
+  app.post("/api/auth/refresh", authenticateToken, async (req, res) => {
     try {
       const response = await callNovaBackend<any>('/api/v1/auth/refresh', {
         method: 'POST',
         body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
       });
       res.json(response);
     } catch (error) {
@@ -174,6 +177,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(response);
     } catch (error) {
       handleBackendError(error, res, "App switch failed");
+    }
+  });
+
+  // Invitations routes
+  app.post("/api/invitations/invite", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>('/api/v1/invitations/invite', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to send invitation");
+    }
+  });
+
+  app.get("/api/invitations/invitations", authenticateToken, async (req, res) => {
+    try {
+      const { status } = req.query;
+      let url = '/api/v1/invitations/invitations';
+      if (status) {
+        url += `?status=${encodeURIComponent(status as string)}`;
+      }
+
+      const response = await callNovaBackend<any[]>(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to fetch invitations");
+    }
+  });
+
+  app.delete("/api/invitations/invitations/:id", authenticateToken, async (req, res) => {
+    try {
+      const invitationId = req.params.id;
+      const response = await callNovaBackend<any>(`/api/v1/invitations/invitations/${invitationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to cancel invitation");
+    }
+  });
+
+  app.get("/api/invitations/validate-invite/:token", async (req, res) => {
+    try {
+      const token = req.params.token;
+      const response = await callNovaBackend<any>(`/api/v1/invitations/validate-invite/${token}`, {
+        method: 'GET',
+      });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to validate invitation");
     }
   });
 

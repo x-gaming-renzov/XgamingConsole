@@ -6,13 +6,14 @@ interface NovaUser {
   name: string;
   email: string;
   has_apps: boolean;
+  role: "owner" | "admin" | "member";
 }
 
 interface AuthState {
   user: NovaUser | null;
   token: string | null;
   refreshToken: string | null;
-  login: (user: NovaUser, token: string) => void;
+  login: (user: NovaUser, token: string, refreshToken: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
   setTokens: (accessToken: string, refreshToken: string) => void;
@@ -27,10 +28,8 @@ export const useAuth = create<AuthState>()(
       token: null,
       refreshToken: null,
       isAuthenticated: false,
-      login: (user: NovaUser, token: string) => {
-        set({ user, token, isAuthenticated: true });
-        // Handle routing after login
-        handleAuthRouting(user, true);
+      login: (user: NovaUser, token: string, refreshToken: string) => {
+        set({ user, token, refreshToken, isAuthenticated: true });
       },
       setTokens: (accessToken: string, refreshToken: string) => {
         set({ token: accessToken, refreshToken });
@@ -83,35 +82,41 @@ export const useAuth = create<AuthState>()(
     {
       name: "auth-storage",
       partialize: (state) => ({ 
-        user: state.user, 
         token: state.token,
         refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated 
       }),
     }
   )
 );
 
 // Centralized routing logic based on auth state
-const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean) => {
+const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean, forceRoute: boolean = false) => {
   const currentPath = window.location.pathname;
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasInviteToken = urlParams.has('invite');
+  
+  // If user is on signup page with invite token and not forcing route, don't redirect them
+  // This allows users to complete signup, but still routes them after successful signup
+  if (currentPath === '/signup' && hasInviteToken && !forceRoute) {
+    return;
+  }
   
   if (isAuthenticated && user) {
     // User is authenticated, route based on has_apps from user object
     if (user.has_apps) {
       // User has apps, go to console (unless already in a protected route)
-      if (currentPath === '/' || currentPath === '/onboarding') {
+      if (currentPath === '/' || currentPath === '/onboarding' || currentPath === '/signup') {
         window.location.href = '/console';
       }
     } else {
       // User doesn't have apps, go to onboarding (unless already there)
-      if (currentPath === '/' || currentPath === '/console') {
+      if (currentPath === '/' || currentPath === '/console' || currentPath === '/signup') {
         window.location.href = '/onboarding';
       }
     }
   } else {
-    // User is not authenticated, go to landing (unless already there)
-    if (currentPath !== '/') {
+    // User is not authenticated, go to landing (unless already there or on signup)
+    if (currentPath !== '/' && currentPath !== '/signup') {
       window.location.href = '/';
     }
   }
@@ -119,26 +124,44 @@ const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean) => {
 
 // Hook for session restoration on app mount
 export const useInitializeAuth = () => {
-  const { token, isAuthenticated, user } = useAuth();
+  const { token, refreshToken, isAuthenticated, user } = useAuth();
   
   useEffect(() => {
-    // If already authenticated, handle routing immediately
+    // Skip if we're already authenticated and have user data
     if (isAuthenticated && user) {
-      handleAuthRouting(user, isAuthenticated);
+      // Already have complete auth state, just handle routing
+      handleAuthRouting(user, true);
       return;
     }
     
-    // Check if we have a persisted session but isAuthenticated is false
-    // This can happen if the store was hydrated but isAuthenticated wasn't properly set
-    if (token && !isAuthenticated) {
-      // Re-validate the session by trying to fetch user info
+    // If we have tokens but no user data or authentication, fetch user info from backend
+    if ((token || refreshToken) && !isAuthenticated && !user) {
       const validateSession = async () => {
         try {
-          const response = await fetch('/api/auth/me', {
+          // Try with current token first
+          let currentToken = token;
+          let response = await fetch('/api/auth/me', {
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Authorization': `Bearer ${currentToken}`,
             },
           });
+          
+          // If token expired, try to refresh
+          if (response.status === 401 && refreshToken) {
+            const refreshSuccess = await useAuth.getState().refreshAccessToken();
+            if (refreshSuccess) {
+              currentToken = useAuth.getState().token;
+              response = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${currentToken}`,
+                },
+              });
+            } else {
+              // Refresh failed, logout
+              useAuth.getState().logout();
+              return;
+            }
+          }
           
           if (response.ok) {
             const userData = await response.json();
@@ -148,44 +171,22 @@ export const useInitializeAuth = () => {
             });
             // Route user after successful validation
             handleAuthRouting(userData, true);
-          } else if (response.status === 401) {
-            // Try to refresh the token
-            const refreshSuccess = await useAuth.getState().refreshAccessToken();
-            if (!refreshSuccess) {
-              // Refresh failed, logout will handle routing
-              useAuth.getState().logout();
-            } else {
-              // Refresh succeeded, try to get user info again
-              const newResponse = await fetch('/api/auth/me', {
-                headers: {
-                  'Authorization': `Bearer ${useAuth.getState().token}`,
-                },
-              });
-              if (newResponse.ok) {
-                const userData = await newResponse.json();
-                useAuth.setState({ 
-                  user: userData, 
-                  isAuthenticated: true 
-                });
-                handleAuthRouting(userData, true);
-              }
-            }
           } else {
-            // Other error, clear the session
+            // Failed to get user data, clear session
             useAuth.getState().logout();
           }
         } catch (error) {
-          // Network error or token invalid, clear the session
+          // Network error or other issues, clear session
           useAuth.getState().logout();
         }
       };
       
       validateSession();
-    } else if (!token && !isAuthenticated) {
-      // No token and not authenticated, ensure we're on landing page
+    } else if (!token && !refreshToken) {
+      // No tokens at all, ensure we're on landing page
       handleAuthRouting(null, false);
     }
-  }, [token, isAuthenticated, user]); // Re-run when auth state changes
+  }, [token, refreshToken, isAuthenticated, user]); // Re-run when auth state changes
 };
 
 // Export function for manual routing updates (e.g., after creating first app)
@@ -197,6 +198,18 @@ export const updateUserAndRoute = async (userData: NovaUser, newTokens?: { acces
   
   useAuth.setState({ user: userData });
   handleAuthRouting(userData, true);
+};
+
+// Helper function to get current user's role
+export const getCurrentUserRole = (): "owner" | "admin" | "member" | null => {
+  const user = useAuth.getState().user;
+  return user?.role || null;
+};
+
+// Helper function to check if current user is admin or owner
+export const isCurrentUserAdmin = (): boolean => {
+  const role = getCurrentUserRole();
+  return role === "owner" || role === "admin";
 };
 
 // Function to switch apps (updates tokens with new app_id)

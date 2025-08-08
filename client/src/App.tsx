@@ -23,6 +23,7 @@ import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
 import CreatePersonalisation from "@/pages/create-personalisation";
 import Onboarding from "@/pages/onboarding";
+import Signup from "@/pages/signup";
 
 import NotFound from "@/pages/not-found";
 import Personalisations from "./pages/personalisations";
@@ -31,6 +32,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/signup" component={Signup} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/console" component={Console} />
       <Route path="/dashboard" component={Dashboard} />
