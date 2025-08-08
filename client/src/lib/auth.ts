@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -120,69 +121,71 @@ const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean) => {
 export const useInitializeAuth = () => {
   const { token, isAuthenticated, user } = useAuth();
   
-  // If already authenticated, handle routing immediately
-  if (isAuthenticated && user) {
-    handleAuthRouting(user, isAuthenticated);
-    return;
-  }
-  
-  // Check if we have a persisted session but isAuthenticated is false
-  // This can happen if the store was hydrated but isAuthenticated wasn't properly set
-  if (token && !isAuthenticated) {
-    // Re-validate the session by trying to fetch user info
-    const validateSession = async () => {
-      try {
-        const response = await fetch('/api/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          useAuth.setState({ 
-            user: userData, 
-            isAuthenticated: true 
+  useEffect(() => {
+    // If already authenticated, handle routing immediately
+    if (isAuthenticated && user) {
+      handleAuthRouting(user, isAuthenticated);
+      return;
+    }
+    
+    // Check if we have a persisted session but isAuthenticated is false
+    // This can happen if the store was hydrated but isAuthenticated wasn't properly set
+    if (token && !isAuthenticated) {
+      // Re-validate the session by trying to fetch user info
+      const validateSession = async () => {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
           });
-          // Route user after successful validation
-          handleAuthRouting(userData, true);
-        } else if (response.status === 401) {
-          // Try to refresh the token
-          const refreshSuccess = await useAuth.getState().refreshAccessToken();
-          if (!refreshSuccess) {
-            // Refresh failed, logout will handle routing
-            useAuth.getState().logout();
-          } else {
-            // Refresh succeeded, try to get user info again
-            const newResponse = await fetch('/api/auth/me', {
-              headers: {
-                'Authorization': `Bearer ${useAuth.getState().token}`,
-              },
+          
+          if (response.ok) {
+            const userData = await response.json();
+            useAuth.setState({ 
+              user: userData, 
+              isAuthenticated: true 
             });
-            if (newResponse.ok) {
-              const userData = await newResponse.json();
-              useAuth.setState({ 
-                user: userData, 
-                isAuthenticated: true 
+            // Route user after successful validation
+            handleAuthRouting(userData, true);
+          } else if (response.status === 401) {
+            // Try to refresh the token
+            const refreshSuccess = await useAuth.getState().refreshAccessToken();
+            if (!refreshSuccess) {
+              // Refresh failed, logout will handle routing
+              useAuth.getState().logout();
+            } else {
+              // Refresh succeeded, try to get user info again
+              const newResponse = await fetch('/api/auth/me', {
+                headers: {
+                  'Authorization': `Bearer ${useAuth.getState().token}`,
+                },
               });
-              handleAuthRouting(userData, true);
+              if (newResponse.ok) {
+                const userData = await newResponse.json();
+                useAuth.setState({ 
+                  user: userData, 
+                  isAuthenticated: true 
+                });
+                handleAuthRouting(userData, true);
+              }
             }
+          } else {
+            // Other error, clear the session
+            useAuth.getState().logout();
           }
-        } else {
-          // Other error, clear the session
+        } catch (error) {
+          // Network error or token invalid, clear the session
           useAuth.getState().logout();
         }
-      } catch (error) {
-        // Network error or token invalid, clear the session
-        useAuth.getState().logout();
-      }
-    };
-    
-    validateSession();
-  } else if (!token && !isAuthenticated) {
-    // No token and not authenticated, ensure we're on landing page
-    handleAuthRouting(null, false);
-  }
+      };
+      
+      validateSession();
+    } else if (!token && !isAuthenticated) {
+      // No token and not authenticated, ensure we're on landing page
+      handleAuthRouting(null, false);
+    }
+  }, [token, isAuthenticated, user]); // Re-run when auth state changes
 };
 
 // Export function for manual routing updates (e.g., after creating first app)
