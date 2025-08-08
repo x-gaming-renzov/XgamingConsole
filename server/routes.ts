@@ -45,10 +45,37 @@ async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Nova backend error: ${response.status} - ${errorText}`);
+    const error = new Error(`Nova backend error: ${response.status} - ${errorText}`) as any;
+    error.status = response.status;
+    error.responseText = errorText;
+    throw error;
   }
 
   return response.json() as T;
+}
+
+// Helper function to handle errors consistently
+function handleBackendError(error: any, res: any, defaultMessage: string) {
+  console.error("Backend error:", error);
+  
+  if (error.status) {
+    // Error from Nova backend - preserve status code
+    let errorMessage = defaultMessage;
+    
+    try {
+      // Try to parse error response as JSON
+      const parsedError = JSON.parse(error.responseText);
+      errorMessage = parsedError.detail || parsedError.message || defaultMessage;
+    } catch {
+      // If not JSON, use the raw text or default message
+      errorMessage = error.responseText || defaultMessage;
+    }
+    
+    return res.status(error.status).json({ message: errorMessage });
+  } else {
+    // Network or other error - use 500
+    return res.status(500).json({ message: error instanceof Error ? error.message : defaultMessage });
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -62,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Registration failed" });
+      handleBackendError(error, res, "Registration failed");
     }
   });
 
@@ -74,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Login failed" });
+      handleBackendError(error, res, "Login failed");
     }
   });
 
@@ -86,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Token refresh failed" });
+      handleBackendError(error, res, "Token refresh failed");
     }
   });
 
@@ -101,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Server error" });
+      handleBackendError(error, res, "Failed to get user info");
     }
   });
 
@@ -117,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "App creation failed" });
+      handleBackendError(error, res, "App creation failed");
     }
   });
 
@@ -131,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch apps" });
+      handleBackendError(error, res, "Failed to fetch apps");
     }
   });
 
@@ -146,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       res.json(response);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "App switch failed" });
+      handleBackendError(error, res, "App switch failed");
     }
   });
 
@@ -253,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(novaExperiences);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiences" });
+      handleBackendError(error, res, "Failed to fetch experiences");
     }
   });
 
@@ -299,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(experience);
     } catch (error) {
       console.error("Failed to create experience:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experience" });
+      handleBackendError(error, res, "Failed to create experience");
     }
   });
 
@@ -321,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(novaExperience);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
+      handleBackendError(error, res, "Failed to get experience details");
     }
   });
 
@@ -343,7 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(novaExperience);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get experience details" });
+      handleBackendError(error, res, "Failed to get experience objects");
     }
   });
 
@@ -364,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaPersonalisations);
     } catch (error) {
       console.error("Failed to get personalisations:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get personalisations" });
+      handleBackendError(error, res, "Failed to get personalisations");
     }
   });
 
@@ -387,7 +414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaPersonalisation);
     } catch (error) {
       console.error("Failed to create personalisation:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create personalisation" });
+      handleBackendError(error, res, "Failed to create personalisation");
     }
   });
 
@@ -411,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaPersonalisations);
     } catch (error) {
       console.error("Failed to get personalisations:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get personalisations" });
+      handleBackendError(error, res, "Failed to get personalised experiences");
     }
   });
 
@@ -450,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(personalisation);
     } catch (error) {
       console.error("Failed to get personalisation:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get personalisation" });
+      handleBackendError(error, res, "Failed to get personalisation");
     }
   });
 
@@ -503,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(personalisation);
     } catch (error) {
       console.error("Failed to update personalisation:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update personalisation" });
+      handleBackendError(error, res, "Failed to update personalisation");
     }
   });
 
@@ -525,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Personalisation deleted successfully" });
     } catch (error) {
       console.error("Failed to delete personalisation:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to delete personalisation" });
+      handleBackendError(error, res, "Failed to delete personalisation");
     }
   });
 
@@ -550,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(novaPersonalisations);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get AI recommendations" });
+      handleBackendError(error, res, "Failed to get AI recommendations");
     }
   });
 
@@ -709,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(segments);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segments" });
+      handleBackendError(error, res, "Failed to fetch segments");
     }
   });
 
@@ -739,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experienceCount: 0,
       });
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create segment" });
+      handleBackendError(error, res, "Failed to create segment");
     }
   });
 
@@ -770,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(segmentDetails);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch segment details" });
+      handleBackendError(error, res, "Failed to fetch segment details");
     }
   });
 
@@ -808,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(campaigns);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaigns" });
+      handleBackendError(error, res, "Failed to fetch campaigns");
     }
   });
 
@@ -867,7 +894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(campaign);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create campaign" });
+      handleBackendError(error, res, "Failed to create campaign");
       }
   });
 
@@ -909,7 +936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(detailedCampaign);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to get campaign details" });
+      handleBackendError(error, res, "Failed to get campaign details");
     }
   });
 
@@ -952,7 +979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(campaign);
     } catch (error) {
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update campaign" });
+      handleBackendError(error, res, "Failed to update campaign");
     }
   });
 
@@ -989,7 +1016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(objects);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch objects" });
+      handleBackendError(error, res, "Failed to fetch objects");
     }
   });
 
@@ -1024,7 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(objectDetails);
     } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch object details" });
+      handleBackendError(error, res, "Failed to fetch object details");
     }
   });
 
@@ -1113,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaEventsSchema);
     } catch (error) {
       console.error("Failed to fetch events schema:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch events schema" });
+      handleBackendError(error, res, "Failed to fetch events schema");
     }
   });
 
@@ -1139,7 +1166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaUserProfileKeys);
     } catch (error) {
       console.error("Failed to fetch user profile keys:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch user profile keys" });
+      handleBackendError(error, res, "Failed to fetch user profile keys");
     }
   });
 
@@ -1160,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaMetrics);
     } catch (error) {
       console.error("Failed to fetch metrics:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
+      handleBackendError(error, res, "Failed to fetch metrics");
     }
   });
 
@@ -1182,7 +1209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaMetric);
     } catch (error) {
       console.error("Failed to fetch metric details:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metric details" });
+      handleBackendError(error, res, "Failed to fetch metric details");
     }
   });
 
@@ -1213,7 +1240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaMetric);
     } catch (error) {
       console.error("Failed to create metric:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create metric" });
+      handleBackendError(error, res, "Failed to create metric");
     }
   });
 
@@ -1245,7 +1272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(novaMetric);
     } catch (error) {
       console.error("Failed to update metric:", error);
-      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update metric" });
+      handleBackendError(error, res, "Failed to update metric");
     }
   });
 
