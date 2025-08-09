@@ -4,17 +4,16 @@ import { useAuth } from "@/lib/auth";
 
 export default function Console() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, isInitializing, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!user) {
-      // TODO: Add proper handling for this
-      // setLocation("/");
-    } else {
-      // Redirect to personalisations by default
+    // Only redirect if auth is fully initialized and user is authenticated
+    if (!isInitializing && isAuthenticated && user) {
       setLocation("/personalisations");
     }
-  }, [user, setLocation]);
+    // For all other cases (initializing, not authenticated, etc), 
+    // let handleAuthRouting handle redirects - just show loading
+  }, [user, isInitializing, isAuthenticated, setLocation]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
