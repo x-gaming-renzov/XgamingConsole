@@ -134,6 +134,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleBackendError(error, res, "Failed to get user info");
     }
   });
+  
+  // Get all organization users
+  app.get("/api/auth/users", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>('/api/v1/auth/users', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to get organization users");
+    }
+  });
 
   // App management - Proxy to FastAPI
   app.post("/api/auth/apps", authenticateToken, async (req, res) => {
