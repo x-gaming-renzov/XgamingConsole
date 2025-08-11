@@ -150,6 +150,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get organization and app context
+  app.get("/api/auth/context", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>('/api/v1/auth/context', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+      res.json({
+        organisation_id: response.organisation_id,
+        app_id: response.app_id,
+        api_key: process.env.SDK_API_KEY || 'key123',
+        backend_url: process.env.NOVA_BACKEND_URL || ''
+      });
+    } catch (error) {
+      handleBackendError(error, res, "Failed to fetch auth context");
+    }
+  });
+
   // App management - Proxy to FastAPI
   app.post("/api/auth/apps", authenticateToken, async (req, res) => {
     try {

@@ -150,6 +150,16 @@ export default function ProjectSettings() {
     enabled: !!user,
   });
 
+  // Fetch app & org context (Integrations)
+  const { data: authContext, isLoading: contextLoading } = useQuery({
+    queryKey: ['authContext'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/auth/context');
+      return res.json() as Promise<{ organisation_id: string; app_id: string; api_key: string; backend_url: string }>;
+    },
+    enabled: isAdmin,
+  });
+
   // Map the API response to our TeamMember type
   const teamMembers: TeamMember[] = organizationMembers.map((member: any) => ({
     id: member.id,
@@ -335,8 +345,9 @@ export default function ProjectSettings() {
         </div>
 
         <Tabs defaultValue="members" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
@@ -559,6 +570,42 @@ export default function ProjectSettings() {
                 </Card>
               </>
             )}
+          </TabsContent>
+
+          {/* Integrations Tab */}
+          <TabsContent value="integrations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Integration Details</CardTitle>
+                <CardDescription>Keys and URLs for SDK and API access.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {contextLoading ? (
+                  <p>Loading...</p>
+                ) : authContext ? (
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Organisation ID</Label>
+                      <Input readOnly value={authContext.organisation_id} />
+                    </div>
+                    <div>
+                      <Label>App ID</Label>
+                      <Input readOnly value={authContext.app_id} />
+                    </div>
+                    <div>
+                      <Label>API Key</Label>
+                      <Input readOnly value={authContext.api_key} />
+                    </div>
+                    <div>
+                      <Label>Backend URL</Label>
+                      <Input readOnly value={authContext.backend_url} />
+                    </div>
+                  </div>
+                ) : (
+                  <p>No integration data available.</p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
