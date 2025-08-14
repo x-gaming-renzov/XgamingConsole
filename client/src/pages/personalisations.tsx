@@ -629,6 +629,18 @@ export default function Personalisations() {
                                             >
                                               Priority #{personalisation.priority}
                                             </Badge>
+                                            {/* Edit button */}
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() =>
+                                                setLocation(
+                                                  `/edit-personalisation/${personalisation.pid}?experienceId=${activeExperience}`
+                                                )
+                                              }
+                                            >
+                                              <ChevronRight className="w-4 h-4" />
+                                            </Button>
                                           </div>
                                         </div>
                                       </div>
@@ -866,21 +878,9 @@ export default function Personalisations() {
                                                             </div>
                                                           ) : metricValue?.hasData && metricValue?.value !== undefined && metricValue?.value !== null ? (
                                                             <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                                                              {(() => {
-                                                                if (typeof metricValue.value !== 'number') return metricValue.value;
-                                                                
-                                                                // Format based on metric type
-                                                                if (metric.type === 'retention') {
-                                                                  return `${(metricValue.value * 100).toFixed(1)}%`;
-                                                                } else if (metric.type === 'ratio') {
-                                                                  return metricValue.value.toFixed(3);
-                                                                } else {
-                                                                  // For count and aggregation
-                                                                  return metricValue.value % 1 === 0 ? 
-                                                                    metricValue.value.toLocaleString() : 
-                                                                    metricValue.value.toFixed(2);
-                                                                }
-                                                              })()}
+                                                              {metricValue.value % 1 === 0
+                                                                ? metricValue.value.toLocaleString()
+                                                                : metricValue.value.toFixed(2)}
                                                             </div>
                                                           ) : (
                                                             <Button

@@ -495,6 +495,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleBackendError(error, res, "Failed to get personalisations");
     }
   });
+  
+  // Get a single personalisation by ID
+  app.get("/api/personalisations/:id", authenticateToken, async (req, res) => {
+    try {
+      const personalisationId = req.params.id;
+      
+      // Call Nova Manager to get personalisation details
+      const novaPersonalisation = await callNovaBackend<any>(
+        `/api/v1/personalisations/${personalisationId}/`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+
+      res.json(novaPersonalisation);
+    } catch (error) {
+      console.error("Failed to get personalisation:", error);
+      handleBackendError(error, res, "Failed to get personalisation details");
+    }
+  });
+
+  app.patch("/api/personalisations/:id", authenticateToken, async (req, res) => {
+    try {
+      const personalisationId = req.params.id;
+      
+      // Call Nova Manager to update personalisation details
+      const novaPersonalisation = await callNovaBackend<any>(
+        `/api/v1/personalisations/${personalisationId}/`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(req.body),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+
+      res.json(novaPersonalisation);
+    } catch (error) {
+      console.error("Failed to update personalisation:", error);
+      handleBackendError(error, res, "Failed to update personalisation");
+    }
+  });
 
   app.post("/api/personalisations", authenticateToken, async (req, res) => {
     try {
@@ -516,6 +562,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to create personalisation:", error);
       handleBackendError(error, res, "Failed to create personalisation");
+    }
+  });
+
+  // Update personalisation
+  app.patch("/api/personalisations/:id", authenticateToken, async (req, res) => {
+    try {
+      const id = req.params.id;
+
+      // Call Nova Manager to update personalisation
+      const updated = await callNovaBackend<any>(
+        `/api/v1/personalisations/${id}/`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(req.body),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update personalisation:", error);
+      handleBackendError(error, res, "Failed to update personalisation");
     }
   });
 
