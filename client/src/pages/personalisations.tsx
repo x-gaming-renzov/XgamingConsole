@@ -20,6 +20,7 @@ import {
   Eye,
   ArrowRight,
   ChevronDown,
+  Pencil,
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import { useLocation } from "wouter";
@@ -639,7 +640,7 @@ export default function Personalisations() {
                                                 )
                                               }
                                             >
-                                              <ChevronRight className="w-4 h-4" />
+                                              <Pencil className="w-4 h-4" />
                                             </Button>
                                           </div>
                                         </div>

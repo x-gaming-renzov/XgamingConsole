@@ -65,7 +65,7 @@ interface PersonalisationFormData {
 
 export default function EditPersonalisation() {
   const [location, setLocation] = useLocation();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSegments, setAvailableSegments] = useState<any[]>([]);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
@@ -376,9 +376,7 @@ export default function EditPersonalisation() {
   };
 
   const handleNext = () => {
-    if (currentStep === 1 && validateStep1()) {
-      setCurrentStep(2);
-    } else if (currentStep === 2 && validateStep2()) {
+    if (currentStep === 2 && validateStep2()) {
       setCurrentStep(3);
     } else if (currentStep === 3 && validateStep3()) {
       setCurrentStep(4);
@@ -388,9 +386,7 @@ export default function EditPersonalisation() {
   };
 
   const handlePrevious = () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-    } else if (currentStep === 3) {
+    if (currentStep === 3) {
       setCurrentStep(2);
     } else if (currentStep === 4) {
       setCurrentStep(3);
@@ -480,7 +476,7 @@ export default function EditPersonalisation() {
                   <h1 className="text-2xl font-bold text-foreground">
                     Edit Personalisation
                   </h1>
-                  <p className="text-muted-foreground">Build magical experiences for your players</p>
+                  <p className="text-muted-foreground">Edit previously created personalisations</p>
                 </div>
               </div>
             </div>
@@ -605,7 +601,6 @@ export default function EditPersonalisation() {
                               ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-green-400 shadow-lg'
                               : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
                           } backdrop-blur-sm`}
-                          onClick={() => handleExperienceChange(experience.pid, experience)}
                         >
                           <CardHeader className="pb-4">
                             <div className="flex items-start space-x-3">
