@@ -15,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
-  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock
+  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock,
+  Code, BarChart2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +45,7 @@ interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "developer" | "analyst" | "member";
   status: "active" | "pending" | "inactive";
   lastActive?: string;
   invitedBy?: string;
@@ -53,7 +54,7 @@ interface TeamMember {
 interface Invitation {
   id: string;
   email: string;
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "developer" | "analyst" | "member";
   status: "pending" | "accepted" | "expired" | "cancelled";
   expires_at: string;
   invited_by_name: string;
@@ -62,7 +63,7 @@ interface Invitation {
 
 interface InviteRequest {
   email: string;
-  role: "admin" | "member";
+  role: "admin" | "developer" | "analyst" | "member";
 }
 
 export default function ProjectSettings() {
@@ -127,7 +128,7 @@ export default function ProjectSettings() {
 
   // Invitation state
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "developer" | "analyst">("member");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Fetch pending invitations
@@ -165,7 +166,7 @@ export default function ProjectSettings() {
     id: member.id,
     name: member.name,
     email: member.email,
-    role: member.role as "owner" | "admin" | "member",
+    role: member.role as "owner" | "admin" | "member" | "developer" | "analyst",
     status: "active" as const,
     lastActive: "Now", // We don't have this info from the API
     invitedBy: undefined
@@ -270,6 +271,8 @@ export default function ProjectSettings() {
       case "owner": return <Crown className="w-4 h-4" />;
       case "admin": return <Shield className="w-4 h-4" />;
       case "member": return <User className="w-4 h-4" />;
+      case "developer": return <Code className="w-4 h-4" />;
+      case "analyst": return <BarChart2 className="w-4 h-4" />;
       default: return <User className="w-4 h-4" />;
     }
   };
@@ -279,6 +282,8 @@ export default function ProjectSettings() {
       case "owner": return "Owner";
       case "admin": return "Admin";
       case "member": return "Member";
+      case "developer": return "Developer";
+      case "analyst": return "Analyst";
       default: return role;
     }
   };
@@ -414,7 +419,9 @@ export default function ProjectSettings() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="admin">Admin - Full access to organization</SelectItem>
-                                  <SelectItem value="member">Member - Standard access</SelectItem>
+                                  <SelectItem value="developer">Developer - Integration access</SelectItem>
+                                  <SelectItem value="analyst">Analyst - Create and Launch Experiments</SelectItem>
+                                  <SelectItem value="member">Member - Read access</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
