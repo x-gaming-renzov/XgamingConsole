@@ -53,6 +53,7 @@ export const useAuth = create<AuthState>()(
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`,
             },
             body: JSON.stringify({
               refresh_token: state.refreshToken,

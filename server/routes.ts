@@ -33,6 +33,17 @@ function authenticateToken(req: any, res: any, next: any) {
   next();
 }
 
+function requireExpiredToken(req: any, res: any, next: any) {
+  const authHeader = req.headers["authorization"];
+  console.log('authHeader:', authHeader);
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: "Access token required" });
+
+  // attach raw token so FastAPI can ignore its expiry
+  req.token = token;
+  next();
+}
+
 // Helper function to call Nova backend
 async function callNovaBackend<T>(endpoint: string, options: any = {}): Promise<T> {
   const response = await fetch(`${NOVA_BACKEND_URL}${endpoint}`, {
@@ -105,20 +116,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/refresh", authenticateToken, async (req, res) => {
-    try {
-      const response = await callNovaBackend<any>('/api/v1/auth/refresh', {
-        method: 'POST',
-        body: JSON.stringify(req.body),
-        headers: {
-          'Authorization': `Bearer ${req.token}`,
-        },
-      });
-      res.json(response);
-    } catch (error) {
-      handleBackendError(error, res, "Token refresh failed");
-    }
-  });
+  app.post("/api/auth/refresh", requireExpiredToken, async (req, res) => {
+  try {
+    const response = await callNovaBackend<any>("/api/v1/auth/refresh", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${req.token}`,
+      },
+      body: JSON.stringify(req.body),
+    });
+    res.json(response);
+  } catch (err) {
+    handleBackendError(err, res, "Token refresh failed");
+  }
+});
 
   // Get current user
   app.get("/api/auth/me", authenticateToken, async (req, res) => {
