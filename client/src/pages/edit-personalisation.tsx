@@ -28,12 +28,14 @@ import {
   X,
   BarChart3,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ExperienceVariant {
   name: string;
@@ -150,6 +152,8 @@ export default function EditPersonalisation() {
       return [];
     },
   });
+
+  const [applyToExisting, setApplyToExisting] = useState(false);
 
   useEffect(() => {
   if (personalisationData) {
@@ -421,7 +425,9 @@ export default function EditPersonalisation() {
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
         selected_metrics: formData.selected_metrics,
-        experience_variants: experience_variants
+        experience_variants: experience_variants,
+        apply_to_existing: applyToExisting // Add this line to include the new parameter
+
       });
 
       if (!personalisationResponse.ok) {
@@ -1501,6 +1507,49 @@ export default function EditPersonalisation() {
                     />
                   </div>
                 </div>
+
+                {/* Apply to Existing Users Option - ADD THIS */}
+                <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30 p-4">
+                  <div className="flex items-start">
+                    <div className="mt-0.5 mr-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-amber-800 dark:text-amber-400">Apply to Existing Users</h3>
+                      </div>
+                      <div className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                        <p className="mb-2">Choose how this update affects users who are already experiencing this personalisation:</p>
+                        
+                        <div className="flex items-start space-x-2 mt-3">
+                          <Checkbox 
+                            id="applyToExisting"
+                            checked={applyToExisting} 
+                            onCheckedChange={(checked) => setApplyToExisting(checked === true)} 
+                          />
+                          <div>
+                            <label 
+                              htmlFor="applyToExisting" 
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-amber-800 dark:text-amber-300"
+                            >
+                              Apply changes to existing users
+                            </label>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                              If checked, all users will get the latest variants immediately. Old variants will be overwritten.
+                              <span className="font-bold"> This action cannot be reversed.</span>
+                            </p>
+                            {applyToExisting && (
+                              <div className="mt-2 p-2 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                                ⚠️ Warning: Enabling this option will immediately update the experience for all users currently in this personalisation.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
 
                 {/* Summary Cards */}
                 <div className="space-y-6">
