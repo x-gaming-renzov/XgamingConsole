@@ -1585,6 +1585,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
+  app.patch("/api/personalisations/:id/enable", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const response = await callNovaBackend<any>(
+        `/api/v1/personalisations/${id}/enable/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+      res.json(response);
+    } catch (error) {
+      console.error("Failed to enable personalisation:", error);
+      handleBackendError(error, res, "Failed to enable personalisation");
+    }
+  });
+
+  // Disable personalisation
+  app.patch("/api/personalisations/:id/disable", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const response = await callNovaBackend<any>(
+        `/api/v1/personalisations/${id}/disable/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+      res.json(response);
+    } catch (error) {
+      console.error("Failed to disable personalisation:", error);
+      handleBackendError(error, res, "Failed to disable personalisation");
+    }
+  });
+
+  // Create personalisation
+  app.post("/api/personalisations", authenticateToken, async (req, res) => {
+    try {
+      const personalisationData = req.body;
+
+      // Call Nova Manager to create personalisation
+      const novaPersonalisation = await callNovaBackend<any>(
+        `/api/v1/personalisations/create-personalisation/`,
+        {
+          method: "POST",
+          body: JSON.stringify(req.body),
+          headers: {
+            'Authorization': `Bearer ${req.token}`,
+          },
+        }
+      );
+
+      res.json(novaPersonalisation);
+    } catch (error) {
+      console.error("Failed to create personalisation:", error);
+      handleBackendError(error, res, "Failed to create personalisation");
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
