@@ -157,7 +157,9 @@ export default function EditPersonalisation() {
 
   useEffect(() => {
   if (personalisationData) {
-    // Set basic form fields
+    // Set basic form fields with metrics properly filtered
+    const filteredMetrics = personalisationData.metrics?.map((m: any) => m.metric?.pid).filter(Boolean) || [];
+    
     setFormData({
       name: personalisationData.name || '',
       description: personalisationData.description || '',
@@ -165,7 +167,7 @@ export default function EditPersonalisation() {
       rollout_percentage: personalisationData.rollout_percentage || 100,
       rule_config: personalisationData.rule_config || { conditions: [] },
       experience_variants: [], // We'll populate createdVariants separately
-      selected_metrics: personalisationData.metrics?.map((m: any) => m.pid) || [],
+      selected_metrics: filteredMetrics,
     });
     
     // Set selected experience
@@ -417,17 +419,19 @@ export default function EditPersonalisation() {
         }
       }));
 
-      // Use PUT for updating
+      // Filter out any null values from selected_metrics
+      const cleanedMetrics = formData.selected_metrics.filter(Boolean);
+
+      // Use PATCH for updating
       const personalisationResponse = await apiRequest("PATCH", `/api/personalisations/${personalisationId}`, {
         name: formData.name,
         description: formData.description,
         experience_id: formData.experienceId,
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
-        selected_metrics: formData.selected_metrics,
+        selected_metrics: cleanedMetrics,
         experience_variants: experience_variants,
         apply_to_existing: applyToExisting // Add this line to include the new parameter
-
       });
 
       if (!personalisationResponse.ok) {
@@ -1400,12 +1404,17 @@ export default function EditPersonalisation() {
                              : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
                          } backdrop-blur-sm`}
                         onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            selected_metrics: prev.selected_metrics.includes(metric.pid)
-                              ? prev.selected_metrics.filter(id => id !== metric.pid)
-                              : [...prev.selected_metrics, metric.pid]
-                          }));
+                          setFormData(prev => {
+                            // Ensure there are no nulls in the array
+                            const cleanedMetrics = prev.selected_metrics.filter(Boolean);
+                            
+                            return {
+                              ...prev,
+                              selected_metrics: cleanedMetrics.includes(metric.pid)
+                                ? cleanedMetrics.filter(id => id !== metric.pid)
+                                : [...cleanedMetrics, metric.pid]
+                            };
+                          });
                         }}
                       >
                                                  <CardHeader className="pb-4">
