@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiRequest } from "./queryClient";
+import { apiRequest, queryClient } from "./queryClient";
 
 interface NovaUser {
   name: string;
@@ -14,11 +14,13 @@ interface AuthState {
   user: NovaUser | null;
   token: string | null;
   refreshToken: string | null;
+  currentAppId?: string | null;
   login: (user: NovaUser, token: string, refreshToken: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isInitializing: boolean;
   setTokens: (accessToken: string, refreshToken: string) => void;
+  setCurrentAppId: (id: string | null) => void;
   getTokens: () => { accessToken: string | null; refreshToken: string | null };
   refreshAccessToken: () => Promise<boolean>;
   setIsInitializing: (value: boolean) => void;
@@ -28,8 +30,9 @@ export const useAuth = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
-      refreshToken: null,
+  token: null,
+  refreshToken: null,
+  currentAppId: null,
       isAuthenticated: false,
       isInitializing: false,
       login: (user: NovaUser, token: string, refreshToken: string) => {
@@ -37,7 +40,15 @@ export const useAuth = create<AuthState>()(
       },
       setTokens: (accessToken: string, refreshToken: string) => {
         set({ token: accessToken, refreshToken });
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          const appId = payload?.app_id || payload?.app || null;
+          set({ currentAppId: appId });
+        } catch (e) {
+          // ignore
+        }
       },
+      setCurrentAppId: (id: string | null) => set({ currentAppId: id }),
       getTokens: () => {
         const state = get();
         return { accessToken: state.token, refreshToken: state.refreshToken };
@@ -92,6 +103,7 @@ export const useAuth = create<AuthState>()(
       partialize: (state) => ({ 
         token: state.token,
         refreshToken: state.refreshToken,
+  currentAppId: state.currentAppId,
       }),
     }
   )
@@ -185,7 +197,7 @@ export const useInitializeAuth = () => {
 export const updateUserAndRoute = async (userData: NovaUser, newTokens?: { access_token: string; refresh_token: string }) => {
   // Update tokens if provided (happens when switching apps or creating first app)
   if (newTokens) {
-    useAuth.getState().setTokens(newTokens.access_token, newTokens.refresh_token);
+  useAuth.getState().setTokens(newTokens.access_token, newTokens.refresh_token);
   }
   
   useAuth.setState({ user: userData, isAuthenticated: true });
@@ -221,19 +233,35 @@ export const switchApp = async (appId: string) => {
       const data = await response.json();
       // Update tokens with new app context
       useAuth.getState().setTokens(data.access_token, data.refresh_token);
-      
+      // Try to decode app id from token
+      try {
+        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+        const appId = payload?.app_id || payload?.app || null;
+        useAuth.getState().setCurrentAppId(appId || null);
+      } catch (e) {
+        // ignore
+      }
+
       // Get updated user info
       const userResponse = await fetch('/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${data.access_token}`,
         },
       });
-      
+
       if (userResponse.ok) {
         const userData = await userResponse.json();
-        useAuth.setState({ user: userData });
+        // Mark authenticated and update user
+        useAuth.setState({ user: userData, isAuthenticated: true });
       }
-      
+
+      // Invalidate cached queries so components refetch with the new token
+      try {
+        queryClient.invalidateQueries();
+      } catch (e) {
+        // ignore
+      }
+
       return true;
     } else {
       throw new Error('Failed to switch app');

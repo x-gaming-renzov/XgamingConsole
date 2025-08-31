@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/compo
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
+import NewAppDialog from "@/components/new-app-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth, switchApp, isCurrentUserAdmin } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,7 +19,9 @@ interface ConsoleLayoutProps {
 export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
-  const [selectedApp, setSelectedApp] = useState<string>("");
+  const authState = useAuth();
+  const selectedApp = authState.currentAppId || "";
+  const setSelectedApp = (id: string) => authState.setCurrentAppId(id);
   const { toast } = useToast();
   const isAdmin = isCurrentUserAdmin();
 
@@ -37,18 +40,32 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     refetchOnReconnect: false,
   });
 
+  // Debug logs to diagnose selection issues
+  useEffect(() => {
+    console.debug("ConsoleLayout mounted");
+    return () => console.debug("ConsoleLayout unmounted");
+  }, []);
+
+  useEffect(() => {
+    console.debug("apps changed", apps.map((a: any) => a.id));
+  }, [apps]);
+
+  useEffect(() => {
+    console.debug("selectedApp changed", selectedApp);
+  }, [selectedApp]);
+
   // Get current selected app details
   const currentApp = apps.find((app: any) => app.id === selectedApp);
 
-  // Set the first app as selected by default when apps load
-  // In a real implementation, you'd get the current app from the JWT token
+  // Set the first app as selected by default when apps load (run once)
+  // In production, you'd decode the JWT to get the current app_id and set that as selected
+  const initialSelectedSet = useRef(false);
   useEffect(() => {
-    if (apps.length > 0 && !selectedApp) {
-      // For now, select the first app. In production, you'd decode the JWT 
-      // to get the current app_id and set that as selected
+    if (!initialSelectedSet.current && apps.length > 0 && !authState.currentAppId) {
       setSelectedApp(apps[0].id);
+      initialSelectedSet.current = true;
     }
-  }, [apps, selectedApp]);
+  }, [apps]);
 
   const handleLogout = () => {
     toast({
@@ -58,23 +75,30 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     logout();
   };
 
-  const handleAppSwitch = async (appId: string) => {
-    if (appId !== selectedApp) {
-      const success = await switchApp(appId);
+  // Handle app switch: update selection immediately, then perform switch
+  const handleAppSwitch = (appId: string) => {
+    if (appId === selectedApp) return;
+    const previousApp = selectedApp;
+    // Optimistically update UI (persisted in auth)
+    setSelectedApp(appId);
+    console.debug("handleAppSwitch: calling switchApp for", appId);
+    switchApp(appId).then((success) => {
       if (success) {
-        setSelectedApp(appId);
         toast({
           title: "App switched",
           description: "Successfully switched to the selected app.",
         });
+        console.debug("switchApp succeeded for", appId);
       } else {
+        setSelectedApp(previousApp);
         toast({
           title: "Failed to switch app",
           description: "There was an error switching apps. Please try again.",
           variant: "destructive",
         });
+        console.debug("switchApp failed for", appId);
       }
-    }
+    });
   };
 
   const navigationItems = [
@@ -150,7 +174,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </Link>
             </div>
             
-            {/* App Selector */}
+            {/* App Selector + New App */}
             <div className="mb-4">
               <p className="text-xs font-medium text-muted-foreground mb-2">APP</p>
               {appsLoading ? (
@@ -164,22 +188,25 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                   <span className="text-xs text-muted-foreground">No apps found</span>
                 </div>
               ) : (
-                <Select value={selectedApp} onValueChange={handleAppSwitch}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select an app">
-                      {currentApp && (
-                        <span className="font-medium">{currentApp.name}</span>
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apps.map((app: any) => (
-                      <SelectItem key={app.id} value={app.id}>
-                        {app.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center space-x-2">
+                  <Select key={selectedApp} value={selectedApp} onValueChange={handleAppSwitch}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select an app">
+                        {currentApp && (
+                          <span className="font-medium">{currentApp.name}</span>
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apps.map((app: any) => (
+                        <SelectItem key={app.id} value={app.id}>
+                          {app.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <NewAppDialog />
+                </div>
               )}
             </div>
           </SidebarHeader>
