@@ -290,85 +290,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Experiment routes
-  // app.get("/api/experiments", authenticateToken, async (req, res) => {
-  //   try {
-  //     const { projectId } = req.query;
-      
-  //     if (!projectId) {
-  //       return res.status(400).json({ message: "Project ID is required" });
-  //     }
-
-  //     // Verify user has access to project
-  //     const project = await storage.getProject(Number(projectId));
-  //     if (!project || project.userId !== req.user.userId) {
-  //       return res.status(403).json({ message: "Access denied" });
-  //     }
-
-  //     const experiments = await storage.getExperimentsByProjectId(Number(projectId));
-  //     res.json(experiments);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch experiments" });
-  //   }
-  // });
-
-  // app.post("/api/experiments", authenticateToken, async (req, res) => {
-  //   try {
-  //     const experimentData = insertExperimentSchema.parse(req.body);
-  //     const { projectId } = req.body;
-
-  //     // Verify user has access to project
-  //     const project = await storage.getProject(projectId);
-  //     if (!project || project.userId !== req.user.userId) {
-  //       return res.status(403).json({ message: "Access denied" });
-  //     }
-
-  //     const experiment = await storage.createExperiment({
-  //       ...experimentData,
-  //       projectId,
-  //       userId: req.user.userId,
-  //     });
-  //     res.json(experiment);
-  //   } catch (error) {
-  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create experiment" });
-  //   }
-  // });
-
-  // app.put("/api/experiments/:id", authenticateToken, async (req, res) => {
-  //   try {
-  //     const id = Number(req.params.id);
-  //     const updates = req.body;
-
-  //     // Verify user has access to experiment
-  //     const experiment = await storage.getExperiment(id);
-  //     if (!experiment || experiment.userId !== req.user.userId) {
-  //       return res.status(403).json({ message: "Access denied" });
-  //     }
-
-  //     const updatedExperiment = await storage.updateExperiment(id, updates);
-  //     res.json(updatedExperiment);
-  //   } catch (error) {
-  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update experiment" });
-  //   }
-  // });
-
-  // app.delete("/api/experiments/:id", authenticateToken, async (req, res) => {
-  //   try {
-  //     const id = Number(req.params.id);
-
-  //     // Verify user has access to experiment
-  //     const experiment = await storage.getExperiment(id);
-  //     if (!experiment || experiment.userId !== req.user.userId) {
-  //       return res.status(403).json({ message: "Access denied" });
-  //     }
-
-  //     const deleted = await storage.deleteExperiment(id);
-  //     res.json({ success: deleted });
-  //   } catch (error) {
-  //     res.status(400).json({ message: error instanceof Error ? error.message : "Failed to delete experiment" });
-  //   }
-  // });
-
   // Experience routes (Nova Manager integration)
   app.get("/api/experiences", authenticateToken, async (req, res) => {
     try {
@@ -740,132 +661,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics routes
-  // app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
-  //   try {
-  //     const { projectId } = req.query;
-      
-  //     if (!projectId) {
-  //       return res.status(400).json({ message: "Project ID is required" });
-  //     }
-
-  //     // Verify user has access to project
-  //     const project = await storage.getProject(Number(projectId));
-  //     if (!project || project.userId !== req.user.userId) {
-  //       return res.status(403).json({ message: "Access denied" });
-  //     }
-
-  //     const experiments = await storage.getExperimentsByProjectId(Number(projectId));
-      
-  //     // Calculate analytics
-  //     const activeExperiments = experiments.filter(exp => exp.status === "running").length;
-  //     const completedExperiments = experiments.filter(exp => exp.status === "completed").length;
-      
-  //     // Mock analytics data for now
-  //     const analytics = {
-  //       activeExperiments,
-  //       completedExperiments,
-  //       totalExperiments: experiments.length,
-  //       avgCompletionRate: 67.3,
-  //       dayOneRetention: 42.1,
-  //       recentExperiments: experiments.slice(0, 5),
-  //     };
-
-  //     res.json(analytics);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch analytics" });
-  //   }
-  // });
-
-  // Get dashboard metrics overview
-  // app.get("/api/metrics/overview", authenticateToken, async (req, res) => {
-  //   try {
-  //     // Get user's projects to calculate metrics
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-  //     if (projects.length === 0) {
-  //       return res.json({
-  //         activeExperiences: 0,
-  //         avgD0Retention: 0,
-  //         avgD1Retention: 0,
-  //         activationRate: 0,
-  //         campaignsNeedAttention: false,
-  //         activeCampaigns: []
-  //       });
-  //     }
-
-  //     // Get all campaigns for user's projects
-  //     const allCampaigns = [];
-  //     const allExperiments: any[] = [];
-      
-  //     for (const project of projects) {
-  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
-  //       const experiments = await storage.getExperimentsByProjectId(project.id);
-  //       allCampaigns.push(...campaigns);
-  //       allExperiments.push(...experiments);
-  //     }
-
-  //     // Filter active campaigns and calculate metrics
-  //     const activeCampaigns = allCampaigns
-  //       .filter(campaign => campaign.status === "Active")
-  //       .map(campaign => {
-  //         // Match experiences to campaigns based on source/description
-  //         let campaignActiveExperiences = 0;
-          
-  //         if (campaign.utmSource === "facebook") {
-  //           // Facebook campaign gets "Double Coins for Facebook Players"
-  //           campaignActiveExperiences = allExperiments.filter(exp => 
-  //             exp.status === "active" && exp.name.toLowerCase().includes("facebook")
-  //           ).length;
-  //         } else if (campaign.utmSource === "tiktok") {
-  //           // TikTok campaign gets "TikTok Welcome Popup Personalization"
-  //           campaignActiveExperiences = allExperiments.filter(exp => 
-  //             exp.status === "active" && exp.name.toLowerCase().includes("tiktok")
-  //           ).length;
-  //         } else if (campaign.utmSource === "google") {
-  //           // Google campaign gets "Google UAC Welcome Bonus"
-  //           campaignActiveExperiences = allExperiments.filter(exp => 
-  //             exp.status === "active" && (exp.name.toLowerCase().includes("google") || exp.name.toLowerCase().includes("uac"))
-  //           ).length;
-  //         } else {
-  //           // Other campaigns get remaining experiences
-  //           campaignActiveExperiences = 0;
-  //         }
-          
-  //         return {
-  //           id: campaign.id,
-  //           label: campaign.name,
-  //           utmSource: campaign.utmSource,
-  //           d1Highest: Number(campaign.d1Retention) + Math.floor(Math.random() * 10), // Add some variance
-  //           d1Lowest: Math.max(Number(campaign.d1Retention) - Math.floor(Math.random() * 15), 0),
-  //           newUsersToday: campaign.installs || 0,
-  //           activeExperiences: campaignActiveExperiences,
-  //           status: campaign.status as "Active" | "Paused" | "Draft"
-  //         };
-  //       });
-
-  //     const activeExperiences = allExperiments.filter(exp => exp.status === "active").length;
-  //     const avgD0Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d0Retention || 0), 0) / Math.max(allCampaigns.length, 1);
-  //     const avgD1Retention = allCampaigns.reduce((sum, c) => sum + Number(c.d1Retention || 0), 0) / Math.max(allCampaigns.length, 1);
-      
-  //     // Calculate average session length (mock data for now, in minutes)
-  //     const avgSessionLength = 4.2 + (Math.random() * 2.5); // 4.2-6.7 minutes range
-
-  //     const metrics = {
-  //       activeExperiences,
-  //       avgD0Retention: Math.round(avgD0Retention * 10) / 10,
-  //       avgD1Retention: Math.round(avgD1Retention * 10) / 10,
-  //       sessionLength: Math.round(avgSessionLength * 10) / 10, // Replace activationRate with sessionLength
-  //       campaignsNeedAttention: activeCampaigns.some(c => c.d1Lowest < 40),
-  //       activeCampaigns: activeCampaigns.slice(0, 3) // Show top 3
-  //     };
-
-  //     res.json(metrics);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch metrics" });
-  //   }
-  // });
-
   // Segments routes
   app.get("/api/segments", authenticateToken, async (req, res) => {
     try {
@@ -960,188 +755,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Campaign routes
-  app.get("/api/campaigns", authenticateToken, async (req, res) => {
-    try {
-      // Call Nova Manager to get campaigns - JWT contains org/app context
-      const novaCampaigns = await callNovaBackend<any[]>(
-        `/api/v1/campaigns/`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${req.token}`,
-          },
-        }
-      );
-
-      // Transform Nova Manager campaigns to frontend format
-      const campaigns = novaCampaigns.map(campaign => ({
-        id: campaign.pid,
-        name: campaign.name,
-        description: campaign.description || "",
-        status: campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1),
-        ruleConfig: campaign.rule_config || { conditions: [] },
-        launchedAt: campaign.launched_at,
-        organisationId: campaign.organisation_id,
-        appId: campaign.app_id,
-        createdAt: campaign.created_at,
-        modifiedAt: campaign.modified_at,
-        experienceCount: campaign.experience_count || 0,
-        // Legacy fields for backward compatibility
-        utmSource: campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
-        utmCampaign: campaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
-      }));
-
-      res.json(campaigns);
-    } catch (error) {
-      handleBackendError(error, res, "Failed to fetch campaigns");
-    }
-  });
-
-  app.post("/api/campaigns", authenticateToken, async (req, res) => {
-    try {
-      const campaignData = req.body;
-
-      // Transform frontend data to Nova Manager format - JWT contains org/app context
-      const novaCampaignData = {
-        name: campaignData.name || campaignData.label || `${campaignData.utmSource} Campaign`,
-        description: campaignData.description || "",
-        status: "draft", // New campaigns start as draft
-        rule_config: {
-          conditions: [
-            {
-              field: "utm_source",
-              operator: "equals",
-              value: campaignData.utmSource
-            }
-          ],
-          operator: "AND"
-        },
-        launched_at: campaignData.launchDate || new Date().toISOString(),
-      };
-
-      // Call Nova Manager to create campaign
-      const novaCampaign = await callNovaBackend<any>(
-        `/api/v1/campaigns/`,
-        {
-          method: "POST",
-          body: JSON.stringify(novaCampaignData),
-          headers: {
-            'Authorization': `Bearer ${req.token}`,
-          },
-        }
-      );
-
-      // Return in frontend format
-      const campaign = {
-        id: novaCampaign.pid,
-        name: novaCampaign.name,
-        description: novaCampaign.description || "",
-        status: novaCampaign.status.charAt(0).toUpperCase() + novaCampaign.status.slice(1),
-        rule_config: novaCampaign.rule_config,
-        launched_at: novaCampaign.launched_at,
-        organisation_id: novaCampaign.organisation_id,
-        app_id: novaCampaign.app_id,
-        created_at: novaCampaign.created_at,
-        modified_at: novaCampaign.modified_at,
-        experience_count: novaCampaign.experience_count || 0,
-        // Legacy fields for backward compatibility
-        utmSource: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
-        utmCampaign: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
-        launchDate: novaCampaign.launched_at
-      };
-
-      res.json(campaign);
-    } catch (error) {
-      handleBackendError(error, res, "Failed to create campaign");
-      }
-  });
-
-  // Get single campaign details
-  app.get("/api/campaigns/:id", authenticateToken, async (req, res) => {
-    try {
-      const campaignId = req.params.id;
-      
-      // Call Nova Manager to get campaign details
-      const novaCampaign = await callNovaBackend<any>(
-        `/api/v1/campaigns/${campaignId}/`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${req.token}`,
-          },
-        }
-      );
-
-      // Transform Nova Manager response to frontend format
-      const detailedCampaign = {
-        id: novaCampaign.pid,
-        name: novaCampaign.name,
-        description: novaCampaign.description || "",
-        status: novaCampaign.status.charAt(0).toUpperCase() + novaCampaign.status.slice(1),
-        ruleConfig: novaCampaign.rule_config,
-        launchedAt: novaCampaign.launched_at,
-        organisationId: novaCampaign.organisation_id,
-        appId: novaCampaign.app_id,
-        createdAt: novaCampaign.created_at,
-        modifiedAt: novaCampaign.modified_at,
-        experiences: novaCampaign.experiences || [],
-        experienceCount: novaCampaign.experience_count || 0,
-        activeExperiences: novaCampaign.active_experiences || 0,
-        // Legacy fields for backward compatibility
-        utmSource: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
-        utmCampaign: novaCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_campaign')?.value || 'unknown',
-      };
-
-      res.json(detailedCampaign);
-    } catch (error) {
-      handleBackendError(error, res, "Failed to get campaign details");
-    }
-  });
-
-  // Update campaign
-  app.put("/api/campaigns/:id", authenticateToken, async (req, res) => {
-    try {
-      const campaignId = req.params.id;
-      const updateData = req.body;
-      
-      // Call Nova Manager to update campaign
-      const updatedCampaign = await callNovaBackend<any>(
-        `/api/v1/campaigns/${campaignId}/`,
-        {
-          method: "PUT",
-          body: JSON.stringify(updateData),
-          headers: {
-            'Authorization': `Bearer ${req.token}`,
-          },
-        }
-      );
-
-      // Return in frontend format
-      const campaign = {
-        id: updatedCampaign.pid,
-        name: updatedCampaign.name,
-        description: updatedCampaign.description || "",
-        status: updatedCampaign.status.charAt(0).toUpperCase() + updatedCampaign.status.slice(1),
-        rule_config: updatedCampaign.rule_config,
-        launched_at: updatedCampaign.launched_at,
-        organisation_id: updatedCampaign.organisation_id,
-        app_id: updatedCampaign.app_id,
-        created_at: updatedCampaign.created_at,
-        modified_at: updatedCampaign.modified_at,
-        // Legacy fields for backward compatibility
-        utmSource: updatedCampaign.rule_config?.conditions?.find((c: any) => c.field === 'utm_source')?.value || 'unknown',
-        utmCampaign: updatedCampaign.name,
-        flagBundle: `${updatedCampaign.name.toLowerCase().replace(/\s+/g, '_')}_v2.1`,
-        launchDate: updatedCampaign.launched_at
-      };
-
-      res.json(campaign);
-    } catch (error) {
-      handleBackendError(error, res, "Failed to update campaign");
-    }
-  });
-
   // Object routes
   app.get("/api/objects", authenticateToken, async (req, res) => {
     try {
@@ -1214,39 +827,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OpenAI experience analysis
-  // app.post("/api/analyze-experience", authenticateToken, async (req, res) => {
-  //   try {
-  //     const { description } = req.body;
-      
-  //     if (!description || description.trim().length < 10) {
-  //       return res.status(400).json({ message: "Description must be at least 10 characters long" });
-  //     }
+  // API Keys routes - Proxy to Nova backend
+  app.post("/api/apikeys/generate", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>(`/api/v1/apikeys/generate`, {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
 
-  //     // Get user's first project (assuming single project for now)
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-  //     if (projects.length === 0) {
-  //       return res.status(400).json({ message: "No project found for user" });
-  //     }
-  //     const projectId = projects[0].id;
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to generate API key");
+    }
+  });
 
-  //     // Get available objects from database
-  //     const objects = await storage.getObjectsByProjectId(projectId);
-      
-  //     // Get available segments from database 
-  //     const segments = await storage.getSegmentsByProjectId(projectId);
+  app.get("/api/apikeys", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any[]>(`/api/v1/apikeys/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
 
-  //     const analysis = await analyzeExperienceDescription(description, objects, segments);
-      
-  //     // Log the final analysis being sent to client
-  //     console.log("Analysis sent to client:", JSON.stringify(analysis, null, 2));
-      
-  //     res.json(analysis);
-  //   } catch (error) {
-  //     console.error("Experience analysis failed:", error);
-  //     res.status(500).json({ message: "Failed to analyze experience description" });
-  //   }
-  // });
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to fetch API keys");
+    }
+  });
+
+  app.delete("/api/apikeys", authenticateToken, async (req, res) => {
+    try {
+      const { name } = req.query;
+      let url = '/api/v1/apikeys/';
+      if (name) url += `?name=${encodeURIComponent(name as string)}`;
+
+      const response = await callNovaBackend<any>(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+
+      // Forward backend response (may be empty or contain detail)
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to delete API key");
+    }
+  });
 
   // Metrics Builder endpoints
   app.post("/api/metrics/compute", authenticateToken, async (req, res) => {
@@ -1434,132 +1065,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleBackendError(error, res, "Failed to update metric");
     }
   });
-
-  // Insights endpoints
-  // app.get("/api/insights/top-experiences", authenticateToken, async (req, res) => {
-  //   try {
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-  //     if (projects.length === 0) {
-  //       return res.json([]);
-  //     }
-
-  //     const allExperiments: any[] = [];
-  //     for (const project of projects) {
-  //       const experiments = await storage.getExperimentsByProjectId(project.id);
-  //       allExperiments.push(...experiments);
-  //     }
-
-  //     // Generate realistic performance data for active experiments
-  //     const topExperiences = allExperiments
-  //       .filter(exp => exp.status === "active")
-  //       .map(exp => ({
-  //         id: exp.id,
-  //         name: exp.name,
-  //         campaign: exp.description || "Default Campaign",
-  //         uplift: Math.round((Math.random() * 15 + 2) * 10) / 10, // 2-17% uplift
-  //         confidence: Math.round((Math.random() * 20 + 80) * 10) / 10, // 80-100% confidence
-  //         participants: Math.floor(Math.random() * 5000 + 1000) // 1000-6000 participants
-  //       }))
-  //       .sort((a, b) => b.uplift - a.uplift) // Sort by uplift descending
-  //       .slice(0, 10); // Top 10
-
-  //     res.json(topExperiences);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch top experiences" });
-  //   }
-  // });
-
-  // app.get("/api/insights/campaign-health", authenticateToken, async (req, res) => {
-  //   try {
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-  //     if (projects.length === 0) {
-  //       return res.json([]);
-  //     }
-
-  //     const allCampaigns = [];
-  //     for (const project of projects) {
-  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
-  //       allCampaigns.push(...campaigns);
-  //     }
-
-  //     // Calculate campaign health based on D1 retention performance
-  //     const campaignHealth = allCampaigns
-  //       .filter(campaign => campaign.status === "Active")
-  //       .map(campaign => {
-  //         const d1Delta = Number(campaign.d1Retention) - 45; // Compare against 45% baseline
-  //         let status: "Good" | "Warning" | "Critical" = "Good";
-          
-  //         if (d1Delta < -6) status = "Critical"; // TikTok: 38.9 - 45 = -6.1, should be Critical
-  //         else if (d1Delta < -2) status = "Warning";
-          
-  //         return {
-  //           campaign: campaign.name,
-  //           d1Delta: Math.round(d1Delta * 10) / 10,
-  //           status
-  //         };
-  //       });
-
-  //     res.json(campaignHealth);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch campaign health" });
-  //   }
-  // });
-
-  // app.get("/api/insights/ideas", authenticateToken, async (req, res) => {
-  //   try {
-  //     const projects = await storage.getProjectsByUserId(req.user.userId);
-      
-  //     if (projects.length === 0) {
-  //       return res.json([]);
-  //     }
-
-  //     // Get user's campaigns to generate targeted ideas
-  //     const allCampaigns = [];
-  //     const allExperiments: any[] = [];
-      
-  //     for (const project of projects) {
-  //       const campaigns = await storage.getCampaignsByProjectId(project.id);
-  //       const experiments = await storage.getExperimentsByProjectId(project.id);
-  //       allCampaigns.push(...campaigns);
-  //       allExperiments.push(...experiments);
-  //     }
-
-  //     // Generate optimization ideas based on actual data
-  //     const ideas = [];
-  //     let idCounter = 1;
-
-  //     // Check for underperforming campaigns
-  //     const poorCampaigns = allCampaigns.filter(c => Number(c.d1Retention) < 40);
-  //     if (poorCampaigns.length > 0) {
-  //       ideas.push({
-  //         id: idCounter++,
-  //         title: `Improve ${poorCampaigns[0].name} D1 Retention`,
-  //         description: `This campaign shows D1 retention of ${poorCampaigns[0].d1Retention}%. Consider testing welcome bonuses or tutorial improvements.`,
-  //         impact: "High" as const,
-  //         effort: "Medium" as const,
-  //         category: "Retention" as const
-  //       });
-  //     }
-
-  //     // Skip the onboarding coin rewards suggestion as requested
-
-  //     // Always include a monetization idea
-  //     ideas.push({
-  //       id: idCounter++,
-  //       title: "Limited-Time Purchase Bonus",
-  //       description: "Add 50% extra coins to in-app purchases during first 24 hours of gameplay to boost early monetization.",
-  //       impact: "High" as const,
-  //       effort: "Medium" as const,
-  //       category: "Monetization" as const
-  //     });
-
-  //     res.json(ideas);
-  //   } catch (error) {
-  //     res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch optimization ideas" });
-  //   }
-  // });
 
   app.patch("/api/personalisations/:id/enable", authenticateToken, async (req, res) => {
     try {
