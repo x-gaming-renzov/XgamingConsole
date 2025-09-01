@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+// Badge removed: not used after removing Active column
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,7 @@ import {
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
   TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock,
-  Code, BarChart2
+  Code, BarChart2, Copy
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -159,6 +159,59 @@ export default function ProjectSettings() {
       return res.json() as Promise<{ organisation_id: string; app_id: string; api_key: string; backend_url: string }>;
     },
     enabled: isAdmin,
+  });
+
+  // API Keys state & queries
+  const [newKeyName, setNewKeyName] = useState("");
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+
+  const { data: apiKeys = [], isLoading: apiKeysLoading } = useQuery({
+    queryKey: ['apiKeys'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/apikeys');
+      try {
+        return await res.json();
+      } catch {
+        return [] as any[];
+      }
+    },
+    enabled: !!authContext && isAdmin,
+  });
+
+  const generateKeyMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest('POST', '/api/apikeys/generate', { name });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      setGenerateDialogOpen(false);
+      setNewKeyName('');
+      toast({ title: 'API Key Generated', description: `Key "${data.name}" created.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to generate API key', description: err.message || String(err), variant: 'destructive' });
+    }
+  });
+
+  const deleteKeyMutation = useMutation({
+    mutationFn: async (name: string) => {
+      // DELETE endpoint expects query param ?name=...
+      const res = await apiRequest('DELETE', `/api/apikeys?name=${encodeURIComponent(name)}`);
+      // backend may return empty body
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
+      toast({ title: 'API Key Deleted', description: 'The API key was removed.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete API key', description: err.message || String(err), variant: 'destructive' });
+    }
   });
 
   // Map the API response to our TeamMember type
@@ -584,7 +637,7 @@ export default function ProjectSettings() {
             <Card>
               <CardHeader>
                 <CardTitle>Integration Details</CardTitle>
-                <CardDescription>Keys and URLs for SDK and API access.</CardDescription>
+                <CardDescription>Nova URL and API keys for SDK and API access.</CardDescription>
               </CardHeader>
               <CardContent>
                 {contextLoading ? (
@@ -592,24 +645,97 @@ export default function ProjectSettings() {
                 ) : authContext ? (
                   <div className="space-y-4">
                     <div>
-                      <Label>Organisation ID</Label>
-                      <Input readOnly value={authContext.organisation_id} />
-                    </div>
-                    <div>
-                      <Label>App ID</Label>
-                      <Input readOnly value={authContext.app_id} />
-                    </div>
-                    <div>
-                      <Label>API Key</Label>
-                      <Input readOnly value={authContext.api_key} />
-                    </div>
-                    <div>
-                      <Label>Backend URL</Label>
+                      <Label>Nova URL</Label>
                       <Input readOnly value={authContext.backend_url} />
                     </div>
                   </div>
                 ) : (
                   <p>No integration data available.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* API Keys management */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                  <div>
+                    <CardTitle>API Keys</CardTitle>
+                    <CardDescription>Generate and manage API keys for SDK access.</CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={generateKeyMutation.isPending}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Generate Key
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Generate API Key</DialogTitle>
+                          <DialogDescription>Create a named API key for SDK access.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Name</Label>
+                            <Input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
+                          <Button onClick={() => generateKeyMutation.mutate(newKeyName)} disabled={!newKeyName || generateKeyMutation.isPending}>
+                            {generateKeyMutation.isPending ? 'Generating...' : 'Generate'}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {apiKeysLoading ? (
+                  <p>Loading API keys...</p>
+                ) : apiKeys.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground">No API keys found. Generate one to get started.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Key</TableHead>
+                        <TableHead className="w-[80px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {apiKeys.map((k: any) => (
+                        <TableRow key={k.id}>
+                          <TableCell>
+                            <div className="font-medium">{k.name}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">{k.key}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                // copy key to clipboard
+                                navigator.clipboard?.writeText(k.key);
+                                toast({ description: 'API key copied to clipboard' });
+                              }}>
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => deleteKeyMutation.mutate(k.name)} className="text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
