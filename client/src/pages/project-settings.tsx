@@ -163,6 +163,7 @@ export default function ProjectSettings() {
 
   // API Keys state & queries
   const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyType, setNewKeyType] = useState<"client" | "sync">("client");
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
 
   const { data: apiKeys = [], isLoading: apiKeysLoading } = useQuery({
@@ -179,14 +180,15 @@ export default function ProjectSettings() {
   });
 
   const generateKeyMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const res = await apiRequest('POST', '/api/apikeys/generate', { name });
+    mutationFn: async (payload: { name: string; key_type: string }) => {
+      const res = await apiRequest('POST', '/api/apikeys/generate', payload);
       return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['apiKeys'] });
       setGenerateDialogOpen(false);
       setNewKeyName('');
+      setNewKeyType('client');
       toast({ title: 'API Key Generated', description: `Key "${data.name}" created.` });
     },
     onError: (err: any) => {
@@ -681,10 +683,22 @@ export default function ProjectSettings() {
                             <Label>Name</Label>
                             <Input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} />
                           </div>
+                          <div>
+                            <Label>Key Type</Label>
+                            <Select value={newKeyType} onValueChange={(v: "client" | "sync") => setNewKeyType(v)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="client">Client (for Nova SDK)</SelectItem>
+                                <SelectItem value="sync">Sync (for syncing objects)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <DialogFooter>
                           <Button variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
-                          <Button onClick={() => generateKeyMutation.mutate(newKeyName)} disabled={!newKeyName || generateKeyMutation.isPending}>
+                          <Button onClick={() => generateKeyMutation.mutate({ name: newKeyName, key_type: newKeyType })} disabled={!newKeyName || generateKeyMutation.isPending}>
                             {generateKeyMutation.isPending ? 'Generating...' : 'Generate'}
                           </Button>
                         </DialogFooter>
@@ -706,6 +720,7 @@ export default function ProjectSettings() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Key</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead className="w-[80px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -717,6 +732,9 @@ export default function ProjectSettings() {
                           </TableCell>
                           <TableCell>
                             <div className="text-sm text-muted-foreground">{k.key}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">{k.key_type}</div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-2">
