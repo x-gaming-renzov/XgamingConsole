@@ -1,38 +1,18 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth, updateUserAndRoute } from "@/lib/auth";
-
-const appCreateSchema = z.object({
-  name: z.string().min(2, "App name must be at least 2 characters"),
-  description: z.string().optional(),
-});
 
 export default function OnboardingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, token } = useAuth();
 
-  const form = useForm<z.infer<typeof appCreateSchema>>({
-    resolver: zodResolver(appCreateSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-    },
-  });
-
   const createAppMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof appCreateSchema>) => {
+    mutationFn: async (data: { name: string; description: string }) => {
       const response = await apiRequest("POST", "/api/auth/apps", data);
       return response.json();
     },
@@ -41,7 +21,6 @@ export default function OnboardingPage() {
         title: "App created!",
         description: "Your app has been created successfully. Welcome to Nova!",
       });
-      
       // Update user state and tokens - new app creation returns new tokens with app_id
       if (user) {
         const updatedUser = { ...user, has_apps: true };
@@ -58,12 +37,18 @@ export default function OnboardingPage() {
         description: error.message,
         variant: "destructive",
       });
-    },
+    }, 
   });
 
-  const handleCreateApp = (data: z.infer<typeof appCreateSchema>) => {
-    createAppMutation.mutate(data);
-  };
+  // Automatically create app when component mounts
+  useEffect(() => {
+    if (user && !user.has_apps && !createAppMutation.isPending && !createAppMutation.isSuccess) {
+      createAppMutation.mutate({
+        name: "SampleUnityApp",
+        description: "Clone of vampire survival game in unity"
+      });
+    }
+  }, [user, createAppMutation]);
 
   // Redirect if user already has apps
   if (user?.has_apps) {
@@ -77,57 +62,33 @@ export default function OnboardingPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">🎮 Welcome to Nova!</CardTitle>
           <CardDescription>
-            Let's set up your first mobile game app to get started
+            Setting up your first mobile game app...
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleCreateApp)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>App Name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g. Dragon Quest Mobile" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Brief description of your game..."
-                        rows={3}
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={createAppMutation.isPending}
+        <CardContent className="text-center">
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+            <p className="text-muted-foreground">
+              {createAppMutation.isPending 
+                ? "Creating your sample app..." 
+                : createAppMutation.isError 
+                  ? "Something went wrong. Please try again."
+                  : "Almost ready!"
+              }
+            </p>
+            {createAppMutation.isError && (
+              <button 
+                onClick={() => createAppMutation.mutate({
+                  name: "SampleUnityApp",
+                  description: "Clone of vampire survival game in unity"
+                })}
+                className="text-sm text-blue-400 hover:text-blue-300 underline"
               >
-                {createAppMutation.isPending ? "Creating App..." : "Create App & Continue →"}
-              </Button>
-            </form>
-          </Form>
-          
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>You can create additional apps later from your dashboard</p>
+                Retry
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
