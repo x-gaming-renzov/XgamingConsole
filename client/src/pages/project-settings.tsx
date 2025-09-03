@@ -7,39 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Badge removed: not used after removing Active column
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
+// progress component removed
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Upload, Trash2, Download, FileText, FileImage, File, 
-  Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
-  TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock,
-  Code, BarChart2, Copy
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Plus, Trash2, Mail, Clock, Crown, Shield, User, Code, BarChart2, Copy } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isCurrentUserAdmin } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import ConsoleLayout from "@/components/console-layout";
 
-interface KnowledgeBaseFile {
-  id: number;
-  name: string;
-  tokens: number;
-  status: "Ready" | "Processing" | "Failed";
-  category: string;
-  visibility: "Org-wide" | "Private";
-}
-
-interface Transaction {
-  id: number;
-  credits: number;
-  cost: number;
-  date: string;
-  status: "Completed" | "Failed" | "Pending";
-}
+// Billing/Transactions/KnowledgeBase removed from project settings per request
 
 interface TeamMember {
   id: string;
@@ -85,34 +64,7 @@ export default function ProjectSettings() {
     }
   }, [user, isAdmin, toast]);
 
-  // Billing state
-  const [billing] = useState({
-    remainingCredits: 7500,
-    totalCredits: 10000,
-    estimatedDaysLeft: 23,
-    currentPlan: "Pro",
-    planPrice: 199,
-    lastFourDigits: "4242",
-    billingEmail: "billing@company.com"
-  });
-
-  // Transaction history
-  const [transactions] = useState<Transaction[]>([
-    { id: 1, credits: 10000, cost: 169, date: "2025-06-01", status: "Completed" },
-    { id: 2, credits: 5000, cost: 89, date: "2025-05-15", status: "Completed" },
-    { id: 3, credits: 1000, cost: 19, date: "2025-05-01", status: "Completed" },
-    { id: 4, credits: 5000, cost: 89, date: "2025-04-05", status: "Completed" },
-    { id: 5, credits: 1000, cost: 19, date: "2025-04-05", status: "Failed" }
-  ]);
-
-  // Knowledge Base state
-  const [kbFiles, setKbFiles] = useState<KnowledgeBaseFile[]>([
-    { id: 1, name: "Game Design Bible.pdf", tokens: 15420, status: "Ready", category: "Design Bible", visibility: "Org-wide" },
-    { id: 2, name: "Tutorial Guidelines.md", tokens: 8230, status: "Processing", category: "Tutorial", visibility: "Private" },
-    { id: 3, name: "Onboarding Flow.txt", tokens: 4150, status: "Failed", category: "Tutorial", visibility: "Org-wide" }
-  ]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  // Billing/transactions/KB removed
 
   // Integrations state
   const [slackConnected, setSlackConnected] = useState(false);
@@ -227,30 +179,7 @@ export default function ProjectSettings() {
     invitedBy: undefined
   }));
 
-  const handleFileUpload = (files: FileList | null) => {
-    if (!files) return;
-    
-    setUploading(true);
-    setUploadProgress(0);
-    
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploading(false);
-          toast({ description: "File uploaded successfully" });
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
-
-  const handleFileDelete = (fileId: number) => {
-    setKbFiles(prev => prev.filter(f => f.id !== fileId));
-    toast({ description: "File deleted successfully" });
-  };
+  // KB upload handlers removed
 
   const handleSlackConnect = () => {
     setSlackConnected(true);
@@ -358,35 +287,7 @@ export default function ProjectSettings() {
     return `${Math.floor(diffInHours / 24)} days ago`;
   };
 
-  const getFileIcon = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) return <FileImage className="w-4 h-4" />;
-    if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')) return <FileText className="w-4 h-4" />;
-    return <File className="w-4 h-4" />;
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "active": return "default";
-      case "pending": return "secondary";
-      case "inactive": return "outline";
-      case "Ready": return "default";
-      case "Processing": return "secondary";
-      case "Failed": return "destructive";
-      default: return "secondary";
-    }
-  };
-
-  const getTransactionStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "Completed": return "default";
-      case "Pending": return "secondary";
-      case "Failed": return "destructive";
-      default: return "secondary";
-    }
-  };
-
-  const creditUsagePercentage = ((billing.totalCredits - billing.remainingCredits) / billing.totalCredits) * 100;
+  // KB/transaction helpers removed
 
   return (
     <ConsoleLayout>
