@@ -84,7 +84,7 @@ export default function PersonalisationForm({
   const [availableSegments, setAvailableSegments] = useState<any[]>([]);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [applyToExisting, setApplyToExisting] = useState(false);
+  const [reassign, setReassign] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -480,7 +480,7 @@ export default function PersonalisationForm({
         rollout_percentage: formData.rollout_percentage,
         selected_metrics: cleanedMetrics,
         experience_variants: experienceVariants,
-        ...(isEditMode && { apply_to_existing: applyToExisting })
+        ...(isEditMode && { reassign: reassign })
       };
 
       // Use different endpoints for create vs edit
@@ -1602,13 +1602,13 @@ export default function PersonalisationForm({
                           
                           <div className="flex items-start space-x-2 mt-3">
                             <Checkbox
-                              id="applyToExisting"
-                              checked={applyToExisting} 
-                              onCheckedChange={(checked) => setApplyToExisting(checked === true)} 
+                              id="reassign"
+                              checked={reassign} 
+                              onCheckedChange={(checked) => setReassign(checked === true)} 
                             />
                             <div>
                               <label 
-                                htmlFor="applyToExisting" 
+                                htmlFor="reassign" 
                                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-amber-800 dark:text-amber-300"
                               >
                                 Apply changes to existing users
@@ -1617,7 +1617,7 @@ export default function PersonalisationForm({
                                 If checked, all users will get the latest variants immediately. Old variants will be overwritten.
                                 <span className="font-bold"> This action cannot be reversed.</span>
                               </p>
-                              {applyToExisting && (
+                              {reassign && (
                                 <div className="mt-2 p-2 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
                                   ⚠️ Warning: Enabling this option will immediately update the experience for all users currently in this personalisation.
                                 </div>
