@@ -14,11 +14,13 @@ interface AuthState {
   user: NovaUser | null;
   token: string | null;
   refreshToken: string | null;
-  login: (user: NovaUser, token: string, refreshToken: string) => void;
+  currentAppId?: string | null;
+  login: (user: NovaUser, token: string, refreshToken: string, appId: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isInitializing: boolean;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string, refreshToken: string, appId: string) => void;
+  setCurrentAppId: (id: string | null) => void;
   getTokens: () => { accessToken: string | null; refreshToken: string | null };
   refreshAccessToken: () => Promise<boolean>;
   setIsInitializing: (value: boolean) => void;
@@ -30,14 +32,16 @@ export const useAuth = create<AuthState>()(
       user: null,
       token: null,
       refreshToken: null,
+      currentAppId: null,
       isAuthenticated: false,
       isInitializing: false,
-      login: (user: NovaUser, token: string, refreshToken: string) => {
-        set({ user, token, refreshToken, isAuthenticated: true, isInitializing: false });
+      login: (user: NovaUser, token: string, refreshToken: string, appId: string) => {
+        set({ user, token, refreshToken, currentAppId: appId, isAuthenticated: true, isInitializing: false });
       },
-      setTokens: (accessToken: string, refreshToken: string) => {
-        set({ token: accessToken, refreshToken });
+      setTokens: (accessToken: string, refreshToken: string, appId: string) => {
+        set({ token: accessToken, refreshToken, currentAppId: appId });
       },
+      setCurrentAppId: (id: string | null) => set({ currentAppId: id }),
       getTokens: () => {
         const state = get();
         return { accessToken: state.token, refreshToken: state.refreshToken };
@@ -53,6 +57,7 @@ export const useAuth = create<AuthState>()(
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`,
             },
             body: JSON.stringify({
               refresh_token: state.refreshToken,
@@ -61,9 +66,9 @@ export const useAuth = create<AuthState>()(
 
           if (response.ok) {
             const data = await response.json();
-            set({ 
-              token: data.access_token, 
-              refreshToken: data.refresh_token || state.refreshToken 
+            set({
+              token: data.access_token,
+              refreshToken: data.refresh_token || state.refreshToken
             });
             return true;
           } else {
@@ -88,9 +93,10 @@ export const useAuth = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         token: state.token,
         refreshToken: state.refreshToken,
+        currentAppId: state.currentAppId,
       }),
     }
   )
@@ -102,18 +108,18 @@ const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean, forc
   const urlParams = new URLSearchParams(window.location.search);
   const hasInviteToken = urlParams.has('invite');
   const { isInitializing } = useAuth.getState();
-  
+
   // Don't route while auth is still initializing (unless forced)
   if (isInitializing && !forceRoute) {
     return;
   }
-  
+
   // If user is on signup page with invite token and not forcing route, don't redirect them
   // This allows users to complete signup, but still routes them after successful signup
   if (currentPath === '/signup' && hasInviteToken && !forceRoute) {
     return;
   }
-  
+
   if (isAuthenticated && user) {
     // User is authenticated, route based on has_apps from user object
     if (user.has_apps) {
@@ -138,7 +144,7 @@ const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean, forc
 // Hook for session restoration on app mount
 export const useInitializeAuth = () => {
   const { token, refreshToken, isAuthenticated, user, isInitializing, setIsInitializing } = useAuth();
-  
+
   useEffect(() => {
     // Skip if we're already authenticated and have user data
     if (isAuthenticated && user) {
@@ -147,7 +153,7 @@ export const useInitializeAuth = () => {
       handleAuthRouting(user, true);
       return;
     }
-    
+
     // If we have tokens but no user data or authentication, fetch user info from backend
     if ((token || refreshToken) && !isAuthenticated && !user) {
       setIsInitializing(true);
@@ -156,9 +162,9 @@ export const useInitializeAuth = () => {
           // Use apiRequest which handles token refresh automatically
           const response = await apiRequest('GET', '/api/auth/me');
           const userData = await response.json();
-          
-          useAuth.setState({ 
-            user: userData, 
+
+          useAuth.setState({
+            user: userData,
             isAuthenticated: true
           });
           setIsInitializing(false);
@@ -170,7 +176,7 @@ export const useInitializeAuth = () => {
           useAuth.getState().logout();
         }
       };
-      
+
       validateSession();
     } else if (!token && !refreshToken) {
       // No tokens at all, ensure we're on landing page
@@ -181,14 +187,9 @@ export const useInitializeAuth = () => {
 };
 
 // Export function for manual routing updates (e.g., after creating first app)
-export const updateUserAndRoute = async (userData: NovaUser, newTokens?: { access_token: string; refresh_token: string }) => {
-  // Update tokens if provided (happens when switching apps or creating first app)
-  if (newTokens) {
-    useAuth.getState().setTokens(newTokens.access_token, newTokens.refresh_token);
-  }
-  
-  useAuth.setState({ user: userData, isAuthenticated: true });
-  useAuth.getState().setIsInitializing(false);
+export const updateUserAndRoute = async (userData: NovaUser, newTokens: { access_token: string; refresh_token: string }, appId: string) => {
+  // Update tokens (happens when switching apps or creating first app)
+  useAuth.getState().login(userData, newTokens.access_token, newTokens.refresh_token, appId);
   handleAuthRouting(userData, true, true);
 };
 
@@ -218,21 +219,21 @@ export const switchApp = async (appId: string) => {
 
     if (response.ok) {
       const data = await response.json();
-      // Update tokens with new app context
-      useAuth.getState().setTokens(data.access_token, data.refresh_token);
-      
       // Get updated user info
       const userResponse = await fetch('/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${data.access_token}`,
         },
       });
-      
+
       if (userResponse.ok) {
         const userData = await userResponse.json();
-        useAuth.setState({ user: userData });
+        // Mark authenticated and update user
+        useAuth.getState().login(userData, data.access_token, data.refresh_token, appId);
+      } else {
+        throw new Error('Failed to get user data for new token');
       }
-      
+
       return true;
     } else {
       throw new Error('Failed to switch app');

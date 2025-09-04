@@ -1,0 +1,168 @@
+/* Landing page specific styles */
+
+/* Gradient text for landing page */
+.landingGradientText {
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Cards */
+.landingCleanCard {
+  background: rgba(26, 24, 41, 0.8);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.landingPlatformCard {
+  background: rgba(18, 21, 26, 0.45);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  backdrop-filter: blur(12px);
+}
+
+.landingTestimonialCard {
+  background: rgba(21, 26, 32, 0.85);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  backdrop-filter: blur(12px);
+}
+
+.landingElegantCard {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.08) 0%, 
+    rgba(59, 130, 246, 0.04) 50%,
+    rgba(139, 92, 246, 0.02) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Button styles */
+.landingVisibleButton {
+  background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.landingVisibleButton:hover {
+  background: linear-gradient(135deg, #9333EA 0%, #2563EB 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+}
+
+.landingCtaGlow {
+  position: relative;
+  overflow: hidden;
+  /* animation: landingBreathe 3s ease-in-out infinite; */
+}
+
+.landingCtaGlow::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #8B5CF6, #3B82F6, #8B5CF6, #3B82F6);
+  background-size: 300% 300%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: landingGradientShift 4s ease infinite;
+  opacity: 0.6;
+}
+
+.landingTextGlow {
+  text-shadow: 
+    0 2px 8px rgba(139, 92, 246, 0.3),
+    0 4px 16px rgba(59, 130, 246, 0.2);
+}
+
+/* Animations */
+@keyframes landingSubtlePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes landingFloat {
+  0%, 100% { 
+    transform: translateY(0px);
+  }
+  50% { 
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes landingBreathe {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes landingGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes landingShimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.landingFloatAnimation {
+  animation: landingFloat 6s ease-in-out infinite;
+}
+
+/* Background styles */
+.landingDataFlowBg {
+  background: 
+    radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at center, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+}
+
+.landingShineEffect {
+  position: relative;
+  overflow: hidden;
+}
+
+.landingShineEffect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-100%);
+}
+
+.landingShineEffectAnimate::after {
+  animation: landingShine 2.5s ease-out;
+}
+
+@keyframes landingShine {
+  0% { 
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% { 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}

@@ -1,10 +1,21 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Search,
   Plus,
@@ -20,6 +31,9 @@ import {
   Eye,
   ArrowRight,
   ChevronDown,
+  Pencil,
+  AlertTriangle,
+  Power,
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import { useLocation } from "wouter";
@@ -49,6 +63,7 @@ interface Personalisation {
   experience: Experience;
   priority?: number;
   rollout_percentage?: number;
+  is_active?: boolean;
   rule_config?: {
     conditions?: Array<{
       field: string;
@@ -77,6 +92,10 @@ export default function Personalisations() {
   const [metricValues, setMetricValues] = useState<Record<string, any>>({});
   const [loadingMetrics, setLoadingMetrics] = useState<Record<string, boolean>>({});
   const [, setLocation] = useLocation();
+  const [toggleLoading, setToggleLoading] = useState<Record<string, boolean>>({});
+  const [disableDialogOpen, setDisableDialogOpen] = useState(false);
+  const [selectedPersonalisation, setSelectedPersonalisation] = useState<Personalisation | null>(null);
+  const queryClient = useQueryClient();
 
   // Fetch all personalisations for experience list
   const { data: allPersonalisations = [], isLoading: experiencesLoading } =
@@ -282,9 +301,9 @@ export default function Personalisations() {
 
   const handleCreatePersonalisation = () => {
     if (activeExperience) {
-      setLocation(`/create-personalisation?experienceId=${activeExperience}`);
+      setLocation(`/personalisations/create?experienceId=${activeExperience}`);
     } else {
-      setLocation("/create-personalisation");
+      setLocation("/personalisations/create");
     }
   };
 
@@ -300,11 +319,79 @@ export default function Personalisations() {
     ];
     return colors[index] || "bg-gray-500";
   };
+  
+  const handleToggleActive = async (personalisation: Personalisation, active: boolean) => {
+    setToggleLoading(prev => ({ ...prev, [personalisation.pid]: true }));
+    try {
+      const endpoint = active ? 
+        `/api/personalisations/${personalisation.pid}/enable` : 
+        `/api/personalisations/${personalisation.pid}/disable`;
+      
+      const response = await apiRequest('PATCH', endpoint);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${active ? 'enable' : 'disable'} personalisation`);
+      }
+      
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/personalisations'] });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/personalisations/personalised-experiences/${activeExperience}`] 
+      });
+      
+    } catch (error) {
+      console.error(`Error ${active ? 'enabling' : 'disabling'} personalisation:`, error);
+      alert(`Failed to ${active ? 'enable' : 'disable'} personalisation. Please try again.`);
+    } finally {
+      setToggleLoading(prev => ({ ...prev, [personalisation.pid]: false }));
+    }
+  };
 
   return (
     <>
       <ConsoleLayout>
         <div className="flex-1 flex justify-center">
+          {/* Confirmation Dialog for Disabling Personalisation */}
+          <AlertDialog open={disableDialogOpen} onOpenChange={setDisableDialogOpen}>
+            <AlertDialogContent className="max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-amber-500" />
+                  Disable Personalisation
+                </AlertDialogTitle>
+                <AlertDialogDescription className="pt-2 space-y-3">
+                  <p>
+                    Are you sure you want to disable 
+                    <span className="font-bold"> {selectedPersonalisation?.name}</span>?
+                  </p>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-md border border-amber-200 dark:border-amber-800 text-sm">
+                    <p className="font-medium text-amber-800 dark:text-amber-300 mb-1">⚠️ Warning:</p>
+                    <p className="text-amber-700 dark:text-amber-400">
+                      Disabling this personalisation will prevent all users from receiving its variants.
+                      Any user currently experiencing this personalisation will no longer see the personalized content.
+                      This action cannot be reversed for existing user sessions.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (selectedPersonalisation) {
+                      handleToggleActive(selectedPersonalisation, false);
+                    }
+                    setDisableDialogOpen(false);
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-600"
+                >
+                  <Power className="w-4 h-4 mr-1" />
+                  Disable Personalisation
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        
           {personalisationsLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -594,7 +681,7 @@ export default function Personalisations() {
                               {filteredPersonalisations.map((personalisation) => (
                                 <Card
                                   key={personalisation.pid}
-                                  className="border border-2 border-slate-700/30 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 dark:border-slate-800"
+                                  className="border-2 border-slate-700/30 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 dark:border-slate-800"
                                 >
                                   <CardContent className="p-6">
                                     <div className="space-y-4">
@@ -629,6 +716,42 @@ export default function Personalisations() {
                                             >
                                               Priority #{personalisation.priority}
                                             </Badge>
+                                            {/* Active toggle switch */}
+                                            <div className="flex items-center space-x-2 ml-2">
+                                              <Switch
+                                                id={`active-switch-${personalisation.pid}`}
+                                                checked={personalisation.is_active === true}
+                                                onCheckedChange={(checked) => {
+                                                  if (checked) {
+                                                    handleToggleActive(personalisation, true);
+                                                  } else {
+                                                    setSelectedPersonalisation(personalisation);
+                                                    setDisableDialogOpen(true);
+                                                  }
+                                                }}
+                                                disabled={toggleLoading[personalisation.pid]}
+                                                className={personalisation.is_active ? "bg-green-500" : "bg-gray-300"}
+                                              />
+                                              {toggleLoading[personalisation.pid] ? (
+                                                <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                              ) : (
+                                                <span className={`text-xs font-medium ${personalisation.is_active ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                                                  {personalisation.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                              )}
+                                            </div>
+                                            {/* Edit button */}
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() =>
+                                                setLocation(
+                                                  `/personalisations/edit/${personalisation.pid}?experienceId=${activeExperience}`
+                                                )
+                                              }
+                                            >
+                                              <Pencil className="w-4 h-4" />
+                                            </Button>
                                           </div>
                                         </div>
                                       </div>
@@ -868,7 +991,7 @@ export default function Personalisations() {
                                                             <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                                                               {(() => {
                                                                 if (typeof metricValue.value !== 'number') return metricValue.value;
-                                                                
+
                                                                 // Format based on metric type
                                                                 if (metric.type === 'retention') {
                                                                   return `${(metricValue.value * 100).toFixed(1)}%`;

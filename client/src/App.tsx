@@ -21,7 +21,8 @@ import MetricBuilder from "./pages/metric-builder";
 import Settings from "@/pages/settings";
 import PersonalSettings from "@/pages/personal-settings";
 import ProjectSettings from "@/pages/project-settings";
-import CreatePersonalisation from "@/pages/create-personalisation";
+import PersonalisationsCreate from "@/pages/personalisations/create";
+import PersonalisationsEdit from "@/pages/personalisations/edit";
 import Onboarding from "@/pages/onboarding";
 import Signup from "@/pages/signup";
 
@@ -45,7 +46,8 @@ function Router() {
       <Route path="/experiences" component={Experiences} />
       <Route path="/experiences/:experienceId" component={ExperienceDetails} />
       <Route path="/personalisations" component={Personalisations} />
-      <Route path="/create-personalisation" component={CreatePersonalisation} />
+      <Route path="/personalisations/edit/:id" component={PersonalisationsEdit} />
+      <Route path="/personalisations/create" component={PersonalisationsCreate} />
       <Route path="/metrics" component={Metrics} />
       <Route path="/metrics/builder" component={MetricBuilder} />
       <Route path="/settings" component={Settings} />

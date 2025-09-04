@@ -654,9 +654,11 @@ export default function MetricBuilder() {
   };
 
   const updateFilter = (index: number, field: keyof FilterType, value: string | KeySource) => {
-    const newFilters = [...filters];
-    newFilters[index] = { ...newFilters[index], [field]: value };
-    setFilters(newFilters);
+    setFilters(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
   };
 
   // Handle group by management

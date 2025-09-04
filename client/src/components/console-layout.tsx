@@ -6,6 +6,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider } from "@/compo
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Target, Layers, UserCheck, Users, Lightbulb, Settings, LogOut, Plus, ChevronDown, Sparkles, Gamepad2, ChartNoAxesColumn, Zap, Wand2 } from "lucide-react";
+import NewAppDialog from "@/components/new-app-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth, switchApp, isCurrentUserAdmin } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
@@ -17,10 +18,11 @@ interface ConsoleLayoutProps {
 
 export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
-  const { user, logout } = useAuth();
-  const [selectedApp, setSelectedApp] = useState<string>("");
+  const { user, logout, currentAppId, setCurrentAppId } = useAuth();
   const { toast } = useToast();
   const isAdmin = isCurrentUserAdmin();
+
+  const [newAppDialogOpen, setNewAppDialogOpen] = useState(false);
 
   // Fetch real apps data - only when user is authenticated
   const { data: apps = [], isLoading: appsLoading, error: appsError } = useQuery({
@@ -38,17 +40,17 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   });
 
   // Get current selected app details
-  const currentApp = apps.find((app: any) => app.id === selectedApp);
+  const currentApp = apps.find((app: any) => app.id === currentAppId);
 
   // Set the first app as selected by default when apps load
   // In a real implementation, you'd get the current app from the JWT token
   useEffect(() => {
-    if (apps.length > 0 && !selectedApp) {
+    if (apps.length > 0 && !currentAppId) {
       // For now, select the first app. In production, you'd decode the JWT 
       // to get the current app_id and set that as selected
-      setSelectedApp(apps[0].id);
+      setCurrentAppId(apps[0].id);
     }
-  }, [apps, selectedApp]);
+  }, [apps, currentAppId]);
 
   const handleLogout = () => {
     toast({
@@ -59,10 +61,10 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   };
 
   const handleAppSwitch = async (appId: string) => {
-    if (appId !== selectedApp) {
+    if (appId !== currentAppId) {
       const success = await switchApp(appId);
+
       if (success) {
-        setSelectedApp(appId);
         toast({
           title: "App switched",
           description: "Successfully switched to the selected app.",
@@ -150,7 +152,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
               </Link>
             </div>
             
-            {/* App Selector */}
+            {/* App Selector + New App */}
             <div className="mb-4">
               <p className="text-xs font-medium text-muted-foreground mb-2">APP</p>
               {appsLoading ? (
@@ -164,7 +166,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                   <span className="text-xs text-muted-foreground">No apps found</span>
                 </div>
               ) : (
-                <Select value={selectedApp} onValueChange={handleAppSwitch}>
+                <Select value={currentAppId || ""} onValueChange={handleAppSwitch}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select an app">
                       {currentApp && (
@@ -178,6 +180,15 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                         {app.name}
                       </SelectItem>
                     ))}
+                    <div className="border-t border-border mt-1.5 pt-1.5">
+                      <div 
+                        className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => setNewAppDialogOpen(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        <span>Add new app</span>
+                      </div>
+                    </div>
                   </SelectContent>
                 </Select>
               )}
@@ -185,7 +196,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
           </SidebarHeader>
           
           <div className="px-4 mb-2">
-            <Link href="/create-personalisation">
+            <Link href="/personalisations/create">
               <Button className="w-full h-[58px] bg-gradient-to-r from-primary via-blue-500 to-purple-500 hover:from-primary/90 hover:via-primary/90 text-white shadow-lg hover:shadow-xl transition-all duration-300 group relative overflow-hidden">
                 <Wand2 className="w-4 h-4 text-white mr-3" />
                 <div className="flex flex-col items-start flex-1 z-10">
@@ -319,6 +330,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
           </div>
         </div>
       </div>
+      <NewAppDialog open={newAppDialogOpen} onOpenChange={setNewAppDialogOpen} />
     </SidebarProvider>
   );
 }

@@ -28,12 +28,14 @@ import {
   X,
   BarChart3,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ExperienceVariant {
   name: string;
@@ -63,15 +65,38 @@ interface PersonalisationFormData {
   selected_metrics: string[];
 }
 
-export default function CreatePersonalisation() {
+interface PersonalisationFormProps {
+  mode?: 'create' | 'edit';
+  personalisationId?: string;
+}
+
+export default function PersonalisationForm({ 
+  mode = 'create', 
+  personalisationId 
+}: PersonalisationFormProps = {}) {
   const [location, setLocation] = useLocation();
-  const [currentStep, setCurrentStep] = useState(1);
+  const isEditMode = mode === 'edit';
+  const [currentStep, setCurrentStep] = useState(isEditMode ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSegments, setAvailableSegments] = useState<any[]>([]);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [applyToExisting, setApplyToExisting] = useState(false);
   
   const queryClient = useQueryClient();
+
+  // Query to fetch existing personalisation data (for edit mode)
+  const { data: personalisationData, isLoading: isLoadingPersonalisation } = useQuery({
+    queryKey: [`/api/personalisations/${personalisationId}`],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/personalisations/${personalisationId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    },
+    enabled: !!personalisationId && isEditMode,
+  });
 
   // Parse URL parameters to get preselected experience ID
   const urlParams = new URLSearchParams(window.location.search);
@@ -142,16 +167,80 @@ export default function CreatePersonalisation() {
     },
   });
 
-  // Auto-open objects panel if experience is pre-selected
+  // Load existing personalisation data (edit mode)
   useEffect(() => {
-    if (preselectedExperienceId && experiences.length > 0) {
+    if (isEditMode && personalisationData) {
+      // Set basic form fields with metrics properly filtered
+      const filteredMetrics = personalisationData.metrics?.map((m: any) => m.metric?.pid).filter(Boolean) || [];
+      
+      setFormData({
+        name: personalisationData.name || '',
+        description: personalisationData.description || '',
+        experienceId: personalisationData.experience_id || '',
+        rollout_percentage: personalisationData.rollout_percentage || 100,
+        rule_config: personalisationData.rule_config || { conditions: [] },
+        experience_variants: [], // We'll populate createdVariants separately
+        selected_metrics: filteredMetrics,
+      });
+      
+      // Set selected experience
+      if (experiences.length > 0 && personalisationData.experience_id) {
+        const experience = experiences.find((exp: any) => exp.pid === personalisationData.experience_id);
+        if (experience) {
+          setSelectedExperience(experience);
+          setShowObjectsPanel(true);
+        }
+      }
+      
+      // Transform experience variants into our format
+      if (personalisationData.experience_variants?.length > 0) {
+        const variants = personalisationData.experience_variants.map((variantData: any) => {
+          const variant = variantData.experience_variant;
+          
+          // Format feature variants - transforming array to object keyed by ID
+          const featureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+          
+          variant.feature_variants?.forEach((fv: any) => {
+            featureVariants[fv.experience_feature_id] = {
+              name: fv.name || '',
+              config: fv.config || {}
+            };
+          });
+          
+          return {
+            name: variant.name || '',
+            description: variant.description || '',
+            is_default: variant.is_default || false,
+            target_percentage: variantData.target_percentage || 0, // Note: this is from the outer object
+            feature_variants: featureVariants
+          };
+        });
+        
+        setCreatedVariants(variants);
+        
+        // Collect all unique object IDs from all variants
+        const allObjectIds = new Set<string>();
+        personalisationData.experience_variants.forEach((variantData: any) => {
+          variantData.experience_variant.feature_variants?.forEach((fv: any) => {
+            allObjectIds.add(fv.experience_feature_id);
+          });
+        });
+        
+        setSelectedObjects(Array.from(allObjectIds));
+      }
+    }
+  }, [isEditMode, personalisationData, experiences]);
+
+  // Auto-open objects panel if experience is pre-selected (create mode)
+  useEffect(() => {
+    if (!isEditMode && preselectedExperienceId && experiences.length > 0) {
       const preselectedExperience = experiences.find((exp: any) => exp.pid === preselectedExperienceId);
       if (preselectedExperience) {
         setSelectedExperience(preselectedExperience);
         setShowObjectsPanel(true);
       }
     }
-  }, [preselectedExperienceId, experiences]);
+  }, [isEditMode, preselectedExperienceId, experiences]);
 
   // Initialize experience variants when objects load
   useEffect(() => {
@@ -362,28 +451,46 @@ export default function CreatePersonalisation() {
         target_percentage: variant.target_percentage
       }));
 
-      // Create personalisation according to backend schema
-      const personalisationResponse = await apiRequest("POST", `/api/personalisations`, {
+      // Filter out any null values from selected_metrics
+      const cleanedMetrics = formData.selected_metrics.filter(Boolean);
+
+      const payload = {
         name: formData.name,
         description: formData.description,
         experience_id: formData.experienceId,
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
-        selected_metrics: formData.selected_metrics,
-        experience_variants: experience_variants
-      });
+        selected_metrics: cleanedMetrics,
+        experience_variants: experience_variants,
+        ...(isEditMode && { apply_to_existing: applyToExisting })
+      };
 
-      if (!personalisationResponse.ok) {
-        throw new Error('Failed to create personalisation');
+      // Use different endpoints for create vs edit
+      const response = isEditMode 
+        ? await apiRequest("PATCH", `/api/personalisations/${personalisationId}`, payload)
+        : await apiRequest("POST", `/api/personalisations`, payload);
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} personalisation`);
       }
 
       // Invalidate queries and redirect
       queryClient.invalidateQueries({ queryKey: ['/api/personalisations'] });
+      
+      // Invalidate detailed personalisations for the current experience
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/personalisations/personalised-experiences/${formData.experienceId}`] 
+      });
+      
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: [`/api/personalisations/${personalisationId}`] });
+      }
+      
       setLocation('/personalisations');
       
     } catch (error) {
-      console.error('Error creating personalisation:', error);
-      alert('Failed to create personalisation. Please try again.');
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} personalisation:`, error);
+      alert(`Failed to ${isEditMode ? 'update' : 'create'} personalisation. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -398,6 +505,22 @@ export default function CreatePersonalisation() {
   const handleReloadMetrics = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
   };
+
+  // Show loading for edit mode
+  if (isEditMode && isLoadingPersonalisation) {
+    return (
+      <ConsoleLayout>
+        <div className="flex-1 p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+            </div>
+            <p className="text-muted-foreground">Loading personalisation data...</p>
+          </div>
+        </div>
+      </ConsoleLayout>
+    );
+  }
 
   return (
     <ConsoleLayout>
@@ -414,9 +537,11 @@ export default function CreatePersonalisation() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">
-                    Create Personalisation
+                    {isEditMode ? 'Edit Personalisation' : 'Create Personalisation'}
                   </h1>
-                  <p className="text-muted-foreground">Build magical experiences for your players</p>
+                  <p className="text-muted-foreground">
+                    {isEditMode ? 'Edit previously created personalisations' : 'Build magical experiences for your players'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1410,7 +1535,7 @@ export default function CreatePersonalisation() {
                   <h2 className="text-2xl font-bold text-foreground">
                     Review & Finalize
                   </h2>
-                  <p className="text-sm text-muted-foreground">Name your personalisation and review all settings before creating</p>
+                  <p className="text-sm text-muted-foreground">Name your personalisation and review all settings before {isEditMode ? 'updating' : 'creating'}</p>
                 </div>
 
                 {/* Personalisation Name and Description */}
@@ -1442,6 +1567,50 @@ export default function CreatePersonalisation() {
                     />
                   </div>
                 </div>
+
+                {/* Apply to Existing Users Option (Edit mode only) */}
+                {isEditMode && (
+                  <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30 p-4">
+                    <div className="flex items-start">
+                      <div className="mt-0.5 mr-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-amber-800 dark:text-amber-400">Apply to Existing Users</h3>
+                        </div>
+                        <div className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                          <p className="mb-2">Choose how this update affects users who are already experiencing this personalisation:</p>
+                          
+                          <div className="flex items-start space-x-2 mt-3">
+                            <Checkbox
+                              id="applyToExisting"
+                              checked={applyToExisting} 
+                              onCheckedChange={(checked) => setApplyToExisting(checked === true)} 
+                            />
+                            <div>
+                              <label 
+                                htmlFor="applyToExisting" 
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-amber-800 dark:text-amber-300"
+                              >
+                                Apply changes to existing users
+                              </label>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                If checked, all users will get the latest variants immediately. Old variants will be overwritten.
+                                <span className="font-bold"> This action cannot be reversed.</span>
+                              </p>
+                              {applyToExisting && (
+                                <div className="mt-2 p-2 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                                  ⚠️ Warning: Enabling this option will immediately update the experience for all users currently in this personalisation.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Summary Cards */}
                 <div className="space-y-6">
@@ -1769,12 +1938,12 @@ export default function CreatePersonalisation() {
                 {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
+                    {isEditMode ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
-                    Create Magic
+                    {isEditMode ? 'Complete Edit' : 'Create Magic'}
                   </>
                 )}
               </Button>
