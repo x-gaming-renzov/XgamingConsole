@@ -45,7 +45,10 @@ interface ExperienceVariant {
   feature_variants: Record<string, { 
     name: string; 
     config: Record<string, any>;
+    pid?: string; // Feature variant PID for existing variants
   }>;
+  // PID for existing variant (edit mode only)
+  variantPid?: string; // ExperienceVariant.pid for matching existing variants
 }
 
 interface PersonalisationFormData {
@@ -198,12 +201,13 @@ export default function PersonalisationForm({
           const variant = variantData.experience_variant;
           
           // Format feature variants - transforming array to object keyed by ID
-          const featureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+          const featureVariants: Record<string, { name: string; config: Record<string, any>; pid?: string }> = {};
           
           variant.feature_variants?.forEach((fv: any) => {
             featureVariants[fv.experience_feature_id] = {
               name: fv.name || '',
-              config: fv.config || {}
+              config: fv.config || {},
+              pid: fv.pid // Store feature variant PID for updates
             };
           });
           
@@ -212,7 +216,8 @@ export default function PersonalisationForm({
             description: variant.description || '',
             is_default: variant.is_default || false,
             target_percentage: variantData.target_percentage || 0, // Note: this is from the outer object
-            feature_variants: featureVariants
+            feature_variants: featureVariants,
+            variantPid: variant.pid // ExperienceVariant.pid for matching
           };
         });
         
@@ -303,7 +308,7 @@ export default function PersonalisationForm({
   const addExperienceVariant = () => {
     if (objects.length === 0 || selectedObjects.length === 0) return;
     
-    const initialFeatureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+    const initialFeatureVariants: Record<string, { name: string; config: Record<string, any>; pid?: string }> = {};
     // Only include selected objects
     objects.filter((object: any) => selectedObjects.includes(object.pid)).forEach((object: any) => {
       initialFeatureVariants[object.pid] = {
@@ -434,22 +439,35 @@ export default function PersonalisationForm({
     setIsSubmitting(true);
     
     try {
-      // Prepare experience variants according to backend schema using createdVariants
-      const experience_variants = createdVariants.map(variant => ({
-        experience_variant: {
+      // Prepare experience variants according to backend schema
+      const experienceVariants = createdVariants.map((variant) => {
+        const isExistingVariant = isEditMode && variant.variantPid;
+        
+        const experienceVariant: any = {
           name: variant.name,
           description: variant.description,
           is_default: variant.is_default,
           feature_variants: objects
             .filter((object: any) => selectedObjects.includes(object.pid)) // Only include selected objects
-            .map((object: any) => ({
-              experience_feature_id: object.pid,
-              name: variant.feature_variants[object.pid]?.name || '',
-              config: variant.feature_variants[object.pid]?.config || {}
-            }))
-        },
-        target_percentage: variant.target_percentage
-      }));
+            .map((object: any) => {
+              const featureVariant = variant.feature_variants[object.pid];
+
+              return {
+                experience_feature_id: object.pid,
+                name: featureVariant?.name || '',
+                config: featureVariant?.config || {},
+                ...(featureVariant?.pid && { pid: featureVariant.pid })
+              };
+            }),
+          ...(isExistingVariant && { pid: variant.variantPid })
+        };
+
+        return {
+          experience_variant: experienceVariant,
+          target_percentage: variant.target_percentage
+        };
+      });
+
 
       // Filter out any null values from selected_metrics
       const cleanedMetrics = formData.selected_metrics.filter(Boolean);
@@ -461,7 +479,7 @@ export default function PersonalisationForm({
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
         selected_metrics: cleanedMetrics,
-        experience_variants: experience_variants,
+        experience_variants: experienceVariants,
         ...(isEditMode && { apply_to_existing: applyToExisting })
       };
 
@@ -1411,7 +1429,7 @@ export default function PersonalisationForm({
 
                 {/* Metrics Selection */}
                 {isLoadingMetrics ? (
-                  <div className="text-center py-12">
+              <div className="text-center py-12">
                     <div className="relative">
                       <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
                       <div className="absolute inset-0 animate-pulse">
@@ -1447,7 +1465,7 @@ export default function PersonalisationForm({
                          <Plus className="w-4 h-4 mr-2" />
                          Create First Metric
                        </Button>
-                     </div>
+              </div>
                    </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1838,7 +1856,7 @@ export default function PersonalisationForm({
         <div className="flex items-center justify-between pt-4 border-t border-white/20">
           <div className="flex items-center space-x-3">
             {currentStep === 1 && (
-                <Button
+              <Button
                 type="button"
                 className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 text-white font-bold shadow-2xl hover:shadow-violet-500/25 transition-all duration-500 transform hover:scale-[1.05] active:scale-[1] overflow-hidden border border-violet-400/30"
                 onClick={handleOpenAIModal}
@@ -1865,7 +1883,7 @@ export default function PersonalisationForm({
                 
                 <div className="relative flex items-center gap-3">
                   <div className="relative">
-                    <Sparkles className="w-6 h-6 text-yellow-500 group-hover:animate-pulse transition-all duration-700 drop-shadow-sm" />
+                  <Sparkles className="w-6 h-6 text-yellow-500 group-hover:animate-pulse transition-all duration-700 drop-shadow-sm" />
                     <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 to-violet-400 rounded-full blur opacity-0 group-hover:opacity-30 group-hover:animate-pulse transition-all duration-300"></div>
                   </div>
                   <span className="text-base font-bold tracking-wide drop-shadow-sm">
@@ -1999,7 +2017,7 @@ export default function PersonalisationForm({
                         })
                         .filter(Boolean);
                       // Build createdVariants
-                      const featureVariants: Record<string, { name: string; config: any }> = {};
+                      const featureVariants: Record<string, { name: string; config: any; pid?: string }> = {};
                       data.experience_variant.feature_variants.forEach((fv: any) => {
                         const obj = expObjects.find((o: any) => o.feature_flag?.name === fv.feature_name);
                         if (obj) {
@@ -2024,7 +2042,7 @@ export default function PersonalisationForm({
                           description: data.experience_variant.description,
                           is_default: false,
                           target_percentage: 100,
-                          feature_variants: featureVariants,
+                          feature_variants: featureVariants
                         },
                       ]);
                       setShowAIModal(false);
