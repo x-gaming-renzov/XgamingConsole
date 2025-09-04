@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiRequest, queryClient } from "./queryClient";
+import { apiRequest } from "./queryClient";
 
 interface NovaUser {
   name: string;
