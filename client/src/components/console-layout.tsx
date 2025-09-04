@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useRef } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,11 @@ interface ConsoleLayoutProps {
 
 export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
   const [location, setLocation] = useLocation();
-  const { user, logout } = useAuth();
-  const authState = useAuth();
-  const selectedApp = authState.currentAppId || "";
-  const setSelectedApp = (id: string) => authState.setCurrentAppId(id);
+  const { user, logout, currentAppId, setCurrentAppId } = useAuth();
   const { toast } = useToast();
   const isAdmin = isCurrentUserAdmin();
+
+  const [newAppDialogOpen, setNewAppDialogOpen] = useState(false);
 
   // Fetch real apps data - only when user is authenticated
   const { data: apps = [], isLoading: appsLoading, error: appsError } = useQuery({
@@ -40,32 +39,18 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     refetchOnReconnect: false,
   });
 
-  // Debug logs to diagnose selection issues
-  useEffect(() => {
-    console.debug("ConsoleLayout mounted");
-    return () => console.debug("ConsoleLayout unmounted");
-  }, []);
-
-  useEffect(() => {
-    console.debug("apps changed", apps.map((a: any) => a.id));
-  }, [apps]);
-
-  useEffect(() => {
-    console.debug("selectedApp changed", selectedApp);
-  }, [selectedApp]);
-
   // Get current selected app details
-  const currentApp = apps.find((app: any) => app.id === selectedApp);
+  const currentApp = apps.find((app: any) => app.id === currentAppId);
 
-  // Set the first app as selected by default when apps load (run once)
-  // In production, you'd decode the JWT to get the current app_id and set that as selected
-  const initialSelectedSet = useRef(false);
+  // Set the first app as selected by default when apps load
+  // In a real implementation, you'd get the current app from the JWT token
   useEffect(() => {
-    if (!initialSelectedSet.current && apps.length > 0 && !authState.currentAppId) {
-      setSelectedApp(apps[0].id);
-      initialSelectedSet.current = true;
+    if (apps.length > 0 && !currentAppId) {
+      // For now, select the first app. In production, you'd decode the JWT 
+      // to get the current app_id and set that as selected
+      setCurrentAppId(apps[0].id);
     }
-  }, [apps]);
+  }, [apps, currentAppId]);
 
   const handleLogout = () => {
     toast({
@@ -75,30 +60,23 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
     logout();
   };
 
-  // Handle app switch: update selection immediately, then perform switch
-  const handleAppSwitch = (appId: string) => {
-    if (appId === selectedApp) return;
-    const previousApp = selectedApp;
-    // Optimistically update UI (persisted in auth)
-    setSelectedApp(appId);
-    console.debug("handleAppSwitch: calling switchApp for", appId);
-    switchApp(appId).then((success) => {
+  const handleAppSwitch = async (appId: string) => {
+    if (appId !== currentAppId) {
+      const success = await switchApp(appId);
+
       if (success) {
         toast({
           title: "App switched",
           description: "Successfully switched to the selected app.",
         });
-        console.debug("switchApp succeeded for", appId);
       } else {
-        setSelectedApp(previousApp);
         toast({
           title: "Failed to switch app",
           description: "There was an error switching apps. Please try again.",
           variant: "destructive",
         });
-        console.debug("switchApp failed for", appId);
       }
-    });
+    }
   };
 
   const navigationItems = [
@@ -188,31 +166,37 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                   <span className="text-xs text-muted-foreground">No apps found</span>
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
-                  <Select key={selectedApp} value={selectedApp} onValueChange={handleAppSwitch}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select an app">
-                        {currentApp && (
-                          <span className="font-medium">{currentApp.name}</span>
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {apps.map((app: any) => (
-                        <SelectItem key={app.id} value={app.id}>
-                          {app.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <NewAppDialog />
-                </div>
+                <Select value={currentAppId || ""} onValueChange={handleAppSwitch}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an app">
+                      {currentApp && (
+                        <span className="font-medium">{currentApp.name}</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apps.map((app: any) => (
+                      <SelectItem key={app.id} value={app.id}>
+                        {app.name}
+                      </SelectItem>
+                    ))}
+                    <div className="border-t border-border mt-1.5 pt-1.5">
+                      <div 
+                        className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => setNewAppDialogOpen(true)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        <span>Add new app</span>
+                      </div>
+                    </div>
+                  </SelectContent>
+                </Select>
               )}
             </div>
           </SidebarHeader>
           
           <div className="px-4 mb-2">
-            <Link href="/create-personalisation">
+            <Link href="/personalisations/create">
               <Button className="w-full h-[58px] bg-gradient-to-r from-primary via-blue-500 to-purple-500 hover:from-primary/90 hover:via-primary/90 text-white shadow-lg hover:shadow-xl transition-all duration-300 group relative overflow-hidden">
                 <Wand2 className="w-4 h-4 text-white mr-3" />
                 <div className="flex flex-col items-start flex-1 z-10">
@@ -346,6 +330,7 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
           </div>
         </div>
       </div>
+      <NewAppDialog open={newAppDialogOpen} onOpenChange={setNewAppDialogOpen} />
     </SidebarProvider>
   );
 }

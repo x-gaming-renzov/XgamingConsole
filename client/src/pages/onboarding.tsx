@@ -28,7 +28,7 @@ export default function OnboardingPage() {
           access_token: data.access_token,
           refresh_token: data.refresh_token
         };
-        await updateUserAndRoute(updatedUser, newTokens);
+        await updateUserAndRoute(updatedUser, newTokens, data.app.id);
       }
     },
     onError: (error) => {

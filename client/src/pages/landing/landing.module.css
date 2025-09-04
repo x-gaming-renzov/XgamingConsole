@@ -1,7 +1,7 @@
 /* Landing page specific styles */
 
 /* Gradient text for landing page */
-.landing-gradient-text {
+.landingGradientText {
   background: linear-gradient(135deg, #8B5CF6, #3B82F6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -10,25 +10,25 @@
 }
 
 /* Cards */
-.landing-clean-card {
+.landingCleanCard {
   background: rgba(26, 24, 41, 0.8);
   border: 1px solid rgba(139, 92, 246, 0.2);
   backdrop-filter: blur(8px);
 }
 
-.landing-platform-card {
+.landingPlatformCard {
   background: rgba(18, 21, 26, 0.45);
   border: 1px solid rgba(59, 130, 246, 0.15);
   backdrop-filter: blur(12px);
 }
 
-.landing-testimonial-card {
+.landingTestimonialCard {
   background: rgba(21, 26, 32, 0.85);
   border: 1px solid rgba(16, 185, 129, 0.15);
   backdrop-filter: blur(12px);
 }
 
-.landing-elegant-card {
+.landingElegantCard {
   background: linear-gradient(135deg, 
     rgba(139, 92, 246, 0.08) 0%, 
     rgba(59, 130, 246, 0.04) 50%,
@@ -39,7 +39,7 @@
 }
 
 /* Button styles */
-.landing-visible-button {
+.landingVisibleButton {
   background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
   border: 2px solid rgba(255, 255, 255, 0.1);
   color: white;
@@ -47,20 +47,20 @@
   transition: all 0.3s ease;
 }
 
-.landing-visible-button:hover {
+.landingVisibleButton:hover {
   background: linear-gradient(135deg, #9333EA 0%, #2563EB 100%);
   border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
   box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
 }
 
-.landing-cta-glow {
+.landingCtaGlow {
   position: relative;
   overflow: hidden;
-  animation: landing-breathe 3s ease-in-out infinite;
+  /* animation: landingBreathe 3s ease-in-out infinite; */
 }
 
-.landing-cta-glow::before {
+.landingCtaGlow::before {
   content: '';
   position: absolute;
   top: -2px;
@@ -71,18 +71,18 @@
   background-size: 300% 300%;
   border-radius: inherit;
   z-index: -1;
-  animation: landing-gradientShift 4s ease infinite;
+  animation: landingGradientShift 4s ease infinite;
   opacity: 0.6;
 }
 
-.landing-text-glow {
+.landingTextGlow {
   text-shadow: 
     0 2px 8px rgba(139, 92, 246, 0.3),
     0 4px 16px rgba(59, 130, 246, 0.2);
 }
 
 /* Animations */
-@keyframes landing-subtle-pulse {
+@keyframes landingSubtlePulse {
   0%, 100% {
     opacity: 1;
     transform: scale(1);
@@ -93,7 +93,7 @@
   }
 }
 
-@keyframes landing-float {
+@keyframes landingFloat {
   0%, 100% { 
     transform: translateY(0px);
   }
@@ -102,7 +102,7 @@
   }
 }
 
-@keyframes landing-breathe {
+@keyframes landingBreathe {
   0%, 100% { 
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
   }
@@ -111,34 +111,34 @@
   }
 }
 
-@keyframes landing-gradientShift {
+@keyframes landingGradientShift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
 
-@keyframes landing-shimmer {
+@keyframes landingShimmer {
   0% { left: -100%; }
   100% { left: 100%; }
 }
 
-.landing-float-animation {
-  animation: landing-float 6s ease-in-out infinite;
+.landingFloatAnimation {
+  animation: landingFloat 6s ease-in-out infinite;
 }
 
 /* Background styles */
-.landing-data-flow-bg {
+.landingDataFlowBg {
   background: 
     radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
     radial-gradient(circle at 70% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 60%),
     radial-gradient(ellipse at center, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
 }
 
-.landing-shine-effect {
+.landingShineEffect {
   position: relative;
   overflow: hidden;
 }
 
-.landing-shine-effect::after {
+.landingShineEffect::after {
   content: '';
   position: absolute;
   top: 0;
@@ -149,11 +149,11 @@
   transform: translateX(-100%);
 }
 
-.landing-shine-effect.animate::after {
-  animation: landing-shine 2.5s ease-out;
+.landingShineEffectAnimate::after {
+  animation: landingShine 2.5s ease-out;
 }
 
-@keyframes landing-shine {
+@keyframes landingShine {
   0% { 
     transform: translateX(-100%);
     opacity: 0;

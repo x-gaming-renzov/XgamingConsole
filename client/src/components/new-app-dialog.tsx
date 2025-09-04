@@ -1,15 +1,12 @@
-import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
-	DialogTrigger,
 	DialogContent,
 	DialogHeader,
 	DialogFooter,
@@ -26,10 +23,14 @@ const appCreateSchema = z.object({
 	description: z.string().optional(),
 });
 
-export default function NewAppDialog() {
+interface NewAppDialogProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}
+
+export default function NewAppDialog({ open, onOpenChange }: NewAppDialogProps) {
 	const { toast } = useToast();
 	const { user } = useAuth();
-	const [open, setOpen] = useState(false);
 
 	const form = useForm<z.infer<typeof appCreateSchema>>({
 		resolver: zodResolver(appCreateSchema),
@@ -43,11 +44,11 @@ export default function NewAppDialog() {
 		},
 		onSuccess: async (data) => {
 			toast({ title: "App created!", description: "Your app has been created successfully." });
-			setOpen(false);
+			onOpenChange(false);
 			if (user) {
 				const updatedUser = { ...user, has_apps: true };
 				const newTokens = { access_token: data.access_token, refresh_token: data.refresh_token };
-				await updateUserAndRoute(updatedUser, newTokens);
+				await updateUserAndRoute(updatedUser, newTokens, data.app.id);
 			}
 		},
 		onError: (error: any) => {
@@ -60,12 +61,7 @@ export default function NewAppDialog() {
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button variant="outline" size="icon">
-					<Plus className="w-4 h-4" />
-				</Button>
-			</DialogTrigger>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Create New App</DialogTitle>

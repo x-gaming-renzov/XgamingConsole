@@ -301,9 +301,9 @@ export default function Personalisations() {
 
   const handleCreatePersonalisation = () => {
     if (activeExperience) {
-      setLocation(`/create-personalisation?experienceId=${activeExperience}`);
+      setLocation(`/personalisations/create?experienceId=${activeExperience}`);
     } else {
-      setLocation("/create-personalisation");
+      setLocation("/personalisations/create");
     }
   };
 
@@ -746,7 +746,7 @@ export default function Personalisations() {
                                               size="sm"
                                               onClick={() =>
                                                 setLocation(
-                                                  `/edit-personalisation/${personalisation.pid}?experienceId=${activeExperience}`
+                                                  `/personalisations/edit/${personalisation.pid}?experienceId=${activeExperience}`
                                                 )
                                               }
                                             >
@@ -989,9 +989,21 @@ export default function Personalisations() {
                                                             </div>
                                                           ) : metricValue?.hasData && metricValue?.value !== undefined && metricValue?.value !== null ? (
                                                             <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                                                              {metricValue.value % 1 === 0
-                                                                ? metricValue.value.toLocaleString()
-                                                                : metricValue.value.toFixed(2)}
+                                                              {(() => {
+                                                                if (typeof metricValue.value !== 'number') return metricValue.value;
+
+                                                                // Format based on metric type
+                                                                if (metric.type === 'retention') {
+                                                                  return `${(metricValue.value * 100).toFixed(1)}%`;
+                                                                } else if (metric.type === 'ratio') {
+                                                                  return metricValue.value.toFixed(3);
+                                                                } else {
+                                                                  // For count and aggregation
+                                                                  return metricValue.value % 1 === 0 ? 
+                                                                    metricValue.value.toLocaleString() : 
+                                                                    metricValue.value.toFixed(2);
+                                                                }
+                                                              })()}
                                                             </div>
                                                           ) : (
                                                             <Button

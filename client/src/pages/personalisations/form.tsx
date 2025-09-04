@@ -65,20 +65,27 @@ interface PersonalisationFormData {
   selected_metrics: string[];
 }
 
-export default function EditPersonalisation() {
+interface PersonalisationFormProps {
+  mode?: 'create' | 'edit';
+  personalisationId?: string;
+}
+
+export default function PersonalisationForm({ 
+  mode = 'create', 
+  personalisationId 
+}: PersonalisationFormProps = {}) {
   const [location, setLocation] = useLocation();
-  const [currentStep, setCurrentStep] = useState(2);
+  const isEditMode = mode === 'edit';
+  const [currentStep, setCurrentStep] = useState(isEditMode ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSegments, setAvailableSegments] = useState<any[]>([]);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [applyToExisting, setApplyToExisting] = useState(false);
   
   const queryClient = useQueryClient();
 
-  // Extract personalisationId from URL path
-  const [path] = useLocation();
-  const personalisationId = path.split('/').pop();
-
-  // Add query to fetch existing personalisation data
+  // Query to fetch existing personalisation data (for edit mode)
   const { data: personalisationData, isLoading: isLoadingPersonalisation } = useQuery({
     queryKey: [`/api/personalisations/${personalisationId}`],
     queryFn: async () => {
@@ -88,13 +95,17 @@ export default function EditPersonalisation() {
       }
       return null;
     },
-    enabled: !!personalisationId,
+    enabled: !!personalisationId && isEditMode,
   });
+
+  // Parse URL parameters to get preselected experience ID
+  const urlParams = new URLSearchParams(window.location.search);
+  const preselectedExperienceId = urlParams.get('experienceId');
 
   const [formData, setFormData] = useState<PersonalisationFormData>({
     name: '',
     description: '',
-    experienceId: '',
+    experienceId: preselectedExperienceId || '',
     rollout_percentage: 100,
     rule_config: {
       conditions: []
@@ -113,6 +124,9 @@ export default function EditPersonalisation() {
   // Separate state for experience variants created in step 2
   const [createdVariants, setCreatedVariants] = useState<ExperienceVariant[]>([]);
 
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiPrompt, setAIPrompt] = useState('');
+  const [aiModalStep, setAIModalStep] = useState<'prompt' | 'loading'>('prompt');
   const [expandedConfigs, setExpandedConfigs] = useState<Record<string, boolean>>({});
 
 
@@ -153,70 +167,81 @@ export default function EditPersonalisation() {
     },
   });
 
-  const [applyToExisting, setApplyToExisting] = useState(false);
-
+  // Load existing personalisation data (edit mode)
   useEffect(() => {
-  if (personalisationData) {
-    // Set basic form fields with metrics properly filtered
-    const filteredMetrics = personalisationData.metrics?.map((m: any) => m.metric?.pid).filter(Boolean) || [];
-    
-    setFormData({
-      name: personalisationData.name || '',
-      description: personalisationData.description || '',
-      experienceId: personalisationData.experience_id || '',
-      rollout_percentage: personalisationData.rollout_percentage || 100,
-      rule_config: personalisationData.rule_config || { conditions: [] },
-      experience_variants: [], // We'll populate createdVariants separately
-      selected_metrics: filteredMetrics,
-    });
-    
-    // Set selected experience
-    if (experiences.length > 0 && personalisationData.experience_id) {
-      const experience = experiences.find((exp: any) => exp.pid === personalisationData.experience_id);
-      if (experience) {
-        setSelectedExperience(experience);
-        setShowObjectsPanel(true);
+    if (isEditMode && personalisationData) {
+      // Set basic form fields with metrics properly filtered
+      const filteredMetrics = personalisationData.metrics?.map((m: any) => m.metric?.pid).filter(Boolean) || [];
+      
+      setFormData({
+        name: personalisationData.name || '',
+        description: personalisationData.description || '',
+        experienceId: personalisationData.experience_id || '',
+        rollout_percentage: personalisationData.rollout_percentage || 100,
+        rule_config: personalisationData.rule_config || { conditions: [] },
+        experience_variants: [], // We'll populate createdVariants separately
+        selected_metrics: filteredMetrics,
+      });
+      
+      // Set selected experience
+      if (experiences.length > 0 && personalisationData.experience_id) {
+        const experience = experiences.find((exp: any) => exp.pid === personalisationData.experience_id);
+        if (experience) {
+          setSelectedExperience(experience);
+          setShowObjectsPanel(true);
+        }
       }
-    }
-    
-    // Transform experience variants into our format
-    if (personalisationData.experience_variants?.length > 0) {
-      const variants = personalisationData.experience_variants.map((variantData: any) => {
-        const variant = variantData.experience_variant;
-        
-        // Format feature variants - transforming array to object keyed by ID
-        const featureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
-        
-        variant.feature_variants?.forEach((fv: any) => {
-          featureVariants[fv.experience_feature_id] = {
-            name: fv.name || '',
-            config: fv.config || {}
+      
+      // Transform experience variants into our format
+      if (personalisationData.experience_variants?.length > 0) {
+        const variants = personalisationData.experience_variants.map((variantData: any) => {
+          const variant = variantData.experience_variant;
+          
+          // Format feature variants - transforming array to object keyed by ID
+          const featureVariants: Record<string, { name: string; config: Record<string, any> }> = {};
+          
+          variant.feature_variants?.forEach((fv: any) => {
+            featureVariants[fv.experience_feature_id] = {
+              name: fv.name || '',
+              config: fv.config || {}
+            };
+          });
+          
+          return {
+            name: variant.name || '',
+            description: variant.description || '',
+            is_default: variant.is_default || false,
+            target_percentage: variantData.target_percentage || 0, // Note: this is from the outer object
+            feature_variants: featureVariants
           };
         });
         
-        return {
-          name: variant.name || '',
-          description: variant.description || '',
-          is_default: variant.is_default || false,
-          target_percentage: variantData.target_percentage || 0, // Note: this is from the outer object
-          feature_variants: featureVariants
-        };
-      });
-      
-      setCreatedVariants(variants);
-      
-      // Collect all unique object IDs from all variants
-      const allObjectIds = new Set<string>();
-      personalisationData.experience_variants.forEach((variantData: any) => {
-        variantData.experience_variant.feature_variants?.forEach((fv: any) => {
-          allObjectIds.add(fv.experience_feature_id);
+        setCreatedVariants(variants);
+        
+        // Collect all unique object IDs from all variants
+        const allObjectIds = new Set<string>();
+        personalisationData.experience_variants.forEach((variantData: any) => {
+          variantData.experience_variant.feature_variants?.forEach((fv: any) => {
+            allObjectIds.add(fv.experience_feature_id);
+          });
         });
-      });
-      
-      setSelectedObjects(Array.from(allObjectIds));
+        
+        setSelectedObjects(Array.from(allObjectIds));
+      }
     }
-  }
-}, [personalisationData, experiences]);
+  }, [isEditMode, personalisationData, experiences]);
+
+  // Auto-open objects panel if experience is pre-selected (create mode)
+  useEffect(() => {
+    if (!isEditMode && preselectedExperienceId && experiences.length > 0) {
+      const preselectedExperience = experiences.find((exp: any) => exp.pid === preselectedExperienceId);
+      if (preselectedExperience) {
+        setSelectedExperience(preselectedExperience);
+        setShowObjectsPanel(true);
+      }
+    }
+  }, [isEditMode, preselectedExperienceId, experiences]);
+
   // Initialize experience variants when objects load
   useEffect(() => {
     if (objects.length > 0 && createdVariants.length === 0 && selectedObjects.length > 0) {
@@ -382,7 +407,9 @@ export default function EditPersonalisation() {
   };
 
   const handleNext = () => {
-    if (currentStep === 2 && validateStep2()) {
+    if (currentStep === 1 && validateStep1()) {
+      setCurrentStep(2);
+    } else if (currentStep === 2 && validateStep2()) {
       setCurrentStep(3);
     } else if (currentStep === 3 && validateStep3()) {
       setCurrentStep(4);
@@ -392,7 +419,9 @@ export default function EditPersonalisation() {
   };
 
   const handlePrevious = () => {
-    if (currentStep === 3) {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    } else if (currentStep === 3) {
       setCurrentStep(2);
     } else if (currentStep === 4) {
       setCurrentStep(3);
@@ -403,27 +432,29 @@ export default function EditPersonalisation() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    
     try {
-      // Format experience variants correctly for the API
+      // Prepare experience variants according to backend schema using createdVariants
       const experience_variants = createdVariants.map(variant => ({
-        target_percentage: variant.target_percentage,
         experience_variant: {
           name: variant.name,
           description: variant.description,
           is_default: variant.is_default,
-          feature_variants: Object.entries(variant.feature_variants).map(([objectId, featureVariant]) => ({
-            experience_feature_id: objectId,
-            name: featureVariant.name || '',
-            config: featureVariant.config || {}
-          }))
-        }
+          feature_variants: objects
+            .filter((object: any) => selectedObjects.includes(object.pid)) // Only include selected objects
+            .map((object: any) => ({
+              experience_feature_id: object.pid,
+              name: variant.feature_variants[object.pid]?.name || '',
+              config: variant.feature_variants[object.pid]?.config || {}
+            }))
+        },
+        target_percentage: variant.target_percentage
       }));
 
       // Filter out any null values from selected_metrics
       const cleanedMetrics = formData.selected_metrics.filter(Boolean);
 
-      // Use PATCH for updating
-      const personalisationResponse = await apiRequest("PATCH", `/api/personalisations/${personalisationId}`, {
+      const payload = {
         name: formData.name,
         description: formData.description,
         experience_id: formData.experienceId,
@@ -431,43 +462,65 @@ export default function EditPersonalisation() {
         rollout_percentage: formData.rollout_percentage,
         selected_metrics: cleanedMetrics,
         experience_variants: experience_variants,
-        apply_to_existing: applyToExisting // Add this line to include the new parameter
-      });
+        ...(isEditMode && { apply_to_existing: applyToExisting })
+      };
 
-      if (!personalisationResponse.ok) {
-        throw new Error('Failed to update personalisation');
+      // Use different endpoints for create vs edit
+      const response = isEditMode 
+        ? await apiRequest("PATCH", `/api/personalisations/${personalisationId}`, payload)
+        : await apiRequest("POST", `/api/personalisations`, payload);
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} personalisation`);
       }
 
       // Invalidate queries and redirect
       queryClient.invalidateQueries({ queryKey: ['/api/personalisations'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/personalisations/${personalisationId}`] });
+      
+      // Invalidate detailed personalisations for the current experience
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/personalisations/personalised-experiences/${formData.experienceId}`] 
+      });
+      
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: [`/api/personalisations/${personalisationId}`] });
+      }
+      
       setLocation('/personalisations');
+      
     } catch (error) {
-      console.error('Error updating personalisation:', error);
-      alert('Failed to update personalisation. Please try again.');
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} personalisation:`, error);
+      alert(`Failed to ${isEditMode ? 'update' : 'create'} personalisation. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenAIModal = () => {
+    setAIPrompt('');
+    setAIModalStep('prompt');
+    setShowAIModal(true);
   };
 
   const handleReloadMetrics = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/metrics'] });
   };
 
-  if (isLoadingPersonalisation) {
-  return (
-    <ConsoleLayout>
-      <div className="flex-1 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+  // Show loading for edit mode
+  if (isEditMode && isLoadingPersonalisation) {
+    return (
+      <ConsoleLayout>
+        <div className="flex-1 p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto mb-4"></div>
+            </div>
+            <p className="text-muted-foreground">Loading personalisation data...</p>
           </div>
-          <p className="text-muted-foreground">Loading personalisation data...</p>
         </div>
-      </div>
-    </ConsoleLayout>
-  );
-}
+      </ConsoleLayout>
+    );
+  }
 
   return (
     <ConsoleLayout>
@@ -484,9 +537,11 @@ export default function EditPersonalisation() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">
-                    Edit Personalisation
+                    {isEditMode ? 'Edit Personalisation' : 'Create Personalisation'}
                   </h1>
-                  <p className="text-muted-foreground">Edit previously created personalisations</p>
+                  <p className="text-muted-foreground">
+                    {isEditMode ? 'Edit previously created personalisations' : 'Build magical experiences for your players'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -611,6 +666,7 @@ export default function EditPersonalisation() {
                               ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 border-green-400 shadow-lg'
                               : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
                           } backdrop-blur-sm`}
+                          onClick={() => handleExperienceChange(experience.pid, experience)}
                         >
                           <CardHeader className="pb-4">
                             <div className="flex items-start space-x-3">
@@ -1404,17 +1460,12 @@ export default function EditPersonalisation() {
                              : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white/95 dark:hover:bg-gray-800/70 border-white/30'
                          } backdrop-blur-sm`}
                         onClick={() => {
-                          setFormData(prev => {
-                            // Ensure there are no nulls in the array
-                            const cleanedMetrics = prev.selected_metrics.filter(Boolean);
-                            
-                            return {
-                              ...prev,
-                              selected_metrics: cleanedMetrics.includes(metric.pid)
-                                ? cleanedMetrics.filter(id => id !== metric.pid)
-                                : [...cleanedMetrics, metric.pid]
-                            };
-                          });
+                          setFormData(prev => ({
+                            ...prev,
+                            selected_metrics: prev.selected_metrics.includes(metric.pid)
+                              ? prev.selected_metrics.filter(id => id !== metric.pid)
+                              : [...prev.selected_metrics, metric.pid]
+                          }));
                         }}
                       >
                                                  <CardHeader className="pb-4">
@@ -1484,7 +1535,7 @@ export default function EditPersonalisation() {
                   <h2 className="text-2xl font-bold text-foreground">
                     Review & Finalize
                   </h2>
-                  <p className="text-sm text-muted-foreground">Name your personalisation and review all settings before creating</p>
+                  <p className="text-sm text-muted-foreground">Name your personalisation and review all settings before {isEditMode ? 'updating' : 'creating'}</p>
                 </div>
 
                 {/* Personalisation Name and Description */}
@@ -1517,48 +1568,49 @@ export default function EditPersonalisation() {
                   </div>
                 </div>
 
-                {/* Apply to Existing Users Option - ADD THIS */}
-                <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30 p-4">
-                  <div className="flex items-start">
-                    <div className="mt-0.5 mr-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-amber-800 dark:text-amber-400">Apply to Existing Users</h3>
+                {/* Apply to Existing Users Option (Edit mode only) */}
+                {isEditMode && (
+                  <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30 p-4">
+                    <div className="flex items-start">
+                      <div className="mt-0.5 mr-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
                       </div>
-                      <div className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                        <p className="mb-2">Choose how this update affects users who are already experiencing this personalisation:</p>
-                        
-                        <div className="flex items-start space-x-2 mt-3">
-                          <Checkbox 
-                            id="applyToExisting"
-                            checked={applyToExisting} 
-                            onCheckedChange={(checked) => setApplyToExisting(checked === true)} 
-                          />
-                          <div>
-                            <label 
-                              htmlFor="applyToExisting" 
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-amber-800 dark:text-amber-300"
-                            >
-                              Apply changes to existing users
-                            </label>
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                              If checked, all users will get the latest variants immediately. Old variants will be overwritten.
-                              <span className="font-bold"> This action cannot be reversed.</span>
-                            </p>
-                            {applyToExisting && (
-                              <div className="mt-2 p-2 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
-                                ⚠️ Warning: Enabling this option will immediately update the experience for all users currently in this personalisation.
-                              </div>
-                            )}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-amber-800 dark:text-amber-400">Apply to Existing Users</h3>
+                        </div>
+                        <div className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                          <p className="mb-2">Choose how this update affects users who are already experiencing this personalisation:</p>
+                          
+                          <div className="flex items-start space-x-2 mt-3">
+                            <Checkbox
+                              id="applyToExisting"
+                              checked={applyToExisting} 
+                              onCheckedChange={(checked) => setApplyToExisting(checked === true)} 
+                            />
+                            <div>
+                              <label 
+                                htmlFor="applyToExisting" 
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-amber-800 dark:text-amber-300"
+                              >
+                                Apply changes to existing users
+                              </label>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                If checked, all users will get the latest variants immediately. Old variants will be overwritten.
+                                <span className="font-bold"> This action cannot be reversed.</span>
+                              </p>
+                              {applyToExisting && (
+                                <div className="mt-2 p-2 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                                  ⚠️ Warning: Enabling this option will immediately update the experience for all users currently in this personalisation.
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
+                )}
 
                 {/* Summary Cards */}
                 <div className="space-y-6">
@@ -1785,7 +1837,43 @@ export default function EditPersonalisation() {
         {/* Action Buttons */}
         <div className="flex items-center justify-between pt-4 border-t border-white/20">
           <div className="flex items-center space-x-3">
-            {currentStep === 1 && (<> </>)}
+            {currentStep === 1 && (
+                <Button
+                type="button"
+                className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 text-white font-bold shadow-2xl hover:shadow-violet-500/25 transition-all duration-500 transform hover:scale-[1.05] active:scale-[1] overflow-hidden border border-violet-400/30"
+                onClick={handleOpenAIModal}
+                disabled={isLoadingAI}
+                style={{
+                  boxShadow: '0 20px 40px -12px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                {/* Animated orb background */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+                  <div className="absolute top-1/3 right-1/3 w-6 h-6 bg-pink-300/20 rounded-full blur-lg animate-pulse animation-delay-300"></div>
+                </div>
+                
+                {/* Premium shimmer effect */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 blur-sm"></div>
+                
+                {/* Magic sparkle trail */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute top-2 right-4 w-1 h-1 bg-white rounded-full animate-ping animation-delay-100"></div>
+                  <div className="absolute bottom-3 left-6 w-1.5 h-1.5 bg-pink-300 rounded-full animate-ping animation-delay-500"></div>
+                  <div className="absolute top-1/2 right-1/4 w-0.5 h-0.5 bg-white rounded-full animate-ping animation-delay-700"></div>
+                </div>
+                
+                <div className="relative flex items-center gap-3">
+                  <div className="relative">
+                    <Sparkles className="w-6 h-6 text-yellow-500 group-hover:animate-pulse transition-all duration-700 drop-shadow-sm" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-pink-400 to-violet-400 rounded-full blur opacity-0 group-hover:opacity-30 group-hover:animate-pulse transition-all duration-300"></div>
+                  </div>
+                  <span className="text-base font-bold tracking-wide drop-shadow-sm">
+                    Get AI Suggestion
+                  </span>
+                </div>
+              </Button>
+            )}
             {(currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) && (
               <Button 
                 variant="outline" 
@@ -1850,12 +1938,12 @@ export default function EditPersonalisation() {
                 {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
+                    {isEditMode ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
-                    Complete Edit
+                    {isEditMode ? 'Complete Edit' : 'Create Magic'}
                   </>
                 )}
               </Button>
@@ -1863,6 +1951,109 @@ export default function EditPersonalisation() {
           </div>
         </div>
       </div>
+
+      {/* AI Suggestion Modal */}
+      <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
+        <DialogContent className="max-w-lg">
+          {aiModalStep === 'prompt' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Describe your personalisation</DialogTitle>
+                <DialogDescription>
+                  Tell the AI what you want to personalize, for whom, and how. The more details you provide, the better the suggestion!
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                className="w-full mt-4 p-3 rounded-lg border border-muted bg-background text-foreground min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+                value={aiPrompt}
+                onChange={e => setAIPrompt(e.target.value)}
+                placeholder="e.g. Personalize onboarding for new players with a fun tutorial and rewards"
+                rows={4}
+                autoFocus
+              />
+              <DialogFooter className="mt-4">
+                <Button
+                  onClick={async () => {
+                    setAIModalStep('loading');
+                    setIsLoadingAI(true);
+                    try {
+                      const response = await apiRequest('POST', '/api/recommendations/get-ai-recommendations', { userPrompt: aiPrompt });
+                      if (!response.ok) throw new Error('Failed to fetch AI recommendation');
+                      const data = await response.json();
+                      // Find experience by name
+                      const exp = experiences.find((e: any) => e.name === data.experience_name);
+                      if (!exp) throw new Error('Experience not found');
+                      // Fetch objects for this experience if not already loaded
+                      let expObjects: any[] = [];
+                      if (exp.pid === formData.experienceId && objects.length > 0) {
+                        expObjects = objects;
+                      } else {
+                        const objectsResp = await apiRequest('GET', `/api/experiences/${exp.pid}/objects`);
+                        expObjects = objectsResp.ok ? await objectsResp.json() : [];
+                      }
+                      // Map feature_name to object pid
+                      const selectedObjectPids = data.experience_variant.feature_variants
+                        .map((fv: any) => {
+                          const obj = expObjects.find((o: any) => o.feature_flag?.name === fv.feature_name);
+                          return obj?.pid;
+                        })
+                        .filter(Boolean);
+                      // Build createdVariants
+                      const featureVariants: Record<string, { name: string; config: any }> = {};
+                      data.experience_variant.feature_variants.forEach((fv: any) => {
+                        const obj = expObjects.find((o: any) => o.feature_flag?.name === fv.feature_name);
+                        if (obj) {
+                          featureVariants[obj.pid] = {
+                            name: fv.variant_name,
+                            config: fv.config,
+                          };
+                        }
+                      });
+                      setFormData((prev) => ({
+                        ...prev,
+                        name: data.name,
+                        description: data.description,
+                        experienceId: exp.pid,
+                        rule_config: data.rule_config,
+                      }));
+                      setSelectedExperience(exp);
+                      setSelectedObjects(selectedObjectPids);
+                      setCreatedVariants([
+                        {
+                          name: data.experience_variant.name,
+                          description: data.experience_variant.description,
+                          is_default: false,
+                          target_percentage: 100,
+                          feature_variants: featureVariants,
+                        },
+                      ]);
+                      setShowAIModal(false);
+                      setAIModalStep('prompt');
+                      setShowObjectsPanel(true);
+                    } catch (err: any) {
+                      alert(err.message || 'Failed to get AI suggestion');
+                      setAIModalStep('prompt');
+                    } finally {
+                      setIsLoadingAI(false);
+                    }
+                  }}
+                  disabled={!aiPrompt.trim() || isLoadingAI}
+                >
+                  Next
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="mb-4 animate-spin-slow">
+                <Sparkles className="w-12 h-12 text-yellow-400 animate-pulse" />
+              </div>
+              <div className="text-lg font-semibold text-center">AI is thinking...<br />Generating your magical personalisation</div>
+              <div className="mt-4 animate-pulse text-muted-foreground">This may take a few seconds</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </ConsoleLayout>
   );
 }

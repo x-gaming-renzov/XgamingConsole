@@ -654,9 +654,11 @@ export default function MetricBuilder() {
   };
 
   const updateFilter = (index: number, field: keyof FilterType, value: string | KeySource) => {
-    const newFilters = [...filters];
-    newFilters[index] = { ...newFilters[index], [field]: value };
-    setFilters(newFilters);
+    setFilters(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
   };
 
   // Handle group by management
@@ -1570,25 +1572,17 @@ export default function MetricBuilder() {
                                       {(metricType === 'count' || metricType === 'aggregation') && (
                                         <CommandGroup heading="Event Properties">
                                           {getKeyOptions(filterSearchTerms[index] || '').filter(key => key.source === KeySource.EVENT_PROPERTIES).map((key) => (
-                                                <CommandItem
-                                                  key={`event-${key.value}`}
-                                                  value={key.value}
-                                                  onSelect={(currentValue) => {
-                                                    const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(k => k.value === currentValue);
-                                                    // Update both key and source together to avoid stale state
-                                                    setFilters(prev => {
-                                                      const next = [...prev];
-                                                      next[index] = {
-                                                        ...next[index],
-                                                        key: currentValue,
-                                                        source: selectedKey?.source || KeySource.USER_PROFILE,
-                                                      };
-                                                      return next;
-                                                    });
-                                                    setFilterKeySelectorOpen(null);
-                                                    setFilterSearchTerms(prev => ({...prev, [index]: ''}));
-                                                  }}
-                                                >
+                                            <CommandItem
+                                              key={`event-${key.value}`}
+                                              value={key.value}
+                                              onSelect={(currentValue) => {
+                                                const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(key => key.value === currentValue);
+                                                updateFilter(index, "key", currentValue);
+                                                updateFilter(index, "source", selectedKey?.source || KeySource.USER_PROFILE);
+                                                setFilterKeySelectorOpen(null);
+                                                setFilterSearchTerms(prev => ({...prev, [index]: ''}));
+                                              }}
+                                            >
                                               <div className="flex flex-col flex-1">
                                                 <span>{key.label}</span>
                                                 <span className="text-xs text-muted-foreground">{key.type}</span>
@@ -1608,17 +1602,9 @@ export default function MetricBuilder() {
                                               key={`profile-${key.value}`}
                                               value={key.value}
                                               onSelect={(currentValue) => {
-                                                const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(k => k.value === currentValue);
-                                                // Update both key and source together to avoid stale state
-                                                setFilters(prev => {
-                                                  const next = [...prev];
-                                                  next[index] = {
-                                                    ...next[index],
-                                                    key: currentValue,
-                                                    source: selectedKey?.source || KeySource.USER_PROFILE,
-                                                  };
-                                                  return next;
-                                                });
+                                                const selectedKey = getKeyOptions(filterSearchTerms[index] || '').find(key => key.value === currentValue);
+                                                updateFilter(index, "key", currentValue);
+                                                updateFilter(index, "source", selectedKey?.source || KeySource.USER_PROFILE);
                                                 setFilterKeySelectorOpen(null);
                                                 setFilterSearchTerms(prev => ({...prev, [index]: ''}));
                                               }}

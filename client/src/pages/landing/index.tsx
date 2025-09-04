@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import LoginModal from "@/components/login-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import styles from "./landing.module.css";
 import {
   BarChart3,
   Users,
@@ -174,9 +175,9 @@ function HeroSection() {
           }}
           data-testid="hero-headline"
         >
-          Stop <span className="landing-gradient-text">guessing</span>.
+          Stop <span className={styles.landingGradientText}>guessing</span>.
           <br />
-          Start <span className="landing-gradient-text">experimenting</span>.
+          Start <span className={styles.landingGradientText}>experimenting</span>.
         </motion.h1>
 
         {/* Subtitle */}
@@ -227,7 +228,7 @@ function HeroSection() {
               transition={{ duration: 0.6, delay: feature.delay }}
               whileHover={{ y: -12 }}
             >
-              <div className="landing-clean-card rounded-2xl p-4 sm:p-5 lg:p-6 cursor-pointer h-full relative border border-white/5 group-hover:border-white/10 transition-all duration-500">
+              <div className={`${styles.landingCleanCard} rounded-2xl p-4 sm:p-5 lg:p-6 cursor-pointer h-full relative border border-white/5 group-hover:border-white/10 transition-all duration-500`}>
                 {/* Step number */}
                 <div className="absolute top-5 right-5 sm:top-6 sm:right-6 text-xs sm:text-sm font-bold text-white/20 group-hover:text-white/40 transition-colors">
                   {feature.step}
@@ -280,7 +281,7 @@ function HeroSection() {
             rel="noopener noreferrer"
           >
             <Button
-              className="landing-visible-button landing-cta-glow px-6 sm:px-7 md:px-9 lg:px-11 xl:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-base sm:text-lg md:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105"
+              className={`${styles.landingVisibleButton} ${styles.landingCtaGlow} px-6 sm:px-7 md:px-9 lg:px-11 xl:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-white text-base sm:text-lg md:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105`}
               data-testid="button-hero-cta"
             >
               <Rocket
@@ -288,7 +289,7 @@ function HeroSection() {
                 style={{
                   width: "clamp(20px, 1.2em, 28px)",
                   height: "clamp(20px, 1.2em, 28px)",
-                  animation: "landing-subtle-pulse 3s ease-in-out infinite",
+                  animation: `${styles.landingSubtlePulse} 3s ease-in-out infinite`,
                 }}
               />
               Unlock Your Game's Potential
@@ -395,7 +396,7 @@ function HowItWorksSection() {
           <div className="text-center mt-8 sm:mt-10 md:mt-12">
             <a href="https://calendly.com/xgaming/45-minute-meeting" target="_blank" rel="noopener noreferrer">
               <Button
-                className="landing-visible-button landing-cta-glow px-6 sm:px-8 md:px-10 lg:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-base sm:text-lg md:text-xl lg:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105"
+                className={`${styles.landingVisibleButton} ${styles.landingCtaGlow} px-6 sm:px-8 md:px-10 lg:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-base sm:text-lg md:text-xl lg:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105`}
                 data-testid="button-demo-cta"
               >
                 <Sparkles
@@ -504,7 +505,7 @@ function ProblemSection() {
         {/* The Result: Missed Opportunities */}
         <AnimatedSection delay={0.8}>
           <div className="relative">
-            <div className="landing-clean-card rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center">
+            <div className={`${styles.landingCleanCard} rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center`}>
               <h3 className="text-lg sm:text-xl md:text-2xl lg:text-2xl font-bold text-white mb-6 sm:mb-8">
                 The Result:{" "}
                 <span className="text-red-400">Missed Opportunities</span>
@@ -778,7 +779,7 @@ function PlatformCapabilitiesSection() {
                 transition={{ duration: 0.3 }}
               >
                 <div
-                  className={`landing-clean-card border transition-all duration-500 rounded-2xl px-8 py-6 h-full relative overflow-hidden ${
+                  className={`${styles.landingCleanCard} border transition-all duration-500 rounded-2xl px-8 py-6 h-full relative overflow-hidden ${
                     capability.title === "Experiments"
                       ? "border-purple-400/20 group-hover:border-purple-500/60 group-hover:shadow-lg group-hover:shadow-purple-500/20"
                       : capability.title === "Personalization"
@@ -966,7 +967,7 @@ function KeyFeaturesSection() {
                 transition={{ duration: 0.3 }}
               >
                 <div
-                  className={`landing-clean-card ${feature.bgGlow} border ${feature.borderColor} rounded-2xl p-6 h-full relative overflow-hidden group-hover:shadow-lg transition-all duration-500`}
+                  className={`${styles.landingCleanCard} ${feature.bgGlow} border ${feature.borderColor} rounded-2xl p-6 h-full relative overflow-hidden group-hover:shadow-lg transition-all duration-500`}
                 >
                   {/* Decorative dots */}
                   <div className="absolute top-4 right-4 flex space-x-1">
@@ -1040,7 +1041,7 @@ function KeyFeaturesSection() {
             ].map((metric, index) => (
               <motion.div
                 key={index}
-                className={`landing-clean-card ${metric.bgColor} border ${metric.borderColor} rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-6 text-center group hover:scale-105 transition-all duration-300`}
+                className={`${styles.landingCleanCard} ${metric.bgColor} border ${metric.borderColor} rounded-lg sm:rounded-xl md:rounded-2xl p-3 sm:p-4 md:p-6 text-center group hover:scale-105 transition-all duration-300`}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
@@ -1150,7 +1151,7 @@ function TestimonialSection() {
         {/* Testimonial Card */}
         <AnimatedSection delay={0.2}>
           <div className="max-w-4xl mx-auto">
-            <div className="landing-clean-card rounded-2xl sm:rounded-3xl p-6 md:p-12 text-center relative overflow-hidden">
+            <div className={`${styles.landingCleanCard} rounded-2xl sm:rounded-3xl p-6 md:p-12 text-center relative overflow-hidden`}>
               {/* Background decoration */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-blue-100 rounded-full blur-2xl opacity-30" />
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full blur-2xl opacity-30" />
@@ -1281,7 +1282,7 @@ function FinalCTASection() {
             </motion.div>
 
             <h2
-              className={`text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black mb-4 sm:mb-6 md:mb-8 leading-none landing-text-glow px-4`}
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-black mb-4 sm:mb-6 md:mb-8 leading-none ${styles.landingTextGlow} px-4`}
               data-testid="text-final-cta-headline"
             >
               Ready to <span className="gradient-text">Own Your Growth?</span>
