@@ -1214,6 +1214,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync Nova objects - create/update feature flags and experiences in Nova
+  app.post("/api/feature-flags/sync-nova-objects/", authenticateToken, async (req, res) => {
+    try {
+      const response = await callNovaBackend<any>(`/api/v1/feature-flags/sync-nova-objects/`, {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': `Bearer ${req.token}`,
+        },
+      });
+
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to sync Nova objects");
+    }
+  });
+
   // OpenAI experience analysis
   // app.post("/api/analyze-experience", authenticateToken, async (req, res) => {
   //   try {
