@@ -67,42 +67,32 @@ export default function PersonalSettings() {
           </p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-1">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
+        {/* Account Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>
+              Update your personal information and preferences.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
 
-          <TabsContent value="profile" className="space-y-6">
-            {/* Account Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Information</CardTitle>
-                <CardDescription>
-                  Update your personal information and preferences.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-
-                <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="displayName">Display Name</Label>
-                    <p id="displayName" className="text-foreground">
-                      {user?.name}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <p id="email" className="text-foreground">
-                      {user?.email}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-
-        </Tabs>
+            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label htmlFor="displayName">Display Name</Label>
+                <p id="displayName" className="text-foreground">
+                  {user?.name}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <p id="email" className="text-foreground">
+                  {user?.email}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </ConsoleLayout>
   );

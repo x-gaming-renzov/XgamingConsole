@@ -16,7 +16,7 @@ import {
   Upload, Trash2, Download, FileText, FileImage, File, 
   Slack, CheckCircle, AlertCircle, DollarSign, CreditCard,
   TrendingUp, Calendar, Plus, User, Crown, Shield, UserCheck, Mail, Eye, Clock,
-  Code, BarChart2
+  Code, BarChart2, Copy
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,23 @@ export default function ProjectSettings() {
 
   // Check if user has admin permissions
   const isAdmin = isCurrentUserAdmin();
+
+  // Copy to clipboard function
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: `${label} copied to clipboard`,
+      });
+    } catch (err) {
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
   
   // If user is not admin, redirect or show message
   useEffect(() => {
@@ -151,12 +168,12 @@ export default function ProjectSettings() {
     enabled: !!user,
   });
 
-  // Fetch app & org context (Integrations)
-  const { data: authContext, isLoading: contextLoading } = useQuery({
-    queryKey: ['authContext'],
+  // Fetch SDK credentials for integration
+  const { data: sdkCredentials, isLoading: credentialsLoading } = useQuery({
+    queryKey: ['sdkCredentials'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/auth/context');
-      return res.json() as Promise<{ organisation_id: string; app_id: string; api_key: string; backend_url: string }>;
+      const res = await apiRequest('GET', '/api/auth/sdk-credentials');
+      return res.json() as Promise<{ api_key: string; backend_url: string }>;
     },
     enabled: isAdmin,
   });
@@ -350,9 +367,9 @@ export default function ProjectSettings() {
         </div>
 
         <Tabs defaultValue="members" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsList className="inline-flex w-auto space-x-2">
+            <TabsTrigger className="px-6" value="members">Members</TabsTrigger>
+            <TabsTrigger className="px-6" value="integrations">SDK Integration</TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
@@ -583,33 +600,73 @@ export default function ProjectSettings() {
           <TabsContent value="integrations" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Integration Details</CardTitle>
-                <CardDescription>Keys and URLs for SDK and API access.</CardDescription>
+                <CardTitle>SDK Integration</CardTitle>
+                <CardDescription>Credentials for integrating Nova SDK in your application.</CardDescription>
               </CardHeader>
               <CardContent>
-                {contextLoading ? (
-                  <p>Loading...</p>
-                ) : authContext ? (
+                {credentialsLoading ? (
+                  <p>Loading SDK credentials...</p>
+                ) : sdkCredentials ? (
                   <div className="space-y-4">
                     <div>
-                      <Label>Organisation ID</Label>
-                      <Input readOnly value={authContext.organisation_id} />
+                      <Label className="text-sm font-medium">SDK API Key</Label>
+                      <div className="flex space-x-2">
+                        <Input 
+                          readOnly 
+                          value={sdkCredentials.api_key} 
+                          className="font-mono text-sm flex-1"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => copyToClipboard(sdkCredentials.api_key, "SDK API Key")}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Use this key to authenticate SDK requests
+                      </p>
                     </div>
                     <div>
-                      <Label>App ID</Label>
-                      <Input readOnly value={authContext.app_id} />
+                      <Label className="text-sm font-medium">Backend URL</Label>
+                      <div className="flex space-x-2">
+                        <Input 
+                          readOnly 
+                          value={sdkCredentials.backend_url} 
+                          className="font-mono text-sm flex-1"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => copyToClipboard(sdkCredentials.backend_url, "Backend URL")}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        API endpoint for SDK requests
+                      </p>
                     </div>
-                    <div>
-                      <Label>API Key</Label>
-                      <Input readOnly value={authContext.api_key} />
-                    </div>
-                    <div>
-                      <Label>Backend URL</Label>
-                      <Input readOnly value={authContext.backend_url} />
+                    <div className="pt-4 border-t">
+                      <Label className="text-sm font-medium">SDK Integration Example</Label>
+                      <div className="mt-2 p-3 bg-muted rounded-md">
+                        <code className="text-xs whitespace-pre-wrap">
+{`<NovaProvider 
+  apiKey="${sdkCredentials.api_key}" 
+  apiEndpoint="${sdkCredentials.backend_url}"
+>
+  {/* Your app */}
+</NovaProvider>`}
+                        </code>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        React SDK integration example
+                      </p>
                     </div>
                   </div>
                 ) : (
-                  <p>No integration data available.</p>
+                  <p>No SDK credentials available. Please ensure you have an active app.</p>
                 )}
               </CardContent>
             </Card>

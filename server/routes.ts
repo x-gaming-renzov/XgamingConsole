@@ -150,23 +150,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get organization and app context
-  app.get("/api/auth/context", authenticateToken, async (req, res) => {
+  // Get SDK credentials for integration
+  app.get("/api/auth/sdk-credentials", authenticateToken, async (req, res) => {
     try {
-      const response = await callNovaBackend<any>('/api/v1/auth/context', {
+      const response = await callNovaBackend<any>('/api/v1/auth/sdk-credentials', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${req.token}`,
         },
       });
       res.json({
-        organisation_id: response.organisation_id,
-        app_id: response.app_id,
-        api_key: process.env.SDK_API_KEY || 'key123',
-        backend_url: process.env.NOVA_BACKEND_URL || ''
+        api_key: response.sdk_api_key,
+        backend_url: response.backend_url
       });
     } catch (error) {
-      handleBackendError(error, res, "Failed to fetch auth context");
+      handleBackendError(error, res, "Failed to fetch SDK credentials");
     }
   });
 
