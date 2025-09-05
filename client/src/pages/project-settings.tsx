@@ -651,10 +651,10 @@ export default function ProjectSettings() {
                     <div className="pt-4 border-t">
                       <Label className="text-sm font-medium">SDK Integration Example</Label>
                       <div className="mt-2 p-3 bg-muted rounded-md">
-                        <code className="text-xs">
-                          {`<NovaProvider`} <br /> 
-  {`apiKey="${sdkCredentials.api_key}" 
-  baseUrl="${sdkCredentials.backend_url}"
+                        <code className="text-xs whitespace-pre-wrap">
+{`<NovaProvider 
+  apiKey="${sdkCredentials.api_key}" 
+  apiEndpoint="${sdkCredentials.backend_url}"
 >
   {/* Your app */}
 </NovaProvider>`}
