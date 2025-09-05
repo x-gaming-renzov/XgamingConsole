@@ -1241,3 +1241,6 @@ export function registerRoutes(app: Express) {
     }
   });
 }
+
+// Backwards-compatible alias: some files import `registerSwiftSiteRoutes`
+export const registerSwiftSiteRoutes = registerRoutes;

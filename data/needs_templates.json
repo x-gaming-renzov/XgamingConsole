@@ -1,0 +1,71 @@
+{
+  "needs": {
+    "events_limited_time": {
+      "statement": "Players crave fresh, time-sensitive content that creates excitement and urgency in their gaming routine.",
+      "player_motivation": "Fear of missing out drives engagement and creates memorable gaming moments",
+      "success_metrics": ["Event participation rate", "Daily active users during events", "Player retention post-event"],
+      "risk_factors": ["Event fatigue", "Development resource strain", "Expectation inflation"]
+    },
+    "battle_pass": {
+      "statement": "Players want clear, achievable progression goals with both free and premium rewards to maintain long-term engagement.",
+      "player_motivation": "Structured progression satisfies achievement needs and justifies time investment",
+      "success_metrics": ["Battle pass completion rate", "Premium tier conversion", "Daily progression consistency"],
+      "risk_factors": ["Overwhelming progression requirements", "Premium pressure", "Burnout from daily obligations"]
+    },
+    "dynamic_pricing": {
+      "statement": "Players desire personalized offers that feel valuable and relevant to their spending patterns and gameplay style.",
+      "player_motivation": "Feeling of getting a good deal while supporting favorite games",
+      "success_metrics": ["Offer conversion rate", "Revenue per paying user", "Player satisfaction with pricing"],
+      "risk_factors": ["Perception of unfairness", "Price discrimination concerns", "Revenue cannibalization"]
+    },
+    "social_guilds": {
+      "statement": "Players seek meaningful social connections and shared achievements within their gaming communities.",
+      "player_motivation": "Belonging, teamwork, and social status drive long-term commitment",
+      "success_metrics": ["Guild participation rate", "Member retention", "Cross-guild interactions"],
+      "risk_factors": ["Community management overhead", "Toxicity issues", "Social pressure and obligations"]
+    },
+    "energy_optimization": {
+      "statement": "Players want controlled play sessions that respect their time while maintaining engagement momentum.",
+      "player_motivation": "Balanced gameplay that prevents burnout while encouraging regular return",
+      "success_metrics": ["Session frequency", "Energy purchase rate", "Player satisfaction scores"],
+      "risk_factors": ["Frustration with limitations", "Over-monetization perception", "Reduced session length"]
+    }
+  },
+  "metrics_impact_map": {
+    "events_limited_time": {
+      "DAU": 0.9,
+      "Session_Length": 0.8,
+      "Revenue": 0.7,
+      "Retention": 0.6,
+      "Social_Engagement": 0.5
+    },
+    "battle_pass": {
+      "Retention": 0.9,
+      "ARPDAU": 0.8,
+      "Session_Frequency": 0.8,
+      "Player_Satisfaction": 0.7,
+      "LTV": 0.9
+    },
+    "dynamic_pricing": {
+      "Revenue": 0.95,
+      "ARPDAU": 0.9,
+      "Conversion_Rate": 0.9,
+      "Player_Satisfaction": 0.4,
+      "Retention": 0.3
+    },
+    "social_guilds": {
+      "Retention": 0.95,
+      "LTV": 0.9,
+      "Social_Engagement": 0.95,
+      "Session_Frequency": 0.7,
+      "Player_Satisfaction": 0.8
+    },
+    "energy_optimization": {
+      "Session_Frequency": 0.9,
+      "ARPDAU": 0.7,
+      "Player_Satisfaction": 0.6,
+      "Retention": 0.5,
+      "Revenue": 0.6
+    }
+  }
+}

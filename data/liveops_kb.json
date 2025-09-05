@@ -1,0 +1,765 @@
+{
+  "categories": {
+    "Shop/Offer Ladders": {
+      "metrics": [
+        "LTV",
+        "ARPDAU",
+        "ConversionToPay"
+      ],
+      "weights": {
+        "LTV": 1.0,
+        "ARPDAU": 0.9,
+        "ConversionToPay": 0.8
+      },
+      "what": "Rotating packs, progressive bundles/ladders, segmented rotations.",
+      "moves": [
+        "Dynamic bundles",
+        "Event ladders",
+        "Anchored price points"
+      ],
+      "risks": [
+        "Pay-to-win perception",
+        "Price whiplash",
+        "Offer fatigue"
+      ],
+      "assumptions": "Midcore or cosmetics; cohorts targetable.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 9,
+      "confidence": "High",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (Thompson Sampling)",
+      "stat_output": "posterior win prob, regret"
+    },
+    "Dynamic Pricing & Offers": {
+      "metrics": [
+        "ARPDAU",
+        "ConversionToPay",
+        "LTV"
+      ],
+      "weights": {
+        "ARPDAU": 0.9,
+        "ConversionToPay": 0.8,
+        "LTV": 1.0
+      },
+      "what": "Price points, entry fees, discounts, soft/hard currency mix.",
+      "moves": [
+        "Regional pricing",
+        "Entry fee scaling",
+        "Discount ladders"
+      ],
+      "risks": [
+        "Queue health risk",
+        "Price anchoring",
+        "Cannibalization"
+      ],
+      "assumptions": "Server-evaluable prices; enough traffic for cells.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 8,
+      "confidence": "Med",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (UCB)",
+      "stat_output": "posterior win prob, regret"
+    },
+    "Limited-Time Events": {
+      "metrics": [
+        "D7",
+        "DAU",
+        "SessionLength"
+      ],
+      "weights": {
+        "D7": 0.85,
+        "DAU": 0.5,
+        "SessionLength": 0.55
+      },
+      "what": "Time-boxed events/mini-modes with appointment value.",
+      "moves": [
+        "Weekend sprints",
+        "TZ-friendly windows",
+        "Collision avoidance"
+      ],
+      "risks": [
+        "Burnout",
+        "Calendar collisions",
+        "Timezone fairness"
+      ],
+      "assumptions": "Live calendar control; overlap analytics.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 7,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B or Switchback",
+      "stat_output": "p-value, CI"
+    },
+    "Battle Pass System": {
+      "metrics": [
+        "LTV",
+        "ARPDAU",
+        "D7"
+      ],
+      "weights": {
+        "LTV": 1.0,
+        "ARPDAU": 0.9,
+        "D7": 0.85
+      },
+      "what": "Free/Premium tracks with milestone rewards & missions.",
+      "moves": [
+        "Accelerators",
+        "Catch-up tokens",
+        "Cosmetics value"
+      ],
+      "risks": [
+        "Free-track erosion",
+        "Overtight pacing"
+      ],
+      "assumptions": "Season loop; cosmetic economy exists.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 8,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B/n",
+      "stat_output": "p-value, CI"
+    },
+    "Drop Rates/Loot Tables": {
+      "metrics": [
+        "LTV",
+        "ARPDAU",
+        "D7"
+      ],
+      "weights": {
+        "LTV": 1.0,
+        "ARPDAU": 0.9,
+        "D7": 0.85
+      },
+      "what": "Odds tuning, pity counters, featured boosts for chests/spins.",
+      "moves": [
+        "Pity floor",
+        "Banner focus",
+        "Bad luck protection"
+      ],
+      "risks": [
+        "Compliance/transparency",
+        "Over-optimizing whales"
+      ],
+      "assumptions": "Configurable loot/spinner tables; outcome telemetry.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 8,
+      "confidence": "Med",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (TS)",
+      "stat_output": "posterior win prob, regret"
+    },
+    "Gacha/Banner Rotations": {
+      "metrics": [
+        "ARPDAU",
+        "LTV"
+      ],
+      "weights": {
+        "ARPDAU": 0.9,
+        "LTV": 1.0
+      },
+      "what": "Rotating banners/featured items with pity carry-over.",
+      "moves": [
+        "Rotation cadence",
+        "Rate-up items",
+        "Currency sinks"
+      ],
+      "risks": [
+        "Perceived paywall",
+        "Banner fatigue"
+      ],
+      "assumptions": "Collection meta and gacha currencies present.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 7,
+      "confidence": "Med",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (TS)",
+      "stat_output": "posterior win prob, regret"
+    },
+    "Ad Frequency/Reward Timing": {
+      "metrics": [
+        "AdRevenue",
+        "D1",
+        "SessionLength"
+      ],
+      "weights": {
+        "AdRevenue": 0.7,
+        "D1": 0.65,
+        "SessionLength": 0.55
+      },
+      "what": "Rewarded/Interstitial timing: revive/continue, cooldowns, caps.",
+      "moves": [
+        "Placement gating",
+        "Session-aware cooldowns",
+        "Floor/ceiling caps"
+      ],
+      "risks": [
+        "Fatigue",
+        "Audio/state bugs post-ad"
+      ],
+      "assumptions": "Rewarded available; revive/continue hooks.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 6,
+      "confidence": "Med",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (ε-greedy safe)",
+      "stat_output": "posterior win prob, regret"
+    },
+    "Energy/Stamina & Gating": {
+      "metrics": [
+        "D1",
+        "D7",
+        "SessionLength"
+      ],
+      "weights": {
+        "D1": 0.65,
+        "D7": 0.85,
+        "SessionLength": 0.55
+      },
+      "what": "Energy/lives timers & top-ups controlling session cadence.",
+      "moves": [
+        "Welcome boosts",
+        "Soft-caps not hard walls",
+        "Ad top-ups"
+      ],
+      "risks": [
+        "Hard-wall frustration",
+        "Paywall perception"
+      ],
+      "assumptions": "Timers configurable; ad/IAP top-ups.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 6,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "Switchback",
+      "stat_output": "p-value, CI"
+    },
+    "FTUE & Difficulty": {
+      "metrics": [
+        "D1",
+        "D7"
+      ],
+      "weights": {
+        "D1": 0.65,
+        "D7": 0.85
+      },
+      "what": "Onboarding clarity & early difficulty ramps.",
+      "moves": [
+        "Protected first sessions",
+        "Tutorial branching",
+        "Funnel friction fixes"
+      ],
+      "risks": [
+        "Over-tutorialization",
+        "Mismatch with skill"
+      ],
+      "assumptions": "Instrumentation on early funnel; content branches.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 6,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "Quest/Task Flow": {
+      "metrics": [
+        "D7",
+        "SessionLength"
+      ],
+      "weights": {
+        "D7": 0.85,
+        "SessionLength": 0.55
+      },
+      "what": "Ordering, pacing, streaks; avoiding dead-ends.",
+      "moves": [
+        "Daily/weekly ladders",
+        "Mission rerolls",
+        "Streak protection"
+      ],
+      "risks": [
+        "Stale objectives",
+        "Over-grind"
+      ],
+      "assumptions": "Task engine supports rerolls & streaks.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 5,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "PvP/Competition Balance": {
+      "metrics": [
+        "D7",
+        "SessionLength",
+        "DAU"
+      ],
+      "weights": {
+        "D7": 0.85,
+        "SessionLength": 0.55,
+        "DAU": 0.5
+      },
+      "what": "Matchmaking fairness, rewards vs effort/skill.",
+      "moves": [
+        "ELO bands",
+        "Seasonal resets",
+        "Participation rewards"
+      ],
+      "risks": [
+        "Pay-to-win ladders",
+        "Skill mismatches"
+      ],
+      "assumptions": "Competitive modes exist; rating system available.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 6,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "Social/Guild Features": {
+      "metrics": [
+        "D7",
+        "LTV",
+        "DAU"
+      ],
+      "weights": {
+        "D7": 0.85,
+        "LTV": 1.0,
+        "DAU": 0.5
+      },
+      "what": "Guild mechanics, social engagement, cooperative rewards.",
+      "moves": [
+        "Guild missions",
+        "Donation systems",
+        "Social bonuses"
+      ],
+      "risks": [
+        "Social pressure",
+        "Guild drama",
+        "Free-rider problems"
+      ],
+      "assumptions": "Social systems present; guild infrastructure exists.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 7,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "Progression & Unlocks": {
+      "metrics": [
+        "D1",
+        "D7",
+        "SessionLength"
+      ],
+      "weights": {
+        "D1": 0.65,
+        "D7": 0.85,
+        "SessionLength": 0.55
+      },
+      "what": "Unlock pacing, progression gates, content accessibility.",
+      "moves": [
+        "Feature gates",
+        "XP curves",
+        "Unlock sequences"
+      ],
+      "risks": [
+        "Progress walls",
+        "Unlock overwhelm"
+      ],
+      "assumptions": "Progression system exists; unlock logic configurable.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 5,
+      "confidence": "Med",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "Notification & Messaging": {
+      "metrics": [
+        "D1",
+        "DAU"
+      ],
+      "weights": {
+        "D1": 0.65,
+        "DAU": 0.5
+      },
+      "what": "Push timing, in-game messaging, retention prompts.",
+      "moves": [
+        "Time-zone targeting",
+        "Behavioral triggers",
+        "Frequency caps"
+      ],
+      "risks": [
+        "Notification fatigue",
+        "Spam perception"
+      ],
+      "assumptions": "Push notifications enabled; messaging system available.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 4,
+      "confidence": "Low",
+      "recommended_mode": "Shifu",
+      "recommended_allocation": "A/B",
+      "stat_output": "p-value, CI"
+    },
+    "Currency & Economy": {
+      "metrics": [
+        "LTV",
+        "ARPDAU",
+        "ConversionToPay"
+      ],
+      "weights": {
+        "LTV": 1.0,
+        "ARPDAU": 0.9,
+        "ConversionToPay": 0.8
+      },
+      "what": "Currency sinks/sources, inflation control, value perception.",
+      "moves": [
+        "Sink/source balancing",
+        "Value anchoring",
+        "Exchange rates"
+      ],
+      "risks": [
+        "Economy breaking",
+        "Hyperinflation"
+      ],
+      "assumptions": "Multiple currencies exist; economy tracking available.",
+      "evidence": [
+        {
+          "studio": "A Thinking Ape",
+          "page": 1
+        },
+        {
+          "studio": "Bandai",
+          "page": 1
+        },
+        {
+          "studio": "Bandai Namco",
+          "page": 1
+        },
+        {
+          "studio": "EA",
+          "page": 1
+        },
+        {
+          "studio": "IUGO Mobile Entertainment",
+          "page": 1
+        }
+      ],
+      "commonality_count": 27,
+      "impact_score_1_to_10": 8,
+      "confidence": "High",
+      "recommended_mode": "Sparrow",
+      "recommended_allocation": "Bandit (Thompson Sampling)",
+      "stat_output": "posterior win prob, regret"
+    }
+  }
+}

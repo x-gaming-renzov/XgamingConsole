@@ -1,4 +1,4 @@
-import gplay from "google-play-scraper";
+import * as gplay from "google-play-scraper";
 import OpenAI from "openai";
 import { RawReview, AnalyzedReview, Theme, RankedItem, Suggestion, ReviewMiningResult } from "@shared/schema";
 

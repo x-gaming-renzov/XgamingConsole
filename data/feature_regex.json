@@ -1,0 +1,11 @@
+{
+  "pvp": "(?:^|\\b)(pvp|multiplayer|ranked|arena|league|ladder|match(?:making)?|duel)s?(?:\\b|$)",
+  "events": "(?:^|\\b)(event|season|tournament|festival|raid|limited[ -]?time|weekend|monthly|seasonal)s?(?:\\b|$)",
+  "energy": "(?:^|\\b)(energy|stamina|lives|fuel|ticket|keys|hearts)(?:\\b|$)",
+  "chests": "(?:^|\\b)(chest|crate|loot|banner|summon|spin|wheel|incubator|capsule)s?(?:\\b|$)",
+  "gacha": "(?:^|\\b)(gacha|banner|pull|ten[- ]?pull|rate[- ]?up|pity)(?:\\b|$)",
+  "quests": "(?:^|\\b)(quest|mission|task|challenge|objective)s?(?:\\b|$)",
+  "builder": "(?:^|\\b)(build|craft|upgrade|research|timer|construction)s?(?:\\b|$)",
+  "idle": "(?:^|\\b)(idle|incremental|afk)(?:\\b|$)",
+  "ads": "(?:^|\\b)(ad|ads|advert|rewarded|interstitial|offerwall|watch (?:an?|to) ad|revive(?:d)? by ad|continue (?:with|after) ad)s?(?:\\b|$)"
+}

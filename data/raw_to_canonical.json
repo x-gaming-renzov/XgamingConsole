@@ -1,0 +1,74 @@
+[
+  {
+    "raw": "weekly pack rotation",
+    "canonical": "Shop/Offer Ladders"
+  },
+  {
+    "raw": "VIP ladder",
+    "canonical": "Shop/Offer Ladders"
+  },
+  {
+    "raw": "price tests",
+    "canonical": "Dynamic Pricing & Offers"
+  },
+  {
+    "raw": "gacha pity",
+    "canonical": "Drop Rates/Loot Tables"
+  },
+  {
+    "raw": "banner rotation",
+    "canonical": "Gacha/Banner Rotations"
+  },
+  {
+    "raw": "revive ad",
+    "canonical": "Ad Frequency/Reward Timing"
+  },
+  {
+    "raw": "continue video",
+    "canonical": "Ad Frequency/Reward Timing"
+  },
+  {
+    "raw": "energy refill",
+    "canonical": "Energy/Stamina & Gating"
+  },
+  {
+    "raw": "first-time user experience",
+    "canonical": "FTUE & Difficulty"
+  },
+  {
+    "raw": "missions flow",
+    "canonical": "Quest/Task Flow"
+  },
+  {
+    "raw": "winback offer",
+    "canonical": "Retention Loops & Comeback Offers"
+  },
+  {
+    "raw": "chest unlock timers",
+    "canonical": "Crate/Chest/Incubator Timers"
+  },
+  {
+    "raw": "season rewards",
+    "canonical": "Event Rewards & Progression"
+  },
+  {
+    "raw": "mmr bands",
+    "canonical": "Matchmaking & Brackets"
+  },
+  {
+    "raw": "clans",
+    "canonical": "Guild & Clan Systems"
+  },
+  {
+    "raw": "upgrade costs",
+    "canonical": "Economy Costs & Crafting Timers"
+  },
+  {
+    "raw": "battle pass",
+    "canonical": "Battle Pass System"
+  },
+  {
+    "raw": "limited-time event",
+    "canonical": "Limited-Time Events"
+  }
+]
