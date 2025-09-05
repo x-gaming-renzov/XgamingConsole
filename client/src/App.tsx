@@ -25,6 +25,9 @@ import PersonalisationsCreate from "@/pages/personalisations/create";
 import PersonalisationsEdit from "@/pages/personalisations/edit";
 import Onboarding from "@/pages/onboarding";
 import Signup from "@/pages/signup";
+import ExperimentCompass from "@/pages/experiment-compass";
+import ExperimentCompassDeepDive from "@/pages/experiment-compass-deep-dive";
+import LiveOpsRefinery from "@/pages/liveops-refinery";
 
 import NotFound from "@/pages/not-found";
 import Personalisations from "./pages/personalisations";
@@ -50,6 +53,9 @@ function Router() {
       <Route path="/personalisations/create" component={PersonalisationsCreate} />
       <Route path="/metrics" component={Metrics} />
       <Route path="/metrics/builder" component={MetricBuilder} />
+      <Route path="/experiment-compass" component={ExperimentCompass} />
+      <Route path="/experiment-compass/deep-dive" component={ExperimentCompassDeepDive} />
+      <Route path="/liveops-refinery" component={LiveOpsRefinery} />
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
       <Route path="/project-settings" component={ProjectSettings} />

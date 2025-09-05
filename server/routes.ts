@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { registerSwiftSiteRoutes } from "./swiftsite_routes";
 import { insertUserSchema, insertProjectSchema, insertExperimentSchema, insertSegmentSchema, insertTeamMemberSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -1587,5 +1588,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // Register donor SwiftSite routes (Experiment Compass & LiveOps)
+  try {
+    registerSwiftSiteRoutes(app as any);
+  } catch (err) {
+    console.warn("Failed to register SwiftSite routes:", (err as Error).message);
+  }
   return httpServer;
 }

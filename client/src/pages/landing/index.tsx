@@ -28,7 +28,9 @@ import {
   Unlink,
   Clock,
   Activity,
+  Compass,
 } from "lucide-react";
+import { Link } from "wouter";
 
 
 // Simple animation variants
@@ -1379,6 +1381,19 @@ function NavigationBar({ openLogin, openSignup }: NavigationBarProps) {
           <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
             SDK
           </Button>
+          {/* Experiment Compass & LiveOps buttons (donor features) */}
+          <Link href="/experiment-compass">
+            <Button variant="ghost" className="text-muted-foreground hover:text-foreground" data-testid="button-experiment-compass">
+              <Compass className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Experiment Compass</span>
+            </Button>
+          </Link>
+          <Link href="/liveops-refinery">
+            <Button variant="ghost" className="text-muted-foreground hover:text-foreground" data-testid="button-liveops-refinery">
+              <Zap className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">LiveOps Refinery</span>
+            </Button>
+          </Link>
         </div>
         <div className="flex items-center space-x-4">
           <ThemeToggle />
