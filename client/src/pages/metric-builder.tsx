@@ -74,6 +74,11 @@ interface UserProfileKey {
   description: string;
 }
 
+interface Segment {
+  id: string;
+  name: string;
+}
+
 interface FormData {
   event_name?: string;
   distinct?: boolean;
@@ -138,6 +143,7 @@ export default function MetricBuilder() {
   const [hasError, setHasError] = useState(false);
   const [filters, setFilters] = useState<FilterType[]>([]);
   const [groupByItems, setGroupByItems] = useState<GroupByType[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const [metricName, setMetricName] = useState("");
   const [metricDescription, setMetricDescription] = useState("");
   
@@ -148,18 +154,22 @@ export default function MetricBuilder() {
   const [returnEventSelectorOpen, setReturnEventSelectorOpen] = useState(false);
   const [groupBySelectorOpen, setGroupBySelectorOpen] = useState<number | null>(null);
   const [filterKeySelectorOpen, setFilterKeySelectorOpen] = useState<number | null>(null);
+  const [segmentSelectorOpen, setSegmentSelectorOpen] = useState<number | null>(null);
   
   // Search states for key selectors
   const [groupBySearchTerms, setGroupBySearchTerms] = useState<{[key: number]: string}>({});
   const [filterSearchTerms, setFilterSearchTerms] = useState<{[key: number]: string}>({});
+  const [segmentSearchTerms, setSegmentSearchTerms] = useState<{[key: number]: string}>({});
   
   // Individual search terms for different dropdowns
   const [eventSearchTerm, setEventSearchTerm] = useState('');
   const [propertySearchTerm, setPropertySearchTerm] = useState('');
+  const [segmentSearchTerm, setSegmentSearchTerm] = useState('');
   
   // Debounced search terms
   const debouncedEventSearch = useDebounce(eventSearchTerm, 300);
   const debouncedPropertySearch = useDebounce(propertySearchTerm, 300);
+  const debouncedSegmentSearch = useDebounce(segmentSearchTerm, 300);
 
   // Form data state - moved up to be used in queries
   const [formData, setFormData] = useState<FormData>({
@@ -204,6 +214,33 @@ export default function MetricBuilder() {
       }
       return response.json();
     },
+  });
+
+  // Fetch segments list
+  const { data: segments = [] } = useQuery<Segment[]>({
+    queryKey: ["/api/segments"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/segments");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch segments: ${response.statusText}`);
+      }
+      return response.json();
+    },
+  });
+
+  // Search segments with debounced term
+  const { data: searchedSegments = [] } = useQuery<Segment[]>({
+    queryKey: ["/api/segments/search", debouncedSegmentSearch],
+    queryFn: async () => {
+      if (!debouncedSegmentSearch.trim()) return segments;
+
+      const response = await apiRequest("GET", `/api/segments?search=${encodeURIComponent(debouncedSegmentSearch)}`);
+      if (!response.ok) {
+        return segments; // Fallback to cached data on error
+      }
+      return response.json();
+    },
+    enabled: !!debouncedSegmentSearch.trim(),
   });
 
   // Search events with debounced term
@@ -313,6 +350,13 @@ export default function MetricBuilder() {
     // For ratio & retention, only show profile keys (multiple events involved)
     return profileKeys;
   };
+
+  const getSegmentOptions = (searchTerm: string = '') => {
+    const list = searchTerm.trim() ? searchedSegments : segments;
+    return list
+      .filter(s => !searchTerm || s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .map(s => ({ value: s.id, label: s.name }));
+  };
   
   // Auto re-run queries when time range or granularity changes
   useEffect(() => {
@@ -359,6 +403,10 @@ export default function MetricBuilder() {
           };
         });
         setGroupByItems(groupByArray);
+      }
+      // Populate segments
+      if (config.segment_ids && Array.isArray(config.segment_ids)) {
+        setSelectedSegments(config.segment_ids.filter((id: any) => typeof id === 'string'));
       }
       
       // Populate metric-specific form data
@@ -696,6 +744,36 @@ export default function MetricBuilder() {
     return filtersObj;
   };
 
+  // Handle segments management
+  const addSegment = () => {
+    setSelectedSegments(prev => {
+      const next = [...prev, ""]; // placeholder empty id
+  // open the selector for the new row
+  setSegmentSelectorOpen(next.length - 1);
+      return next;
+    });
+  };
+
+  const removeSegment = (index: number) => {
+    setSelectedSegments(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (segmentSelectorOpen === index) setSegmentSelectorOpen(null);
+      return next;
+    });
+  };
+
+  const updateSelectedSegment = (index: number, id: string) => {
+    setSelectedSegments(prev => {
+      const next = [...prev];
+      next[index] = id;
+      return next;
+    });
+  };
+
+  const getSelectedSegmentObjects = () => {
+    return selectedSegments.map(id => segments.find(s => s.id === id) || { id, name: id });
+  };
+
   // Get group by array with source information for backend
   const getGroupByArray = () => {
     return groupByItems
@@ -740,7 +818,8 @@ export default function MetricBuilder() {
         time_range: timeRange,
         granularity,
         group_by: getGroupByArray(),
-        filters: getFiltersObject(),
+  filters: getFiltersObject(),
+  segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
       };
 
       // Add metric-specific fields
@@ -810,8 +889,9 @@ export default function MetricBuilder() {
       let config: any = {
           time_range: timeRange,
           granularity,
-        group_by: getGroupByArray(),
-        filters: getFiltersObject(),
+  group_by: getGroupByArray(),
+  filters: getFiltersObject(),
+  segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
       };
 
       // Add metric-specific fields
@@ -1411,6 +1491,8 @@ export default function MetricBuilder() {
 
                   <Separator />
 
+                  {/* Segments (relocated below Group By and Filters) */}
+
                   {/* Group By */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1520,6 +1602,8 @@ export default function MetricBuilder() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Segments moved to its own section below the divider */}
 
                   {/* Filters */}
                   <div>
@@ -1664,7 +1748,74 @@ export default function MetricBuilder() {
                     </div>
                   </div>
 
-                  <Separator />
+                    {/* Insert Segments section here so it's after Filters and above the Run Query button */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-medium">Segments</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={() => addSegment()}>
+                          <PlusIcon className="h-4 w-4 mr-1" />
+                          Add Segment
+                        </Button>
+                      </div>
+                      {selectedSegments.length === 0 && (
+                        <div className="text-sm text-muted-foreground py-2">No segments applied</div>
+                      )}
+                      <div className="space-y-2">
+                        {selectedSegments.map((segId, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <Popover open={segmentSelectorOpen === index} onOpenChange={(open) => {
+                              setSegmentSelectorOpen(open ? index : null);
+                              if (!open) setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
+                            }}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={segmentSelectorOpen === index}
+                                  className="w-full justify-between"
+                                >
+                                  {segId ? (segments.find(s => s.id === segId)?.name || segId) : 'Select segment...'}
+                                  <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                <Command>
+                                  <CommandInput
+                                    placeholder="Search segments..."
+                                    value={segmentSearchTerms[index] || ''}
+                                    onValueChange={(value) => setSegmentSearchTerms(prev => ({...prev, [index]: value}))}
+                                  />
+                                  <CommandList>
+                                    <CommandEmpty>No segments found.</CommandEmpty>
+                                    <CommandGroup>
+                                      {getSegmentOptions(segmentSearchTerms[index] || '').map(seg => (
+                                        <CommandItem
+                                          key={seg.value}
+                                          value={seg.value}
+                                          onSelect={(currentValue) => {
+                                            updateSelectedSegment(index, currentValue);
+                                            setSegmentSelectorOpen(null);
+                                            setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
+                                          }}
+                                        >
+                                          {seg.label}
+                                          <CheckIcon className={`ml-auto h-4 w-4 ${segId === seg.value ? 'opacity-100' : 'opacity-0'}`} />
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => removeSegment(index)}>
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator />
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
