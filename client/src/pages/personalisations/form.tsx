@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +36,6 @@ import ConsoleLayout from "@/components/console-layout";
 import ExperienceSelector from "@/components/experience-selector";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface ExperienceVariant {
   name: string;
@@ -66,6 +66,7 @@ interface PersonalisationFormData {
   };
   experience_variants: ExperienceVariant[];
   selected_metrics: string[];
+  segments: { segment_id: string; rule_config: Record<string, any> }[];
 }
 
 interface PersonalisationFormProps {
@@ -101,6 +102,17 @@ export default function PersonalisationForm({
     enabled: !!personalisationId && isEditMode,
   });
 
+  // Initialize segments in edit mode
+  useEffect(() => {
+    if (isEditMode && personalisationData) {
+      const rules = personalisationData.segment_rules || [];
+      setFormData(prev => ({
+        ...prev,
+        segments: rules.map((sr: any) => ({ segment_id: sr.segment.pid, rule_config: sr.rule_config }))
+      }));
+    }
+  }, [isEditMode, personalisationData]);
+
   // Parse URL parameters to get preselected experience ID
   const urlParams = new URLSearchParams(window.location.search);
   const preselectedExperienceId = urlParams.get('experienceId');
@@ -110,11 +122,10 @@ export default function PersonalisationForm({
     description: '',
     experienceId: preselectedExperienceId || '',
     rollout_percentage: 100,
-    rule_config: {
-      conditions: []
-    },
+    rule_config: { conditions: [] },
     experience_variants: [],
     selected_metrics: [],
+    segments: [],
   });
 
   // New state for Step 1: selected objects
@@ -184,6 +195,9 @@ export default function PersonalisationForm({
         rule_config: personalisationData.rule_config || { conditions: [] },
         experience_variants: [], // We'll populate createdVariants separately
         selected_metrics: filteredMetrics,
+        // Ensure `segments` exists on the form data. Prefer an explicit `segments` array if present,
+        // otherwise map from legacy `segment_rules` to the expected shape.
+        segments: personalisationData.segments || (personalisationData.segment_rules ? personalisationData.segment_rules.map((sr: any) => ({ segment_id: sr.segment.pid, rule_config: sr.rule_config })) : []),
       });
       
       // Set selected experience
@@ -479,7 +493,8 @@ export default function PersonalisationForm({
         rule_config: formData.rule_config,
         rollout_percentage: formData.rollout_percentage,
         selected_metrics: cleanedMetrics,
-        experience_variants: experienceVariants,
+  experience_variants: experienceVariants,
+  segments: formData.segments,
         ...(isEditMode && { reassign: reassign })
       };
 
@@ -1108,6 +1123,92 @@ export default function PersonalisationForm({
                   <p className="text-sm text-muted-foreground">Define targeting rules and configure variant distribution</p>
                 </div>
 
+                {/* Segments Dropdown + Selected List (new UI) */}
+                <div className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30 rounded-lg p-6">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full flex items-center justify-center">
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
+                    <Label className="text-lg font-semibold">Segments</Label>
+                  </div>
+
+                  <div className="mb-4">
+                    {isLoadingSegments ? (
+                      <div className="text-sm text-muted-foreground">Loading segments...</div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Select
+                          onValueChange={(val) => {
+                            const segId = val;
+                            const seg = availableSegments.find(s => (s.id || s.pid) === segId);
+                            if (!seg) return;
+                            setFormData(prev => {
+                              if (prev.segments.some(x => x.segment_id === segId)) return prev;
+                              return { ...prev, segments: [...prev.segments, { segment_id: segId, rule_config: seg.rule_config || {} }] };
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 w-64">
+                            <SelectValue placeholder="Select a segment to add" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableSegments.map((seg: any) => (
+                              <SelectItem key={seg.id || seg.pid} value={seg.id || seg.pid}>{seg.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="text-xs text-muted-foreground">Choose one or more segments to include</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected segments list */}
+                  <div className="space-y-3">
+                    {formData.segments && formData.segments.length > 0 ? (
+                      formData.segments.map((sr, idx) => {
+                        const segObj = availableSegments.find(s => (s.id || s.pid) === sr.segment_id) || { name: sr.segment_id, rule_config: sr.rule_config };
+                        const conditions = sr.rule_config?.conditions || segObj.rule_config?.conditions || [];
+                        return (
+                          <div key={sr.segment_id} className="p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-white/10 flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-foreground">{segObj.name}</div>
+                                  {segObj.description && <div className="text-xs text-muted-foreground">{segObj.description}</div>}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, segments: prev.segments.filter(s => s.segment_id !== sr.segment_id) }))}
+                                  className="ml-4 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30"
+                                  aria-label={`Remove segment ${segObj.name}`}
+                                >
+                                  <X className="w-4 h-4 text-red-600" />
+                                </button>
+                              </div>
+
+                              {/* Rules preview */}
+                              <div className="mt-2 text-xs font-mono text-muted-foreground">
+                                {conditions && conditions.length > 0 ? (
+                                  conditions.slice(0,3).map((c: any, i: number) => (
+                                    <div key={i}>{`${c.field} ${c.operator} ${Array.isArray(c.value) ? c.value.join(', ') : c.value}`}</div>
+                                  ))
+                                ) : (
+                                  <div className="text-xs text-muted-foreground">No rules defined</div>
+                                )}
+                                {conditions && conditions.length > 3 && (
+                                  <div className="text-xs text-muted-foreground">+{conditions.length - 3} more</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-sm text-muted-foreground">No segments selected</div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Targeting Rules */}
                 <div className="bg-gradient-to-br from-white/90 to-gray-50/90 dark:from-gray-800/90 dark:to-gray-900/90 backdrop-blur-sm border border-white/30 rounded-lg p-6">
                   <div className="flex items-center space-x-2 mb-4">
@@ -1586,6 +1687,7 @@ export default function PersonalisationForm({
                   </div>
                 </div>
 
+                
                 {/* Apply to Existing Users Option (Edit mode only) */}
                 {isEditMode && (
                   <div className="w-full rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30 p-4">

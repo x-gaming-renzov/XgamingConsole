@@ -36,7 +36,7 @@ import {
   Power,
 } from "lucide-react";
 import ConsoleLayout from "@/components/console-layout";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 
 interface Experience {
   pid: string;
@@ -81,6 +81,11 @@ interface Personalisation {
     };
   }>;
   metrics?: Metric[];
+  segment_rules?: Array<{
+    pid: string;
+    segment: { pid: string; name: string; description: string; rule_config: Record<string, any> };
+    rule_config: Record<string, any>;
+  }>;
 }
 
 export default function Personalisations() {
@@ -169,7 +174,7 @@ export default function Personalisations() {
         type: metric.type,
         config: {
           ...metric.config,
-          granularity: "none" // Get only current aggregated value
+          granularity: "none"
         }
       };
 
@@ -177,7 +182,7 @@ export default function Personalisations() {
       if (!response.ok) {
         throw new Error(`Failed to compute metric: ${response.statusText}`);
       }
-      
+
       const result = await response.json();
       
       // Handle single value response for granularity "none"
@@ -846,8 +851,8 @@ export default function Personalisations() {
                                         </div>
                                       )}
 
-                                      {/* Bottom Row - Targeting Rules and Metrics */}
-                                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                      {/* Bottom Row - Targeting Rules, Metrics, Segments */}
+                                      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                                         {/* Targeting Rules Section */}
                                         <div className="h-fit border border-blue-200/50 bg-blue-50/30 rounded-xl dark:border-blue-800/30 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 transition-colors">
                                           <div
@@ -1034,6 +1039,58 @@ export default function Personalisations() {
                                             </div>
                                           )}
                                         </div>
+                                      </div>
+                                      {/* Segments Section */}
+                                      <div className="h-fit border border-pink-200/50 bg-pink-50/30 hover:bg-pink-100/50 rounded-xl dark:border-pink-800/30 dark:bg-pink-950/20 dark:hover:bg-pink-900/30 transition-colors">
+                                        <div
+                                          className="flex items-center cursor-pointer p-3"
+                                          onClick={() => togglePersonalisationExpansion(`segments-${personalisation.pid}`)}
+                                        >
+                                          <Users className="w-4 h-4 text-pink-600 dark:text-pink-400 mr-3" />
+                                          <span className="text-sm font-semibold text-pink-700 dark:text-pink-300">Segments</span>
+                                          <Badge
+                                            variant="outline"
+                                            className="ml-2 text-xs border-pink-300 text-pink-600 dark:border-pink-600 dark:text-pink-400"
+                                          >
+                                            {personalisation.segment_rules?.length || 0}
+                                          </Badge>
+                                          {expandedPersonalisations[`segments-${personalisation.pid}`] ? (
+                                            <ChevronDown className="w-4 h-4 text-pink-600 dark:text-pink-400 ml-auto" />
+                                          ) : (
+                                            <ChevronRight className="w-4 h-4 text-pink-600 dark:text-pink-400 ml-auto" />
+                                          )}
+                                        </div>
+
+                                        {expandedPersonalisations[`segments-${personalisation.pid}`] && (
+                                          <div className="border-t border-pink-200/50 dark:border-pink-800/30">
+                                            <div className="space-y-2">
+                                              {personalisation.segment_rules && personalisation.segment_rules.length > 0 ? (
+                                                personalisation.segment_rules.map((sr) => (
+                                                  <div
+                                                    key={sr.pid}
+                                                    className="flex items-center justify-between py-3 px-4 border-b border-pink-200/30 last:border-b-0 dark:border-pink-800/20"
+                                                  >
+                                                    <Link
+                                                      href={`/segments/${sr.segment.pid}`}
+                                                      className="font-medium text-pink-700 dark:text-pink-300"
+                                                    >
+                                                      {sr.segment.name}
+                                                    </Link>
+                                                    <span className="text-xs text-muted-foreground font-mono">
+                                                      {Array.isArray(sr.segment.rule_config.conditions)
+                                                        ? `${sr.segment.rule_config.conditions.length} rule${sr.segment.rule_config.conditions.length > 1 ? 's' : ''}`
+                                                        : '0 rules'}
+                                                    </span>
+                                                  </div>
+                                                ))
+                                              ) : (
+                                                <div className="py-6 px-4 text-center text-muted-foreground">
+                                                  No segments configured
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </CardContent>
