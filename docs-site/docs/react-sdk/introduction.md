@@ -1,4 +1,4 @@
-# Nova React SDK
+# Introduction
 
 A comprehensive, practical guide to integrating Nova into your React or React Native app. Start here, then follow the chapters in order.
 
@@ -16,7 +16,7 @@ A comprehensive, practical guide to integrating Nova into your React or React Na
 ### Syllabus
 
 1. Installation: [installation](./installation.md)
-2. Core concepts: [core-concepts](./core-concepts.md)
+2. Core concepts: [core concepts](./core-concepts.md)
 3. Provider setup: [provider](./provider.md)
 4. User lifecycle (setUser, profiles): [user](./user.md)
 5. Experiences (load/read/hooks): [experiences](./experiences.md)
@@ -40,12 +40,12 @@ import { NovaProvider } from "nova-react-sdk";
 import NovaRegistry from "./nova-objects.json";
 
 <NovaProvider
-	config={{
-		apiKey: process.env.NOVA_API_KEY!,
-		apiEndpoint: process.env.NOVA_API_ENDPOINT!,
-		registry: NovaRegistry,
-	}}
+  config={{
+    apiKey: process.env.NOVA_API_KEY!,
+    apiEndpoint: process.env.NOVA_API_ENDPOINT!,
+    registry: NovaRegistry,
+  }}
 >
-	<App />
+  <App />
 </NovaProvider>;
 ```

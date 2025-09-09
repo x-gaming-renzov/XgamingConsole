@@ -19,10 +19,23 @@ const sidebars: SidebarsConfig = {
       label: 'API',
       items: ['api/intro'],
     },
-    {
-      type: 'category',
-      label: 'React SDK',
-      items: ['react-sdk/intro'],
+        {
+          type: 'category',
+          label: 'React SDK',
+          items: [
+        'react-sdk/introduction',
+        'react-sdk/installation',
+        'react-sdk/core-concepts',
+        'react-sdk/provider',
+        'react-sdk/user',
+        'react-sdk/experiences',
+        'react-sdk/events',
+        'react-sdk/registry',
+        'react-sdk/advanced',
+        'react-sdk/testing',
+        'react-sdk/api',
+        'react-sdk/troubleshooting',
+      ],
     },
     {
       type: 'category',
