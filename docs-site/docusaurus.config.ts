@@ -42,10 +42,8 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
-          // 'homePageId' was removed in newer Docusaurus types; use an index doc
-          // (e.g. create a docs/index.md or set a doc with id 'home') to define the
-          // docs homepage instead of this option.
+          routeBasePath: '/docs',
+          // Use an index doc (docs/home.md) as the landing page for /docs
           editUrl:
             'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
