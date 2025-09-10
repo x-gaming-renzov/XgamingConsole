@@ -1,6 +1,4 @@
 {
-  "organisation_id": "org id here",
-  "app_id": "app id here",
   "objects": {
     "player_progression_config": {
       "type": "Param",
