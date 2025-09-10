@@ -1,4 +1,7 @@
-## Registry design (objects/experiences)
+---
+hide_title: true
+---
+# Registry design (objects/experiences)
 
 Define your objects and experiences in a JSON file (e.g., `nova-objects.json`). This file powers default configs and improves DX.
 

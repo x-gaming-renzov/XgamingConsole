@@ -1,4 +1,7 @@
-## Provider setup
+---
+hide_title: true
+---
+# Provider setup
 
 Wrap your app with `NovaProvider` and pass configuration.
 

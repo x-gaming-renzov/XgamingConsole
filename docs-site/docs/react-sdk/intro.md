@@ -1,3 +1,6 @@
+---
+hide_title: true
+---
 # Nova React SDK
 
 A comprehensive, practical guide to integrating Nova into your React or React Native app. Start here, then follow the chapters in order.
@@ -13,19 +16,19 @@ A comprehensive, practical guide to integrating Nova into your React or React Na
 - Nova Manager API is reachable (apiEndpoint)
 - Basic React/TypeScript familiarity
 
-### Syllabus
+### Pages
 
-1. Installation: [installation](./installation.md)
-2. Core concepts: [core-concepts](./core-concepts.md)
-3. Provider setup: [provider](./provider.md)
-4. User lifecycle (setUser, profiles): [user](./user.md)
-5. Experiences (load/read/hooks): [experiences](./experiences.md)
-6. Events tracking: [events](./events.md)
-7. Registry design (objects/experiences): [registry](./registry.md)
-8. Advanced patterns (prefetch, RN specifics): [advanced](./advanced.md)
-9. Testing/mocking the SDK: [testing](./testing.md)
-10. API reference (exports, types): [api](./api.md)
-11. Troubleshooting/FAQ: [troubleshooting](./troubleshooting.md)
+1. Installation: [Installation](./installation.md)
+2. Core concepts: [Core Concepts](./core-concepts.md)
+3. Provider setup: [Provider](./provider.md)
+4. User lifecycle (setUser, profiles): [User](./user.md)
+5. Experiences (load/read/hooks): [Experiences](./experiences.md)
+6. Events tracking: [Events](./events.md)
+7. Registry design (objects/experiences): [Registry](./registry.md)
+8. Advanced patterns (prefetch, RN specifics): [Advanced](./advanced.md)
+9. Testing/mocking the SDK: [Testing](./testing.md)
+10. API reference (exports, types): [API](./api.md)
+11. Troubleshooting/FAQ: [Troubleshooting](./troubleshooting.md)
 
 ### Quickstart (10 min)
 

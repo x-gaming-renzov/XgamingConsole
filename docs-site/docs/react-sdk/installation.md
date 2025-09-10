@@ -1,4 +1,7 @@
-## Installation
+---
+hide_title: true
+---
+# Installation
 
 ```bash
 npm install nova-react-sdk

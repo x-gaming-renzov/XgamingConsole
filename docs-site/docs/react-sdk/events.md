@@ -1,4 +1,7 @@
-## Events
+---
+hide_title: true
+---
+# Events
 
 Track user behavior for analytics and metrics. Events are queued on the server side for computation.
 

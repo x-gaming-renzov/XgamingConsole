@@ -1,4 +1,7 @@
-## Advanced patterns
+---
+hide_title: true
+---
+# Advanced patterns
 
 ### Prefetch strategies
 

@@ -1,4 +1,7 @@
-## Troubleshooting / FAQ
+---
+hide_title: true
+---
+# Troubleshooting / FAQ
 
 ### "useNova must be used within a NovaProvider"
 

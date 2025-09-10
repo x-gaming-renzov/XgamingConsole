@@ -1,3 +1,6 @@
+---
+hide_title: true
+---
 # Introduction
 
 A comprehensive, practical guide to integrating Nova into your React or React Native app. Start here, then follow the chapters in order.

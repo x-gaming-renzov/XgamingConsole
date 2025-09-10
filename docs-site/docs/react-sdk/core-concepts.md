@@ -1,4 +1,7 @@
-## Core concepts
+---
+hide_title: true
+---
+# Core concepts
 
 ### Authentication
 

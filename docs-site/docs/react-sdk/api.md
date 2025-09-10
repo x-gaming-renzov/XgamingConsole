@@ -1,4 +1,7 @@
-## SDK API reference
+---
+hide_title: true
+---
+# SDK API reference
 
 ```ts
 // Provider and context

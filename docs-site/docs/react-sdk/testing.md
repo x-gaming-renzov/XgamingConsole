@@ -1,4 +1,7 @@
-## Testing the SDK integration
+---
+hide_title: true
+---
+# Testing the SDK integration
 
 ### Component testing
 

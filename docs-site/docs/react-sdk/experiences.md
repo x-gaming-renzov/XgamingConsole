@@ -1,4 +1,7 @@
-## Experiences
+---
+hide_title: true
+---
+# Experiences
 
 Load and render personalized experiences in your UI.
 

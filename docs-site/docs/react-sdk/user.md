@@ -1,4 +1,7 @@
-## User lifecycle (setUser, profiles)
+---
+hide_title: true
+---
+# User lifecycle
 
 Your external `userId` plus a flexible `userProfile` (key-value). Rules like segments and personalisations are evaluated against these attributes.
 
