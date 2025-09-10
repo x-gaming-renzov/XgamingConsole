@@ -170,26 +170,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/feature-flags/sync-nova-objects", async (req, res) => {
     try {
-      // Expect an SDK API key in the Authorization header: "Authorization: Bearer <SDK_API_KEY>"
       const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-      const providedKey = authHeader && String(authHeader).split(' ')[1];
-
-      const SDK_API_KEY = process.env.SDK_API_KEY || "";
-      if (!SDK_API_KEY) {
-        return res.status(500).json({ message: 'Server misconfigured: SDK_API_KEY not set' });
+      if (!authHeader) {
+        return res.status(401).json({ message: 'Missing Authorization header (SDK API key required)' });
       }
 
-      if (!providedKey || providedKey !== SDK_API_KEY) {
-        return res.status(401).json({ message: 'Invalid or missing SDK API key' });
-      }
-
-      // Forward the body to the Nova backend. Treat the body like other proxied routes.
       const response = await callNovaBackend<any>('/api/v1/feature-flags/sync-nova-objects', {
         method: 'POST',
         body: JSON.stringify(req.body),
         headers: {
-          // Forward the same SDK auth to Nova backend; Nova may expect the SDK key here as well
-          'Authorization': `Bearer ${SDK_API_KEY}`,
+          'Authorization': String(authHeader),
         },
       });
 
