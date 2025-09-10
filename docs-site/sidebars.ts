@@ -17,7 +17,13 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'API',
-      items: ['api/intro'],
+      items: [
+        'api/intro',
+        'api/events_api',
+        'api/sync_nova_objects_api',
+        'api/user_experience_api',
+        'api/users_api',
+      ],
     },
         {
           type: 'category',
