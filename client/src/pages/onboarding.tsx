@@ -79,21 +79,27 @@ export default function OnboardingPage() {
     },
   });
 
+  // Extract payload and helper for creating the sample app
+  const sampleAppPayload = {
+    name: `${user?.name}'s sample app`,
+    description: "Clone of vampire survival game in unity",
+  };
+
+  const createSampleApp = () => {
+    setAttemptedCreate(true);
+    createAppMutation.mutate(sampleAppPayload);
+  };
+
   // Automatically create app when component mounts
   useEffect(() => {
-    // Only attempt once until success or explicit retry
     if (
       user &&
       !user.has_apps &&
       !attemptedCreate &&
-  createAppMutation.status !== 'pending' &&
+      createAppMutation.status !== 'pending' &&
       !createAppMutation.isSuccess
     ) {
-      setAttemptedCreate(true);
-      createAppMutation.mutate({
-        name: "SampleUnityApp",
-        description: "Clone of vampire survival game in unity"
-      });
+      createSampleApp();
     }
   }, [user, createAppMutation, attemptedCreate]);
 
@@ -127,10 +133,7 @@ export default function OnboardingPage() {
             </p>
       {createAppMutation.isError && (
               <button 
-        onClick={() => { setAttemptedCreate(true); createAppMutation.mutate({
-                  name: "SampleUnityApp",
-                  description: "Clone of vampire survival game in unity"
-                })}}
+                onClick={createSampleApp}
                 className="text-sm text-blue-400 hover:text-blue-300 underline"
               >
                 Retry
