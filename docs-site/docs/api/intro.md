@@ -2,7 +2,7 @@
 
 Welcome to the API documentation. Explore the following endpoints:
 
-- [Events API](api/events_api)
-- [Sync Nova Objects API](api/sync_nova_objects_api)
-- [User Experience API](api/user_experience_api)
-- [Users API](api/users_api)
+- [Events API](./events_api)
+- [Sync Nova Objects API](./sync_nova_objects_api)
+- [User Experience API](./user_experience_api)
+- [Users API](./users_api)
