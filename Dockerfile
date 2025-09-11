@@ -15,8 +15,13 @@ RUN npm ci
 
 # Copy source code
 COPY . .
+# Build the Docusaurus docs
+RUN cd docs-site \
+	&& npm ci \
+	&& npm run build \
+	&& cd ..
 
-# Build the application
+# Build the main application
 RUN npm run build
 
 # Expose port 3000 (as configured in server/index.ts)
