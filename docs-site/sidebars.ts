@@ -16,6 +16,14 @@ const sidebars: SidebarsConfig = {
   docs: [
     {
       type: 'category',
+      label: 'Getting Started',
+      items: [
+        // { type: 'doc', id: 'getting-started/intro', label: 'Getting Started' },
+        { type: 'doc', id: 'getting-started/getting-started-credentials', label: 'Getting SDK Credentials' },
+      ],
+    },
+    {
+      type: 'category',
       label: 'API',
       items: [
         // { type: 'doc', id: 'api/intro', label: 'API Documentation' },
