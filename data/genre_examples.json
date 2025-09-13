@@ -1,0 +1,69 @@
+{
+  "studio_examples": {
+    "events_limited_time": {
+      "rpg": [
+        {"studio": "Niantic", "game": "Pokémon GO", "example": "Community Day events with exclusive Pokémon"},
+        {"studio": "Com2uS", "game": "Summoners War", "example": "Hall of Heroes weekend events"},
+        {"studio": "Square Enix", "game": "Final Fantasy Brave Exvius", "example": "Collaboration events with other franchises"}
+      ],
+      "strategy": [
+        {"studio": "Supercell", "game": "Clash of Clans", "example": "Clan War Leagues seasonal tournaments"},
+        {"studio": "Machine Zone", "game": "Game of War", "example": "Kingdom vs Kingdom events"},
+        {"studio": "Lilith Games", "game": "Rise of Kingdoms", "example": "Lost Kingdom cross-server battles"}
+      ],
+      "match3": [
+        {"studio": "King", "game": "Candy Crush Saga", "example": "Seasonal candy collections and themed levels"},
+        {"studio": "Playrix", "game": "Homescapes", "example": "Decoration Day events with exclusive items"},
+        {"studio": "Peak Games", "game": "Toon Blast", "example": "Team tournaments with leaderboard rewards"}
+      ]
+    },
+    "battle_pass": {
+      "shooter": [
+        {"studio": "Epic Games", "game": "Fortnite", "example": "Season Battle Pass with 100 tiers of rewards"},
+        {"studio": "Activision", "game": "Call of Duty Mobile", "example": "Battle Pass with weapon blueprints and operators"},
+        {"studio": "Riot Games", "game": "Valorant", "example": "Act Battle Pass with weapon skins and player cards"}
+      ],
+      "rpg": [
+        {"studio": "miHoYo", "game": "Genshin Impact", "example": "Battle Pass with weekly missions and premium rewards"},
+        {"studio": "Lilith Games", "game": "AFK Arena", "example": "Noble Society subscription with daily rewards"},
+        {"studio": "Com2uS", "game": "Summoners War", "example": "Growth Support packages with progression rewards"}
+      ]
+    },
+    "dynamic_pricing": {
+      "casual": [
+        {"studio": "King", "game": "Candy Crush Saga", "example": "Personalized booster packs based on difficulty"},
+        {"studio": "Zynga", "game": "Words with Friends", "example": "Dynamic ad removal pricing based on engagement"},
+        {"studio": "Playrix", "game": "Gardenscapes", "example": "Tailored coin packages based on spending history"}
+      ],
+      "rpg": [
+        {"studio": "Supercell", "game": "Clash Royale", "example": "Personalized gem offers based on chest opening patterns"},
+        {"studio": "IGG", "game": "Lords Mobile", "example": "Guild-specific package deals during events"},
+        {"studio": "Lilith Games", "game": "Rise of Kingdoms", "example": "Commander-specific bundles based on player preferences"}
+      ]
+    },
+    "social_guilds": {
+      "strategy": [
+        {"studio": "Supercell", "game": "Clash of Clans", "example": "Clan system with donations, wars, and shared achievements"},
+        {"studio": "Machine Zone", "game": "Game of War", "example": "Alliance structures with territory control"},
+        {"studio": "Lilith Games", "game": "Rise of Kingdoms", "example": "Alliance technology trees and shared buffs"}
+      ],
+      "rpg": [
+        {"studio": "Com2uS", "game": "Summoners War", "example": "Guild battles and siege warfare"},
+        {"studio": "Netmarble", "game": "Seven Knights", "example": "Guild raids and cooperative dungeon clearing"},
+        {"studio": "Square Enix", "game": "Final Fantasy Brave Exvius", "example": "Guild events with collaborative goals"}
+      ]
+    },
+    "energy_optimization": {
+      "match3": [
+        {"studio": "King", "game": "Candy Crush Saga", "example": "Lives system with social gifting options"},
+        {"studio": "Playrix", "game": "Homescapes", "example": "Energy system balanced with event participation"},
+        {"studio": "Peak Games", "game": "Toon Blast", "example": "Lives with team sharing mechanics"}
+      ],
+      "casual": [
+        {"studio": "Zynga", "game": "FarmVille", "example": "Energy system with crop-based regeneration"},
+        {"studio": "Big Fish Games", "game": "Gummy Drop!", "example": "Gummies system with city-building integration"},
+        {"studio": "Jam City", "game": "Cookie Jam", "example": "Lives system with bakery theme integration"}
+      ]
+    }
+  }
+}

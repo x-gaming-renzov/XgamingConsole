@@ -1,0 +1,25 @@
+{
+  "genre_mapping": {
+    "rpg": ["rpg", "role.?playing", "adventure", "fantasy", "mmorpg", "jrpg"],
+    "strategy": ["strategy", "tactical", "tower.?defense", "td", "rts", "turn.?based"],
+    "match3": ["match.?3", "match.?three", "puzzle", "candy", "gem", "swap"],
+    "casual": ["casual", "hyper.?casual", "simple", "easy", "relaxing"],
+    "action": ["action", "fighting", "beat.?em.?up", "combat", "hack.?slash"],
+    "shooter": ["shooter", "fps", "tps", "gun", "shooting", "battle.?royale"],
+    "racing": ["racing", "driving", "car", "speed", "motorcycle", "formula"],
+    "sports": ["sports", "football", "soccer", "basketball", "tennis", "golf"],
+    "simulation": ["simulation", "sim", "farming", "cooking", "management", "tycoon"],
+    "puzzle": ["puzzle", "brain", "logic", "word", "trivia", "quiz"],
+    "arcade": ["arcade", "retro", "classic", "old.?school", "pixel"],
+    "moba": ["moba", "lane", "tower", "creep", "minion", "dota", "league"],
+    "builder": ["builder", "city", "town", "farm", "construction", "craft"],
+    "idle": ["idle", "clicker", "incremental", "tap", "mining", "factory"],
+    "card": ["card", "deck", "trading", "collectible", "tcg", "ccg"],
+    "gacha": ["gacha", "collection", "summon", "hero.?collector", "anime"]
+  },
+  "primary_genres": [
+    "rpg", "strategy", "match3", "casual", "action", "shooter", 
+    "racing", "sports", "simulation", "puzzle", "arcade", "moba",
+    "builder", "idle", "card", "gacha"
+  ]
+}

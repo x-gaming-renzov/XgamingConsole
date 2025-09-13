@@ -1,0 +1,26 @@
+{
+  "weights": {
+    "overall_priority": [
+      0.4,
+      "Impact*10"
+    ],
+    "business_impact": [
+      0.35,
+      "0-100 BI"
+    ],
+    "commonality_pct": [
+      0.25,
+      "n/55 * 100"
+    ]
+  },
+  "constants": {
+    "STUDIO_DENOMINATOR": 55,
+    "MAX_METRIC_SUM": 5.95
+  },
+  "tie_breakers": [
+    "business_impact",
+    "commonality_pct",
+    "impact_score_1_to_10"
+  ],
+  "fit_bonus_notes": "Keep in 0-25 range post-scaling if you add it as a tiebreak-only influence."
+}

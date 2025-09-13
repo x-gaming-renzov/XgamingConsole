@@ -265,3 +265,229 @@ export const variantsRelations = relations(variants, ({ one }) => ({
     references: [objects.id],
   }),
 }));
+
+/* -------------------------------------------------------------------------
+   Experiment Compass & Review-miner schemas (ported from SwiftSite/shared/schema.ts)
+   Added so server routes that expect `experimentCompassResponseSchema` can import it.
+ ------------------------------------------------------------------------- */
+
+// Unified Experiment Compass types
+export const CATEGORY = z.enum([
+  "GAMEPLAY","TECH","ART_CONTENT","BUG","MONETIZATION_ADS","ENGAGEMENT_SENTIMENT","FEATURE_REQUEST"
+]);
+
+export const SUBCATEGORY = z.enum([
+  "BALANCE","DIFFICULTY_SPIKE","FAIRNESS","PAY_TO_WIN",
+  "CRASH","LAG","LOAD_TIME","BATTERY_DRAIN","DEVICE_COMPAT",
+  "VISUALS","AUDIO","ANIMATION","THEME_QUALITY",
+  "CLIPPING","PROGRESSION_BLOCK","UI_GLITCH","SAVE_ISSUE",
+  "AD_FREQUENCY","AD_PLACEMENT","AD_REWARD_TIMING","IAP_PRESSURE",
+  "FUN","STICKINESS","REPLAY_VALUE","COMMUNITY",
+  "NEW_MODE","MULTIPLAYER","COSMETICS","QOL"
+]);
+
+export const SEVERITY = z.enum(["LOW","MEDIUM","HIGH"]);
+export const MODE = z.enum(["Sparrow","Shifu"]);
+
+// Driver enum for analytics consistency
+export const DriverEnum = z.enum(["ENGAGEMENT","RETENTION","MONETIZATION","UX","ECONOMY"]);
+
+// Hypothesis schema for DESCRIBE_EXPERIMENT flow
+export const hypothesisSchema = z.object({
+  id: z.string(),                       // "H1", "H2"
+  title: z.string(),                    // short name, e.g., "Rewarded Ads increase engagement"
+  statement: z.string(),                // full hypothesis sentence
+  confidence: z.number().min(0).max(1), // model's self-estimate
+  
+  // keep strict drivers for analytics/routing
+  drivers: z.array(DriverEnum).min(1),
+  
+  // NEW: free-form labels the model/user can express
+  tags: z.array(z.string()).optional(),
+  
+  metrics_affected: z.array(z.string()).min(1), // e.g., ["D7 retention","Ad engagement"]
+});
+
+const metricSchema = z.object({
+  name: z.string(),
+  window: z.string().optional(),
+  direction: z.enum(["UP","DOWN","NO_WORSE"]).optional(),
+});
+
+const insightSchema = z.object({
+  id: z.string(),
+  category: CATEGORY,
+  subcategory: SUBCATEGORY,
+  severity: SEVERITY,
+  frequency_score: z.number().min(0).max(1),
+  sentiment: z.enum(["NEGATIVE","NEUTRAL","POSITIVE"]),
+  summary: z.string(),
+  evidence: z.array(z.object({
+    review_id: z.string(),
+    excerpt: z.string(),
+    rating: z.number().optional(),
+    lang: z.string().optional(),
+    date_iso: z.string().optional(),
+    // NEW (optional, only for DESCRIBE_EXPERIMENT synthetic evidence)
+    source: z.enum(["REVIEW","DESCRIPTION"]).optional()
+  })).min(1),
+});
+
+const experimentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  experiment_type: z.string(),
+  recommended_mode: MODE,
+  mode_tagline: z.string(),
+  goal_metric: metricSchema,
+  guardrail_metrics: z.array(metricSchema).min(1),
+  rationale: z.string(),
+  confidence: z.number().min(0).max(1).optional(),
+  linked_insight_ids: z.array(z.string()).min(1),
+  implementation_notes: z.array(z.string()).optional(),
+  variants: z.array(z.object({ key: z.string(), description: z.string() })).optional(),
+  alternative_mode: z.object({
+    mode: MODE,
+    when_to_prefer: z.string(),
+    tradeoffs: z.array(z.string())
+  }).optional(),
+});
+
+export const reviewsCatalogItemSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  rating: z.number().optional(),
+  lang: z.string().optional(),
+  thumbsUp: z.number().optional(),
+  date_iso: z.string().optional(),
+});
+
+export const experimentCompassResponseSchema = z.object({
+  version: z.literal("1.0"),
+  source: z.enum(["DESCRIBE_EXPERIMENT","REVIEW_MINER"]),
+  taxonomy: z.object({
+    categories: CATEGORY.array(),
+    subcategories: SUBCATEGORY.array()
+  }),
+  insights: insightSchema.array().min(0),
+  experiments: experimentSchema.array().min(1),
+  // NEW (optional) — only present for DESCRIBE_EXPERIMENT
+  hypotheses: z.array(hypothesisSchema).optional(),
+  summary: z.object({
+    counts: z.object({
+      insights_total: z.number(),
+      positive: z.number(),
+      negative: z.number(),
+      by_severity: z.object({ HIGH: z.number(), MEDIUM: z.number(), LOW: z.number() })
+    }),
+    highlights: z.array(z.string())
+  }),
+  share_payloads: z.record(z.string(), z.object({
+    slack: z.object({
+      title: z.string(),
+      summary: z.string(),
+      experiment_id: z.string(),
+      blocks_markdown: z.string(),
+    }),
+    nova: z.object({
+      experiment: z.any()
+    })
+  })).optional(),
+  reviews_catalog: z.record(reviewsCatalogItemSchema).optional(),
+});
+
+export type ExperimentCompassResponse = z.infer<typeof experimentCompassResponseSchema>;
+export type Hypothesis = z.infer<typeof hypothesisSchema>;
+
+// Review Miner types
+export const rawReviewSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  score: z.number().optional(),
+  thumbsUp: z.number().optional(),
+  appVersion: z.string().optional(),
+  at: z.string().optional(),
+  userName: z.string().optional(),
+  replyDate: z.string().nullable().optional(),
+});
+
+export const analyzedReviewSchema = z.object({
+  id: z.string(),
+  detect_language: z.string(),
+  normalized_text: z.string(),
+  translation_en: z.string(),
+  sentiment: z.enum(["very_negative", "negative", "neutral", "positive", "very_positive"]),
+  stars: z.object({
+    value: z.number(),
+    inferred: z.boolean()
+  }),
+  toxicity: z.boolean(),
+  themes: z.array(z.string()),
+  issue_snippets: z.array(z.string()),
+  helpfulness_weight: z.number(),
+  version: z.string().nullable().optional(),
+  timestamp: z.string().nullable().optional(),
+  notes: z.string().optional(),
+});
+
+export const themeSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  criteria: z.array(z.string()),
+  review_ids: z.array(z.string()),
+  health: z.object({
+    count: z.number(),
+    avg_stars: z.number(),
+    avg_helpfulness_weight: z.number()
+  }),
+  urgency: z.enum(["low", "medium", "high"]),
+});
+
+export const rankedItemSchema = z.object({
+  id: z.string(),
+  score: z.number(),
+  why: z.string(),
+});
+
+export const suggestionSchema = z.object({
+  experiment_type: z.enum([
+    "Event Variant Allocation",
+    "IAP Starter Pack / Bundles",
+    "Ad Frequency / Placement",
+    "Notification Template / Timing",
+    "Difficulty Micro-tuning",
+    "Core Difficulty Curve",
+    "Season Pass / Subscription",
+    "Economy Framework / Monetization Model",
+    "Store Merchandising / Ranking",
+    "Onboarding / FTUE Flow",
+    "Matchmaking / Mode Rotation",
+    "Other"
+  ]),
+  recommended_mode: z.enum(["Sparrow", "Shifu"]),
+  goal_metric: z.string(),
+  guardrail_metrics: z.array(z.string()),
+  rationale: z.string(),
+  confidence: z.number(),
+  sample_review_ids: z.array(z.string()).optional(),
+});
+
+export const reviewMiningRequestSchema = z.object({
+  playStoreUrl: z.string().url(),
+});
+
+export const reviewMiningResultSchema = z.object({
+  appId: z.string(),
+  top_critical: z.array(rankedItemSchema),
+  top_positive: z.array(rankedItemSchema),
+  themes: z.array(themeSchema),
+  suggested_experiments: z.array(suggestionSchema),
+});
+
+export type RawReview = z.infer<typeof rawReviewSchema>;
+export type AnalyzedReview = z.infer<typeof analyzedReviewSchema>;
+export type Theme = z.infer<typeof themeSchema>;
+export type RankedItem = z.infer<typeof rankedItemSchema>;
+export type Suggestion = z.infer<typeof suggestionSchema>;
+export type ReviewMiningRequest = z.infer<typeof reviewMiningRequestSchema>;
+export type ReviewMiningResult = z.infer<typeof reviewMiningResultSchema>;
