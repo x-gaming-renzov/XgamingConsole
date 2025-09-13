@@ -169,6 +169,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/feature-flags/sync-nova-objects", async (req, res) => {
+    try {
+      const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+      if (!authHeader) {
+        return res.status(401).json({ message: 'Missing Authorization header (SDK API key required)' });
+      }
+
+      const response = await callNovaBackend<any>('/api/v1/feature-flags/sync-nova-objects', {
+        method: 'POST',
+        body: JSON.stringify(req.body),
+        headers: {
+          'Authorization': String(authHeader),
+        },
+      });
+
+      res.json(response);
+    } catch (error) {
+      handleBackendError(error, res, 'Failed to sync nova objects');
+    }
+  });
+
   // App management - Proxy to FastAPI
   app.post("/api/auth/apps", authenticateToken, async (req, res) => {
     try {
