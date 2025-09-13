@@ -79,6 +79,11 @@ interface Segment {
   name: string;
 }
 
+interface Personalisation {
+  pid: string;
+  name: string;
+}
+
 interface FormData {
   event_name?: string;
   distinct?: boolean;
@@ -146,6 +151,7 @@ export default function MetricBuilder() {
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const [metricName, setMetricName] = useState("");
   const [metricDescription, setMetricDescription] = useState("");
+  const [selectedPersonalisations, setSelectedPersonalisations] =  useState<string[]>([]);
   
   // Command selector states
   const [eventSelectorOpen, setEventSelectorOpen] = useState(false);
@@ -155,21 +161,25 @@ export default function MetricBuilder() {
   const [groupBySelectorOpen, setGroupBySelectorOpen] = useState<number | null>(null);
   const [filterKeySelectorOpen, setFilterKeySelectorOpen] = useState<number | null>(null);
   const [segmentSelectorOpen, setSegmentSelectorOpen] = useState<number | null>(null);
-  
+  const [personalisationSelectorOpen, setPersonalisationSelectorOpen] = useState<number | null>(null);
+
   // Search states for key selectors
   const [groupBySearchTerms, setGroupBySearchTerms] = useState<{[key: number]: string}>({});
   const [filterSearchTerms, setFilterSearchTerms] = useState<{[key: number]: string}>({});
   const [segmentSearchTerms, setSegmentSearchTerms] = useState<{[key: number]: string}>({});
-  
+  const [personalisationSearchTerms, setPersonalisationSearchTerms] = useState<{[key: number]: string}>({});
+
   // Individual search terms for different dropdowns
   const [eventSearchTerm, setEventSearchTerm] = useState('');
   const [propertySearchTerm, setPropertySearchTerm] = useState('');
   const [segmentSearchTerm, setSegmentSearchTerm] = useState('');
+  const [personalisationSearchTerm, setPersonalisationSearchTerm] = useState('');
   
   // Debounced search terms
   const debouncedEventSearch = useDebounce(eventSearchTerm, 300);
   const debouncedPropertySearch = useDebounce(propertySearchTerm, 300);
   const debouncedSegmentSearch = useDebounce(segmentSearchTerm, 300);
+  const debouncedPersonalisationSearch = useDebounce(personalisationSearchTerm, 300);
 
   // Form data state - moved up to be used in queries
   const [formData, setFormData] = useState<FormData>({
@@ -241,6 +251,33 @@ export default function MetricBuilder() {
       return response.json();
     },
     enabled: !!debouncedSegmentSearch.trim(),
+  });
+
+  // Fetch personalisations list
+  const { data: personalisations = [] } = useQuery<Personalisation[]>({
+    queryKey: ["/api/personalisations"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/personalisations");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch personalisations: ${response.statusText}`);
+      }
+      return response.json();
+    },
+  });
+
+  // Search personalisations with debounced term
+  const { data: searchedPersonalisations = [] } = useQuery<Personalisation[]>({
+    queryKey: ["/api/personalisations/search", debouncedPersonalisationSearch],
+    queryFn: async () => {
+      if (!debouncedPersonalisationSearch.trim()) return personalisations;
+
+      const response = await apiRequest("GET", `/api/personalisations?search=${encodeURIComponent(debouncedPersonalisationSearch)}`);
+      if (!response.ok) {
+        return personalisations; // Fallback to cached data on error
+      }
+      return response.json();
+    },
+    enabled: !!debouncedPersonalisationSearch.trim(),
   });
 
   // Search events with debounced term
@@ -357,6 +394,14 @@ export default function MetricBuilder() {
       .filter(s => !searchTerm || s.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .map(s => ({ value: s.id, label: s.name }));
   };
+
+
+  const getPersonalisationOptions = (searchTerm: string = '') => {
+    const list = searchTerm.trim() ? searchedPersonalisations : personalisations;
+    return list
+      .filter(s => !searchTerm || s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .map(s => ({ value: s.pid, label: s.name }));
+  };
   
   // Auto re-run queries when time range or granularity changes
   useEffect(() => {
@@ -407,6 +452,11 @@ export default function MetricBuilder() {
       // Populate segments
       if (config.segment_ids && Array.isArray(config.segment_ids)) {
         setSelectedSegments(config.segment_ids.filter((id: any) => typeof id === 'string'));
+      }
+
+      //populate personalisation
+      if (config.personalisation_ids && Array.isArray(config.personalisation_ids)) {
+        setSelectedPersonalisations(config.personalisation_ids.filter((id: any) => typeof id === 'string'));
       }
       
       // Populate metric-specific form data
@@ -774,6 +824,38 @@ export default function MetricBuilder() {
     return selectedSegments.map(id => segments.find(s => s.id === id) || { id, name: id });
   };
 
+    // Handle personalisations management
+  const addPersonalisation = () => {
+    setSelectedPersonalisations(prev => {
+      const next = [...prev, ""]; // placeholder empty id
+  // open the selector for the new row
+  setPersonalisationSelectorOpen(next.length - 1);
+      return next;
+    });
+  };
+
+  const removePersonalisation = (index: number) => {
+    setSelectedPersonalisations(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (personalisationSelectorOpen === index) setPersonalisationSelectorOpen(null);
+      return next;
+    });
+  };
+
+  const updateSelectedPersonalisation = (index: number, id: string) => {
+    setSelectedPersonalisations(prev => {
+      const next = [...prev];
+      next[index] = id;
+      return next;
+    });
+  };
+
+  const getSelectedPersonalisationObjects = () => {
+    return selectedPersonalisations.map(pid =>
+      personalisations.find(s => s.pid === pid) || { pid, name: pid }
+    );
+  };
+
   // Get group by array with source information for backend
   const getGroupByArray = () => {
     return groupByItems
@@ -818,8 +900,9 @@ export default function MetricBuilder() {
         time_range: timeRange,
         granularity,
         group_by: getGroupByArray(),
-  filters: getFiltersObject(),
-  segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
+        filters: getFiltersObject(),
+        segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
+        personalisation_ids: selectedPersonalisations.length > 0 ? selectedPersonalisations : undefined,
       };
 
       // Add metric-specific fields
@@ -889,9 +972,10 @@ export default function MetricBuilder() {
       let config: any = {
           time_range: timeRange,
           granularity,
-  group_by: getGroupByArray(),
-  filters: getFiltersObject(),
-  segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
+        group_by: getGroupByArray(),
+        filters: getFiltersObject(),
+        segment_ids: selectedSegments.length > 0 ? selectedSegments : undefined,
+        personalisation_ids: selectedPersonalisations.length > 0 ? selectedPersonalisations : undefined,
       };
 
       // Add metric-specific fields
@@ -1748,74 +1832,145 @@ export default function MetricBuilder() {
                     </div>
                   </div>
 
-                    {/* Insert Segments section here so it's after Filters and above the Run Query button */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-sm font-medium">Segments</Label>
-                        <Button type="button" size="sm" variant="outline" onClick={() => addSegment()}>
-                          <PlusIcon className="h-4 w-4 mr-1" />
-                          Add Segment
-                        </Button>
-                      </div>
-                      {selectedSegments.length === 0 && (
-                        <div className="text-sm text-muted-foreground py-2">No segments applied</div>
-                      )}
-                      <div className="space-y-2">
-                        {selectedSegments.map((segId, index) => (
-                          <div key={index} className="flex gap-2 items-center">
-                            <Popover open={segmentSelectorOpen === index} onOpenChange={(open) => {
-                              setSegmentSelectorOpen(open ? index : null);
-                              if (!open) setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
-                            }}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={segmentSelectorOpen === index}
-                                  className="w-full justify-between"
-                                >
-                                  {segId ? (segments.find(s => s.id === segId)?.name || segId) : 'Select segment...'}
-                                  <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                <Command>
-                                  <CommandInput
-                                    placeholder="Search segments..."
-                                    value={segmentSearchTerms[index] || ''}
-                                    onValueChange={(value) => setSegmentSearchTerms(prev => ({...prev, [index]: value}))}
-                                  />
-                                  <CommandList>
-                                    <CommandEmpty>No segments found.</CommandEmpty>
-                                    <CommandGroup>
-                                      {getSegmentOptions(segmentSearchTerms[index] || '').map(seg => (
-                                        <CommandItem
-                                          key={seg.value}
-                                          value={seg.value}
-                                          onSelect={(currentValue) => {
-                                            updateSelectedSegment(index, currentValue);
-                                            setSegmentSelectorOpen(null);
-                                            setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
-                                          }}
-                                        >
-                                          {seg.label}
-                                          <CheckIcon className={`ml-auto h-4 w-4 ${segId === seg.value ? 'opacity-100' : 'opacity-0'}`} />
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => removeSegment(index)}>
-                              <XIcon className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Insert Segments section here so it's after Filters and above the Run Query button */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-sm font-medium">Segments</Label>
+                      <Button type="button" size="sm" variant="outline" onClick={() => addSegment()}>
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Add Segment
+                      </Button>
                     </div>
+                    {selectedSegments.length === 0 && (
+                      <div className="text-sm text-muted-foreground py-2">No segments applied</div>
+                    )}
+                    <div className="space-y-2">
+                      {selectedSegments.map((segId, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <Popover open={segmentSelectorOpen === index} onOpenChange={(open) => {
+                            setSegmentSelectorOpen(open ? index : null);
+                            if (!open) setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
+                          }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={segmentSelectorOpen === index}
+                                className="w-full justify-between"
+                              >
+                                {segId ? (segments.find(s => s.id === segId)?.name || segId) : 'Select segment...'}
+                                <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search segments..."
+                                  value={segmentSearchTerms[index] || ''}
+                                  onValueChange={(value) => setSegmentSearchTerms(prev => ({...prev, [index]: value}))}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>No segments found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {getSegmentOptions(segmentSearchTerms[index] || '').map(seg => (
+                                      <CommandItem
+                                        key={seg.value}
+                                        value={seg.value}
+                                        onSelect={(currentValue) => {
+                                          updateSelectedSegment(index, currentValue);
+                                          setSegmentSelectorOpen(null);
+                                          setSegmentSearchTerms(prev => ({...prev, [index]: ''}));
+                                        }}
+                                      >
+                                        {seg.label}
+                                        <CheckIcon className={`ml-auto h-4 w-4 ${segId === seg.value ? 'opacity-100' : 'opacity-0'}`} />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => removeSegment(index)}>
+                            <XIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+  
+                  {/* Personalisations */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-sm font-medium">Personalisations</Label>
+                      <Button type="button" size="sm" variant="outline" onClick={() => {
+                        addPersonalisation();
+                      }}>
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Add Personalisation
+                      </Button>
+                    </div>
+                    {selectedPersonalisations.length === 0 && (
+                      <div className="text-sm text-muted-foreground py-2">No personalisations applied</div>
+                    )}
+                    <div className="space-y-2">
+                      {selectedPersonalisations.map((segId, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <Popover open={personalisationSelectorOpen === index} onOpenChange={(open) => {
+                            setPersonalisationSelectorOpen(open ? index : null);
+                            if (!open) {
+                              setPersonalisationSearchTerms(prev => ({...prev, [index]: ''}));
+                            }
+                          }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={personalisationSelectorOpen === index}
+                                className="w-full justify-between"
+                              >
+                                {segId ? (personalisations.find(s => s.pid === segId)?.name || segId) : 'Select personalisation...'}
+                                <ChevronDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search personalisations..."
+                                  value={personalisationSearchTerms[index] || ''}
+                                  onValueChange={(value) => setPersonalisationSearchTerms(prev => ({...prev, [index]: value}))}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>No personalisations found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {getPersonalisationOptions(personalisationSearchTerms[index] || '').map(seg => (
+                                      <CommandItem
+                                        key={seg.value}
+                                        value={seg.value}
+                                        onSelect={(currentValue) => {
+                                          updateSelectedPersonalisation(index, currentValue);
+                                          setPersonalisationSelectorOpen(null);
+                                          setPersonalisationSearchTerms(prev => ({...prev, [index]: ''}));
+                                        }}
+                                      >
+                                        {seg.label}
+                                        <CheckIcon className={`ml-auto h-4 w-4 ${segId === seg.value ? 'opacity-100' : 'opacity-0'}`} />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => removePersonalisation(index)}>
+                            <XIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                    <Separator />
+                  <Separator />
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
