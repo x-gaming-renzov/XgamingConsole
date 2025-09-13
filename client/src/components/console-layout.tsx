@@ -155,43 +155,57 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
             {/* App Selector + New App */}
             <div className="mb-4">
               <p className="text-xs font-medium text-muted-foreground mb-2">APP</p>
-              {appsLoading ? (
-                <div className="h-10 bg-muted/50 rounded-md animate-pulse" />
-              ) : appsError ? (
-                <div className="h-10 bg-destructive/10 rounded-md flex items-center justify-center">
-                  <span className="text-xs text-destructive">Failed to load apps</span>
-                </div>
-              ) : apps.length === 0 ? (
-                <div className="h-10 bg-muted/50 rounded-md flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground">No apps found</span>
-                </div>
-              ) : (
-                <Select value={currentAppId || ""} onValueChange={handleAppSwitch}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select an app">
-                      {currentApp && (
-                        <span className="font-medium">{currentApp.name}</span>
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apps.map((app: any) => (
-                      <SelectItem key={app.id} value={app.id}>
-                        {app.name}
-                      </SelectItem>
-                    ))}
-                    <div className="border-t border-border mt-1.5 pt-1.5">
-                      <div 
-                        className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                        onClick={() => setNewAppDialogOpen(true)}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        <span>Add new app</span>
-                      </div>
-                    </div>
-                  </SelectContent>
-                </Select>
-              )}
+              <div className="flex items-center space-x-2">
+                {appsLoading ? (
+                  <div className="h-10 bg-muted/50 rounded-md animate-pulse flex-1" />
+                ) : appsError ? (
+                  <div className="h-10 bg-destructive/10 rounded-md flex items-center justify-center flex-1">
+                    <span className="text-xs text-destructive">Failed to load apps</span>
+                  </div>
+                ) : apps.length === 0 ? (
+                  <div className="h-10 bg-muted/50 rounded-md flex items-center justify-center flex-1">
+                    <span className="text-xs text-muted-foreground">No apps found</span>
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    <Select value={currentAppId || ""} onValueChange={handleAppSwitch}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select an app">
+                          {currentApp && (
+                            <span className="font-medium">{currentApp.name}</span>
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {apps.map((app: any) => (
+                          <SelectItem key={app.id} value={app.id}>
+                            {app.name}
+                          </SelectItem>
+                        ))}
+                        <div className="border-t border-border mt-1.5 pt-1.5">
+                          <div 
+                            className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => setNewAppDialogOpen(true)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            <span>Add new app</span>
+                          </div>
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Small + button visible next to selector (and when empty/error) */}
+                <Button
+                  variant="ghost"
+                  className="w-9 h-9 p-0 flex items-center justify-center"
+                  onClick={() => setNewAppDialogOpen(true)}
+                  aria-label="Add new app"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </SidebarHeader>
           
