@@ -1382,7 +1382,7 @@ function NavigationBar({ openLogin, openSignup }: NavigationBarProps) {
               </Button>
             </a>
           </a>
-          <a href="https://www.npmjs.com/package/nova-react-sdk" className="inline-block" aria-label="SDK docs">
+          <a href="/docs/react-sdk/intro" className="inline-block" aria-label="SDK docs">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
               SDK
             </Button>
