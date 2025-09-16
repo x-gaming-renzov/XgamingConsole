@@ -176,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'Missing Authorization header (SDK API key required)' });
       }
 
-      const response = await callNovaBackend<any>('/api/v1/feature-flags/sync-nova-objects', {
+      const response = await callNovaBackend<any>('/api/v1/feature-flags/sync-nova-objects/', {
         method: 'POST',
         body: JSON.stringify(req.body),
         headers: {
