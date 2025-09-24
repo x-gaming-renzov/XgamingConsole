@@ -1376,17 +1376,15 @@ function NavigationBar({ openLogin, openSignup }: NavigationBarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
         <div className="flex items-center space-x-4">
           <a href="/docs" className="inline-block" aria-label="Documentation">
-            <a href="/docs" className="inline-block" aria-label="Documentation">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Documentation
-              </Button>
-            </a>
+            <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+              Documentation
+            </Button>
           </a>
-          <a href="/docs/react-sdk/intro" className="inline-block" aria-label="SDK docs">
+          {/* <a href="/docs/react-sdk/intro" className="inline-block" aria-label="SDK docs">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
               SDK
             </Button>
-          </a>
+          </a> */}
           {/* Experiment Compass & LiveOps buttons (donor features) */}
           <Link href="/experiment-compass">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground" data-testid="button-experiment-compass">

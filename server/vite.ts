@@ -68,27 +68,29 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  // The client build (vite) outputs to <repoRoot>/dist/public per vite.config.ts
+  // dist/public contains assets & index.html; we want to serve that as web root.
+  const distPath = path.resolve(import.meta.dirname, '..', 'dist', 'public');
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the client build directory: ${distPath}. Run 'npm run build' before starting in production mode.`,
     );
   }
 
+  // Serve client assets first (they should not shadow /docs because /docs has its own mount below)
   app.use(express.static(distPath));
 
-  // Serve Docusaurus docs if built
+  // Serve Docusaurus docs if built (docs-site/build) at /docs
   const docsPath = path.resolve(import.meta.dirname, '..', 'docs-site', 'build');
   if (fs.existsSync(docsPath)) {
-    // Serve static files for docs
     app.use('/docs', express.static(docsPath));
-    // Serve index.html for any /docs path (with or without trailing slash)
     app.get(['/docs', '/docs/*'], (_req, res) => {
       res.sendFile(path.resolve(docsPath, 'index.html'));
     });
   }
-  // fall through to index.html if the file doesn't exist
+
+  // SPA fallback for anything else
   app.use('*', (_req, res) => {
     res.sendFile(path.resolve(distPath, 'index.html'));
   });

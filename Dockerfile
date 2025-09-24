@@ -10,25 +10,25 @@ RUN apk add --no-cache libc6-compat
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies)
+# Install root dependencies (includes dev deps needed for build)
 RUN npm ci
 
 # Copy source code
 COPY . .
-# Build the Docusaurus docs
+# Build the Docusaurus docs (install its own deps then build)
 RUN cd docs-site \
-	&& npm ci \
-	&& npm run build \
-	&& cd ..
+  && npm ci \
+  && npm run build \
+  && cd ..
 
 # Build the main application
 RUN npm run build
 
-# Expose port 3000 (as configured in server/index.ts)
+# Expose port 3000 (server listens on 3000 by default)
 EXPOSE 3000
 
-# Set environment variables - KEEP AS DEVELOPMENT
-ENV NODE_ENV=development
+# Production mode
+ENV NODE_ENV=production
 
-# Start the application
-CMD ["npm", "run", "dev"]
+# Start the production server
+CMD ["npm", "start"]
