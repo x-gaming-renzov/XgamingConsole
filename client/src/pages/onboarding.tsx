@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+// Embedded YouTube walkthrough (video ID 7iB4n5WD2Qw) also used in sample-try page.
+// Replace the ID in both places if the demo video changes.
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth, updateUserAndRoute } from "@/lib/auth";
@@ -12,6 +15,8 @@ export default function OnboardingPage() {
   const { toast } = useToast();
   const { user, token } = useAuth();
   const [attemptedCreate, setAttemptedCreate] = useState(false);
+  const [launchReady, setLaunchReady] = useState(false);
+  const [pendingTokens, setPendingTokens] = useState<null | { access_token: string; refresh_token: string; app_id: string }>(null);
 
   const createAppMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
@@ -23,10 +28,11 @@ export default function OnboardingPage() {
         title: "App created!",
         description: "Your app has been created successfully. Welcome to Nova!",
       });
-  setAttemptedCreate(true);
+      setAttemptedCreate(true);
       // Update user state and tokens - new app creation returns new tokens with app_id
       if (user) {
-        const updatedUser = { ...user, has_apps: true };
+        // We intentionally DO NOT set has_apps=true yet to avoid auto-routing. Will set on launch button click.
+        const updatedUser = { ...user, has_apps: false };
         const newTokens = {
           access_token: data.access_token,
           refresh_token: data.refresh_token
@@ -64,8 +70,10 @@ export default function OnboardingPage() {
           console.error('Error syncing sample data:', err);
         }
 
-        // Finally update user and perform routing
-        await updateUserAndRoute(updatedUser, newTokens, data.app.id);
+        // Store tokens & app id for later finalization when user clicks the launch button
+        setPendingTokens({ access_token: newTokens.access_token, refresh_token: newTokens.refresh_token, app_id: data.app.id });
+        // Mark UI ready for manual launch
+        setLaunchReady(true);
       }
     },
     onError: (error) => {
@@ -103,11 +111,28 @@ export default function OnboardingPage() {
     }
   }, [user, createAppMutation, attemptedCreate]);
 
-  // Redirect if user already has apps
-  if (user?.has_apps) {
-    setLocation("/console");
-    return null;
-  }
+  // If user already has apps (e.g. navigated here manually) allow immediate launch
+  useEffect(() => {
+    if (user?.has_apps) {
+      setLaunchReady(true);
+    }
+  }, [user]);
+
+  const handleLaunch = async () => {
+    if (!user) return;
+    // If user already has apps just navigate
+    if (user.has_apps) {
+      setLocation('/console');
+      return;
+    }
+    if (pendingTokens) {
+      const updatedUser = { ...user, has_apps: true } as typeof user;
+      await updateUserAndRoute(updatedUser, { access_token: pendingTokens.access_token, refresh_token: pendingTokens.refresh_token }, pendingTokens.app_id);
+    } else {
+      // Fallback: just navigate
+      setLocation('/console');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -125,13 +150,36 @@ export default function OnboardingPage() {
             </div>
             <p className="text-muted-foreground">
               {createAppMutation.status === 'pending'
-                ? "Creating your sample app..." 
-                : createAppMutation.isError 
+                ? "Creating your sample app..."
+                : createAppMutation.isError
                   ? "Something went wrong. Please try again."
-                  : "Almost ready!"
+                  : launchReady
+                    ? "Sample app is ready!"
+                    : "Almost ready!"
               }
             </p>
-      {createAppMutation.isError && (
+            {/* Quick embedded walkthrough while user waits */}
+            <div className="space-y-2 pt-2">
+              <div className="aspect-video w-full rounded-md overflow-hidden border border-border bg-black">
+                <iframe
+                  className="w-full h-full"
+                  src="https://www.youtube.com/embed/7iB4n5WD2Qw"
+                  title="Sample App Walkthrough"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+              <a
+                href="https://www.youtube.com/watch?v=7iB4n5WD2Qw"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 hover:underline"
+              >
+                Watch on YouTube ↗
+              </a>
+            </div>
+            {createAppMutation.isError && (
               <button 
                 onClick={createSampleApp}
                 className="text-sm text-blue-400 hover:text-blue-300 underline"
@@ -139,6 +187,18 @@ export default function OnboardingPage() {
                 Retry
               </button>
             )}
+            <div className="pt-2">
+              {(!launchReady || createAppMutation.status === 'pending') && !createAppMutation.isError && (
+                <Button disabled variant="secondary" className="w-full justify-center">
+                  Setting things up...
+                </Button>
+              )}
+              {launchReady && !createAppMutation.isError && (
+                <Button onClick={handleLaunch} className="w-full justify-center">
+                  🚀 Take me to Nova
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

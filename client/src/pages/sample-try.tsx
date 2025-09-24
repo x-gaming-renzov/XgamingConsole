@@ -82,6 +82,29 @@ export default function SampleTryPage() {
               </ol>
             </div>
 
+            {/* Demo / explainer video (YouTube) - replace ID if video changes */}
+            <div className="pt-2 space-y-2">
+              <p className="text-sm font-medium">Watch a quick walkthrough:</p>
+              <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-black">
+                <iframe
+                  className="w-full h-full"
+                  src="https://www.youtube.com/embed/7iB4n5WD2Qw"
+                  title="Sample App Walkthrough"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+              <a
+                href="https://www.youtube.com/watch?v=7iB4n5WD2Qw"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-500 hover:underline"
+              >
+                Open on YouTube
+              </a>
+            </div>
+
             <div className="pt-2">
               {loading && <p className="text-muted-foreground">Fetching SDK key...</p>}
               {error && <p className="text-destructive">{error}</p>}
