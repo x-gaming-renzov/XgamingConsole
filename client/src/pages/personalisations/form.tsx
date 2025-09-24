@@ -413,7 +413,18 @@ export default function PersonalisationForm({
         return !featureVariant || !featureVariant.name?.trim();
       });
       
-      return missingFeatureVariants.length > 0;
+      if (missingFeatureVariants.length > 0) return true;
+
+      // NEW: Require every keys_config key to have a value (value can be 0/false, but not undefined)
+      const missingConfigValue = objects.some((obj: any) => {
+        if (!selectedObjects.includes(obj.pid)) return false;
+        const featureVariant = variant.feature_variants[obj.pid];
+        if (!featureVariant) return true; // Shouldn't happen if name check passed, but be safe
+        const keysCfg = obj.feature_flag?.keys_config || {}; // structure from API
+        return Object.keys(keysCfg).some(k => featureVariant.config?.[k] === undefined);
+      });
+
+      return missingConfigValue;
     });
     
     return invalidVariants.length === 0;
@@ -1073,51 +1084,60 @@ export default function PersonalisationForm({
                                             {config.description && (
                                               <p className="text-xs text-muted-foreground">{config.description}</p>
                                             )}
-                                            {config.type === 'boolean' ? (
-                                              <Select
-                                                value={variant.feature_variants[objectId]?.config?.[key]?.toString() || ''}
-                                                onValueChange={(value) => {
-                                                  const boolValue = value === 'true';
-                                                  handleFeatureVariantConfigChange(variantIndex, objectId, key, boolValue);
-                                                }}
-                                                disabled={isSubmitting}
-                                              >
-                                                <SelectTrigger className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm">
-                                                  <SelectValue placeholder={`Default: ${String(config.default)}`} />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="true">True</SelectItem>
-                                                  <SelectItem value="false">False</SelectItem>
-                                                </SelectContent>
-                                              </Select>
-                                            ) : (
-                                              <Input
-                                                type={config.type === 'number' ? 'number' : 'text'}
-                                                placeholder={`Default: ${String(config.default)}`}
-                                                value={
-                                                  variant.feature_variants[objectId]?.config?.[key] ?? ''
-                                                }
-                                                onChange={(e) => {
-                                                  const raw = e.target.value;
-                                                  if (config.type === 'number') {
-                                                    if (raw === '') {
-                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                            {(() => {
+                                              const currentVal = variant.feature_variants[objectId]?.config?.[key];
+                                              const missing = currentVal === undefined;
+                                              if (config.type === 'boolean') {
+                                                return (
+                                                  <Select
+                                                    value={currentVal === undefined ? '' : currentVal.toString()}
+                                                    onValueChange={(value) => {
+                                                      if (value === '') {
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                                      } else {
+                                                        const boolValue = value === 'true';
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, boolValue);
+                                                      }
+                                                    }}
+                                                    disabled={isSubmitting}
+                                                  >
+                                                    <SelectTrigger className={`bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-sm ${missing ? 'border-red-400 dark:border-red-500' : 'border-white/20'}`}>
+                                                      <SelectValue placeholder={`Default: ${String(config.default)}`} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="true">True</SelectItem>
+                                                      <SelectItem value="false">False</SelectItem>
+                                                    </SelectContent>
+                                                  </Select>
+                                                );
+                                              }
+                                              return (
+                                                <Input
+                                                  type={config.type === 'number' ? 'number' : 'text'}
+                                                  placeholder={`Default: ${String(config.default)}`}
+                                                  value={currentVal ?? ''}
+                                                  onChange={(e) => {
+                                                    const raw = e.target.value;
+                                                    if (config.type === 'number') {
+                                                      if (raw === '') {
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                                      } else {
+                                                        const num = Number(raw);
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, isNaN(num) ? undefined : num);
+                                                      }
                                                     } else {
-                                                      const num = Number(raw);
-                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, isNaN(num) ? undefined : num);
+                                                      if (raw === '') {
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                                      } else {
+                                                        handleFeatureVariantConfigChange(variantIndex, objectId, key, raw);
+                                                      }
                                                     }
-                                                  } else {
-                                                    if (raw === '') {
-                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
-                                                    } else {
-                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, raw);
-                                                    }
-                                                  }
-                                                }}
-                                                className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
-                                                disabled={isSubmitting}
-                                              />
-                                            )}
+                                                  }}
+                                                  className={`bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm text-sm ${missing ? 'border border-red-400 dark:border-red-500' : 'border border-white/20'}`}
+                                                  disabled={isSubmitting}
+                                                />
+                                              );
+                                            })()}
                                           </div>
                                         ))}
                                       </div>
