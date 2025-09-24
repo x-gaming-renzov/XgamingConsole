@@ -368,21 +368,30 @@ export default function PersonalisationForm({
   };
 
   const handleFeatureVariantConfigChange = (variantIndex: number, objectId: string, key: string, value: any) => {
-    setCreatedVariants(prev => prev.map((variant, i) => 
-      i === variantIndex ? {
+    // If value is undefined or an empty string, we remove the key from the config entirely
+    setCreatedVariants(prev => prev.map((variant, i) => {
+      if (i !== variantIndex) return variant;
+
+      const existingFeatureVariant = variant.feature_variants[objectId] || { name: '', config: {} };
+      const existingConfig = { ...(existingFeatureVariant.config || {}) };
+
+      if (value === undefined || value === '') {
+        delete existingConfig[key];
+      } else {
+        existingConfig[key] = value;
+      }
+
+      return {
         ...variant,
         feature_variants: {
           ...variant.feature_variants,
           [objectId]: {
-            ...variant.feature_variants[objectId],
-            config: {
-              ...variant.feature_variants[objectId]?.config,
-              [key]: value
-            }
+            ...existingFeatureVariant,
+            config: existingConfig
           }
         }
-      } : variant
-    ));
+      };
+    }));
   };
 
   const validateStep1 = () => {
@@ -1085,12 +1094,25 @@ export default function PersonalisationForm({
                                               <Input
                                                 type={config.type === 'number' ? 'number' : 'text'}
                                                 placeholder={`Default: ${String(config.default)}`}
-                                                value={variant.feature_variants[objectId]?.config?.[key] || ''}
+                                                value={
+                                                  variant.feature_variants[objectId]?.config?.[key] ?? ''
+                                                }
                                                 onChange={(e) => {
-                                                  const value = config.type === 'number' ? 
-                                                    Number(e.target.value) : 
-                                                    e.target.value;
-                                                  handleFeatureVariantConfigChange(variantIndex, objectId, key, value);
+                                                  const raw = e.target.value;
+                                                  if (config.type === 'number') {
+                                                    if (raw === '') {
+                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                                    } else {
+                                                      const num = Number(raw);
+                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, isNaN(num) ? undefined : num);
+                                                    }
+                                                  } else {
+                                                    if (raw === '') {
+                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, undefined);
+                                                    } else {
+                                                      handleFeatureVariantConfigChange(variantIndex, objectId, key, raw);
+                                                    }
+                                                  }
                                                 }}
                                                 className="bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm border-white/20 text-sm"
                                                 disabled={isSubmitting}
