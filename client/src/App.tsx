@@ -28,6 +28,7 @@ import Signup from "@/pages/signup";
 import ExperimentCompass from "@/pages/experiment-compass";
 import ExperimentCompassDeepDive from "@/pages/experiment-compass-deep-dive";
 import LiveOpsRefinery from "@/pages/liveops-refinery";
+import SampleTryPage from "@/pages/sample-try";
 
 import NotFound from "@/pages/not-found";
 import Personalisations from "./pages/personalisations";
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/personal-settings" component={PersonalSettings} />
       <Route path="/project-settings" component={ProjectSettings} />
+  <Route path="/sample-try" component={SampleTryPage} />
       <Route path="/insights" component={() => { window.location.href = "/dashboard"; return null; }} />
       <Route component={NotFound} />
     </Switch>

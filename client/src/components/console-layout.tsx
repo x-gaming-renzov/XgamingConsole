@@ -279,6 +279,24 @@ export default function ConsoleLayout({ children }: ConsoleLayoutProps) {
                 </Button>
               </div> */}
             </div>
+            {/* Sample App Try It CTA (only for sample apps) */}
+            {/* Heuristic: treat any app whose name includes "sample app" (case-insensitive) as a sample app */}
+            {currentApp?.name && /sample app/i.test(currentApp.name) && (
+              <div className="px-4 pb-4">
+                <Link href="/sample-try">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-3 pl-6 mb-2 border-dashed border-green-400/50 hover:border-green-400 hover:bg-green-500/10 text-green-400"
+                  >
+                    <Sparkles className="w-4 h-4 mr-3" />
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium text-sm">Try It</span>
+                      <span className="text-xs opacity-75">Open sample game</span>
+                    </div>
+                  </Button>
+                </Link>
+              </div>
+            )}
 
             <div className="h-px border-t border-border ml-4" />
 
