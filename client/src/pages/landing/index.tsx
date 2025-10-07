@@ -121,7 +121,11 @@ function SectionBadge({
 }
 
 // Interactive Layered Hero Section
-function HeroSection() {
+interface HeroSectionProps {
+  onPrimaryCta: () => void;
+}
+
+function HeroSection({ onPrimaryCta }: HeroSectionProps) {
   return (
     <section
       className="relative min-h-screen max-h-[1200px] bg-gradient-to-br from-[#0B0A12] via-[#14102A] to-[#1C1338] py-8 sm:py-12 md:py-16 lg:py-20 xl:py-24 2xl:py-28 overflow-hidden flex items-center mt-16 sm:mt-20"
@@ -277,26 +281,22 @@ function HeroSection() {
           transition={{ duration: 0.8, delay: 1.4 }}
         >
           {/* Primary CTA */}
-          <a
-            href="https://calendly.com/xgaming/45-minute-meeting"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            className={`${styles.landingVisibleButton} ${styles.landingCtaGlow} px-6 sm:px-7 md:px-9 lg:px-11 xl:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-white text-base sm:text-lg md:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105`}
+            data-testid="button-hero-cta"
+            onClick={onPrimaryCta}
+            type="button"
           >
-            <Button
-              className={`${styles.landingVisibleButton} ${styles.landingCtaGlow} px-6 sm:px-7 md:px-9 lg:px-11 xl:px-12 py-3 sm:py-4 md:py-5 lg:py-6 rounded-full text-white text-base sm:text-lg md:text-xl font-bold group hover:shadow-2xl hover:shadow-purple-500/25 transform transition-all duration-300 hover:scale-105`}
-              data-testid="button-hero-cta"
-            >
-              <Rocket
-                className="mr-2 sm:mr-3 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300"
-                style={{
-                  width: "clamp(20px, 1.2em, 28px)",
-                  height: "clamp(20px, 1.2em, 28px)",
-                  animation: `${styles.landingSubtlePulse} 3s ease-in-out infinite`,
-                }}
-              />
-              Unlock Your Game's Potential
-            </Button>
-          </a>
+            <Rocket
+              className="mr-2 sm:mr-3 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300"
+              style={{
+                width: "clamp(20px, 1.2em, 28px)",
+                height: "clamp(20px, 1.2em, 28px)",
+                animation: `${styles.landingSubtlePulse} 3s ease-in-out infinite`,
+              }}
+            />
+            Unlock Your Game's Potential
+          </Button>
 
           {/* Secondary Action */}
           <button
@@ -1416,6 +1416,19 @@ function NavigationBar({ openLogin, openSignup }: NavigationBarProps) {
           >
             Get Started
           </Button>
+          <Button
+            asChild
+            className="bg-indigo-500 text-white hover:bg-indigo-400 shadow-sm"
+            data-testid="button-book-call"
+          >
+            <a
+              href="https://calendly.com/xgaming/45-minute-meeting"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Book a Call
+            </a>
+          </Button>
         </div>
       </div>
     </nav>
@@ -1433,7 +1446,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       <NavigationBar openLogin={openLogin} openSignup={openSignup} />
-      <HeroSection />
+      <HeroSection onPrimaryCta={openSignup} />
       <HowItWorksSection />
       <ProblemSection />
       <PlatformCapabilitiesSection />
