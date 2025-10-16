@@ -748,6 +748,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Playground routes (no auth required, uses dedicated playground token)
+  app.post("/api/playground/session", async (req, res) => {
+    try {
+      const session = await callNovaBackend<any>(
+        `/api/v1/playground/session`,
+        {
+          method: "POST",
+          body: JSON.stringify(req.body || {}),
+        }
+      );
+
+      res.json(session);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to create playground session");
+    }
+  });
+
+  function getPlaygroundAuthorizationHeader(req: any): string | undefined {
+    const authHeader = req.headers['authorization'] ?? req.headers['Authorization'];
+    if (!authHeader) return undefined;
+    return Array.isArray(authHeader) ? authHeader[0] : authHeader;
+  }
+
+  app.get("/api/playground/personalisation", async (req, res) => {
+    try {
+      const authHeader = getPlaygroundAuthorizationHeader(req);
+      if (!authHeader) {
+        return res.status(401).json({ message: "Playground token required" });
+      }
+
+      const personalisation = await callNovaBackend<any>(
+        `/api/v1/playground/personalisation`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': authHeader,
+          },
+        }
+      );
+
+      res.json(personalisation);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to fetch playground personalisation");
+    }
+  });
+
+  app.patch("/api/playground/personalisation", async (req, res) => {
+    try {
+      const authHeader = getPlaygroundAuthorizationHeader(req);
+      if (!authHeader) {
+        return res.status(401).json({ message: "Playground token required" });
+      }
+
+      const updatedPersonalisation = await callNovaBackend<any>(
+        `/api/v1/playground/personalisation`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(req.body || {}),
+          headers: {
+            'Authorization': authHeader,
+          },
+        }
+      );
+
+      res.json(updatedPersonalisation);
+    } catch (error) {
+      handleBackendError(error, res, "Failed to update playground personalisation");
+    }
+  });
+
   // Analytics routes
   // app.get("/api/analytics/dashboard", authenticateToken, async (req, res) => {
   //   try {
