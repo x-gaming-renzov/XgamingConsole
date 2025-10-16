@@ -134,8 +134,12 @@ const handleAuthRouting = (user: NovaUser | null, isAuthenticated: boolean, forc
       }
     }
   } else {
-    // User is not authenticated, go to landing (unless already there or on signup)
-    if (currentPath !== '/' && currentPath !== '/signup') {
+    const publicPaths = ['/', '/signup', '/playground'];
+
+    const isPublicPath = publicPaths.includes(currentPath);
+
+    // User is not authenticated, go to landing (unless already on a public route)
+    if (!isPublicPath) {
       window.location.href = '/';
     }
   }
