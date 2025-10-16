@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Loader2, RefreshCw, Play, Shield, Sparkles, Info } from "lucide-react";
+import { Loader2, RefreshCw, Play, Shield, Sparkles, Info, StickyNote, Lightbulb, Megaphone, Flame } from "lucide-react";
 
 interface PlaygroundSessionResponse {
   session_id: string;
@@ -63,6 +64,52 @@ interface PlaygroundFeatureVariant {
 }
 
 type ConfigType = "number" | "boolean" | "string";
+
+type StepNoteProps = {
+  step: string;
+  title: string;
+  description: string;
+};
+
+function StepNote({ step, title, description }: StepNoteProps) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary-foreground">
+      <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
+      <div className="flex items-start gap-3 pl-3">
+        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-primary/20 text-[10px] font-semibold uppercase tracking-wide text-primary">
+          {step}
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary">
+            <StickyNote className="h-4 w-4" />
+            <p className="font-medium">{title}</p>
+          </div>
+          <p className="text-xs text-primary/80">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type NoteStyleSampleProps = {
+  label: string;
+  description: string;
+  children: ReactNode;
+};
+
+function NoteStyleSample({ label, description, children }: NoteStyleSampleProps) {
+  return (
+    <Card className="border-border/40 bg-card/80">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
 
 const GAME_BASE_URL = "https://vampiresurvivor.pages.dev";
 
@@ -195,11 +242,11 @@ export default function PlaygroundPage() {
   const gameUrl = useMemo(() => {
     if (!session?.sdk_key) return null;
     const url = new URL(GAME_BASE_URL);
-    url.searchParams.set("sdkkey", session.sdk_key);
+    // url.searchParams.set("sdkkey", session.sdk_key);
     if (playgroundToken) {
-      url.searchParams.set("playgroundToken", playgroundToken.replace(/^Bearer\s+/i, ""));
+      url.searchParams.set("sdkkey", playgroundToken.replace(/^Bearer\s+/i, ""));
     }
-    url.searchParams.set("session", session.session_id);
+    // url.searchParams.set("session", session.session_id);
     return url.toString();
   }, [session, playgroundToken]);
 
@@ -296,8 +343,8 @@ export default function PlaygroundPage() {
 
   const renderFeatureVariant = (variant: PlaygroundExperienceVariant) => {
     return variant.experience_variant.feature_variants.map((featureVariant) => (
-      <Card key={`${variant.pid}-${featureVariant.pid}`} className="bg-muted/30 border-border/40">
-        <CardHeader className="space-y-2">
+      <Card key={`${variant.pid}-${featureVariant.pid}`} className="h-full border-border/30 bg-muted/20 shadow-none">
+        <CardHeader className="space-y-2 p-4 pb-2">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base font-semibold">
@@ -310,7 +357,7 @@ export default function PlaygroundPage() {
             <Badge variant="outline">Variant</Badge>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 pt-2">
           {Object.entries(featureVariant.config || {}).map(([configKey, originalValue]) => {
             const mapKey = `${featureVariant.pid}:${configKey}`;
             const detectedType = initialConfigTypesRef.current[mapKey] ?? resolveConfigType(originalValue);
@@ -329,6 +376,7 @@ export default function PlaygroundPage() {
                       type="button"
                       variant={value === "true" ? "default" : "outline"}
                       size="sm"
+                      className="h-9 px-3 text-xs"
                       onClick={() => handleBooleanChange(featureVariant.pid, configKey, "true")}
                     >
                       True
@@ -337,6 +385,7 @@ export default function PlaygroundPage() {
                       type="button"
                       variant={value === "false" ? "default" : "outline"}
                       size="sm"
+                      className="h-9 px-3 text-xs"
                       onClick={() => handleBooleanChange(featureVariant.pid, configKey, "false")}
                     >
                       False
@@ -347,6 +396,7 @@ export default function PlaygroundPage() {
                     type={detectedType === "number" ? "number" : "text"}
                     value={value}
                     onChange={(event) => handleConfigChange(featureVariant.pid, configKey, event.target.value)}
+                    className="h-9 text-sm"
                   />
                 )}
               </div>
@@ -439,17 +489,6 @@ export default function PlaygroundPage() {
                 You&apos;re in a sandbox environment. Tweak the feature values below, optionally add a country condition, and then launch the sample game to see your adjustments live—no signup required.
               </p>
             </div>
-            <div className="space-y-2 max-w-md">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Target country</Label>
-              <Input
-                placeholder="e.g. United States"
-                value={countryDraft}
-                onChange={(event) => setCountryDraft(event.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave blank to remove the country rule. Hidden session targeting stays in place automatically.
-              </p>
-            </div>
           </CardContent>
         </Card>
 
@@ -466,7 +505,13 @@ export default function PlaygroundPage() {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
+            <StepNote
+              step="1"
+              title="Change the personalisation values"
+              description="Adjust the feature inputs for each experience variant as needed. All changes will be staged until you apply them."
+            />
+
             {personalisation.experience_variants.map((variant, index) => (
               <Card key={`${variant.pid}-${index}`} className="border-border/40 bg-card">
                 <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -486,7 +531,7 @@ export default function PlaygroundPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     {renderFeatureVariant(variant)}
                   </div>
                 </CardContent>
@@ -502,43 +547,90 @@ export default function PlaygroundPage() {
           </div>
         </section>
 
+        <section className="space-y-4">
+          <StepNote
+            step="2"
+            title="Optional: set a country condition"
+            description="Specify a target country if you only want this personalisation to deploy to players in that location. Leave it blank to keep the rule global."
+          />
+          <Card className="border-border/40 bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Targeting rules</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Country is the only editable rule for this playground session. Other targeting logic stays locked in.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 max-w-lg">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Target country</Label>
+              <Input
+                placeholder="e.g. United States"
+                value={countryDraft}
+                onChange={(event) => setCountryDraft(event.target.value)}
+                className="h-9 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Clear the field to remove the country rule. Hidden session targeting stays in place automatically.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+
         <Separator className="border-border/40" />
 
-        <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="default"
-              size="lg"
-              onClick={handleSave}
-              disabled={!isReady || saving}
-            >
-              {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Save playground changes
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              onClick={() => {
-                if (!gameUrl) return;
-                window.open(gameUrl, "_blank", "noopener,noreferrer");
-                toast({ description: "Launching sample game in a new tab." });
-              }}
-              disabled={!gameUrl}
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Play the sample game
-            </Button>
+        <div className="space-y-6 py-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-3">
+              <StepNote
+                step="3"
+                title="Apply the personalisation"
+                description="Click the apply button to push these staged variant values live to the playground session."
+              />
+              <Button
+                type="button"
+                variant="default"
+                size="lg"
+                onClick={handleSave}
+                disabled={!isReady || saving}
+                className="w-full md:w-auto"
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Apply personalisation
+              </Button>
+            </div>
+            <div className="space-y-3">
+              <StepNote
+                step="4"
+                title="Open the sample game"
+                description="Launch or revisit the demo game to see the new values. Pro tip: if it was already open, hop back to the main menu to pull in the latest changes."
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={() => {
+                  if (!gameUrl) return;
+                  window.open(gameUrl, "_blank", "noopener,noreferrer");
+                  toast({ description: "Launching sample game in a new tab." });
+                }}
+                disabled={!gameUrl}
+                className="w-full md:w-auto"
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Open the sample game
+              </Button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground max-w-md">
+          <p className="text-xs text-muted-foreground max-w-2xl">
             Saving keeps the hidden session targeting intact. The playground session token will be sent to the game automatically so you can see your tweaks immediately.
           </p>
         </div>
+
+        <Separator className="border-border/40" />
+
       </main>
     </div>
   );
