@@ -1380,6 +1380,16 @@ function NavigationBar({ openLogin, openSignup }: NavigationBarProps) {
               Documentation
             </Button>
           </a>
+          <Link href="/playground">
+            <Button
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+              data-testid="button-playground"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Playground</span>
+            </Button>
+          </Link>
           {/* <a href="/docs/react-sdk/intro" className="inline-block" aria-label="SDK docs">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
               SDK
